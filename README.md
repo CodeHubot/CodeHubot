@@ -132,7 +132,6 @@
 - 🔬 **分享实验**：分享你设计的教学实验
 - 🐛 **报告问题**：提交 [Issues](https://github.com/codehubot/codehubot/issues)
 - 💻 **贡献代码**：提交 Pull Request
-- 💬 **交流讨论**：加入以下QQ交流群
 
 ### 贡献者
 感谢所有为本项目做出贡献的教师、学生和开发者！
