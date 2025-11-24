@@ -7,7 +7,69 @@
 -- 
 -- 表命名规范:
 --   - 所有表名统一使用 aiot_ 前缀，便于区分不同业务模块的表
---   - 后续智能体相关表也应遵循此规范，如: aiot_agents, aiot_agent_conversations 等
+--   - 使用下划线分隔单词，表名使用复数形式（如 bases, workflows, agents）
+--   - 相关表使用模块前缀，便于识别和管理
+-- 
+-- 各业务模块表命名示例:
+-- 
+-- 1. 核心业务表（已实现）:
+--    - aiot_users                    # 用户表
+--    - aiot_products                 # 产品表
+--    - aiot_devices                 # 设备表
+--    - aiot_firmware_versions       # 固件版本表
+--    - aiot_device_binding_history  # 设备绑定历史表
+--    - aiot_interaction_logs         # 交互日志表
+--    - aiot_interaction_stats_hourly # 交互统计表（每小时）
+--    - aiot_interaction_stats_daily  # 交互统计表（每日）
+--    - aiot_device_product_history   # 设备产品切换历史表
+-- 
+-- 2. 智能体（Agent）相关表:
+--    - aiot_agents                   # 智能体表
+--    - aiot_agent_configs           # 智能体配置表
+--    - aiot_agent_conversations      # 智能体对话表
+--    - aiot_agent_messages           # 智能体消息表
+--    - aiot_agent_tools              # 智能体工具表
+--    - aiot_agent_tool_executions    # 智能体工具执行记录表
+-- 
+-- 3. 知识库（Knowledge Base）相关表:
+--    - aiot_knowledge_bases          # 知识库表
+--    - aiot_knowledge_documents      # 知识库文档表
+--    - aiot_knowledge_chunks         # 知识库文档分块表
+--    - aiot_knowledge_embeddings     # 知识库向量嵌入表
+--    - aiot_knowledge_tags           # 知识库标签表
+--    - aiot_knowledge_categories     # 知识库分类表
+--    - aiot_knowledge_metadata       # 知识库元数据表
+--    - aiot_knowledge_sources        # 知识库来源表（如文件、URL等）
+-- 
+-- 4. 工作流（Workflow）相关表:
+--    - aiot_workflows                # 工作流定义表
+--    - aiot_workflow_nodes           # 工作流节点表
+--    - aiot_workflow_edges           # 工作流边（连接）表
+--    - aiot_workflow_executions      # 工作流执行记录表
+--    - aiot_workflow_execution_logs  # 工作流执行日志表
+--    - aiot_workflow_templates       # 工作流模板表
+--    - aiot_workflow_triggers        # 工作流触发器表
+--    - aiot_workflow_variables       # 工作流变量表
+-- 
+-- 5. 其他可能的业务模块:
+--    - aiot_notifications            # 通知表
+--    - aiot_notification_templates   # 通知模板表
+--    - aiot_alerts                   # 告警表
+--    - aiot_alert_rules              # 告警规则表
+--    - aiot_dashboards               # 仪表盘表
+--    - aiot_dashboard_widgets        # 仪表盘组件表
+--    - aiot_reports                  # 报表表
+--    - aiot_report_templates         # 报表模板表
+-- 
+-- 命名原则:
+--   1. 统一使用 aiot_ 前缀
+--   2. 使用下划线分隔单词（snake_case）
+--   3. 表名使用复数形式（如 bases, workflows, agents）
+--   4. 相关表使用模块前缀（如 aiot_knowledge_*, aiot_workflow_*, aiot_agent_*）
+--   5. 表名应清晰表达其用途，避免缩写（除非是通用缩写）
+--   6. 历史记录表使用 _history 后缀（如 aiot_device_binding_history）
+--   7. 统计表使用 _stats 前缀或后缀（如 aiot_interaction_stats_hourly）
+--   8. 日志表使用 _logs 后缀（如 aiot_interaction_logs）
 -- 
 -- MySQL 版本要求:
 --   - 最低版本: MySQL 5.7.8+ (需要支持 JSON 数据类型)
