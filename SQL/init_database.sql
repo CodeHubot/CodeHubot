@@ -443,10 +443,10 @@ INSERT INTO `aiot_core_products` (
 );
 
 -- ============================================================================
--- 7. 创建插件表
+-- 7. 创建插件表（AI 扩展功能）
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS `aiot_core_plugins` (
+CREATE TABLE IF NOT EXISTS `aiot_plugins` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '插件名称',
   `description` TEXT COLLATE utf8mb4_unicode_ci COMMENT '插件描述',
@@ -462,13 +462,13 @@ CREATE TABLE IF NOT EXISTS `aiot_core_plugins` (
   KEY `idx_is_active` (`is_active`),
   KEY `idx_is_system` (`is_system`),
   CONSTRAINT `fk_plugin_user` FOREIGN KEY (`user_id`) REFERENCES `aiot_core_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='插件表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI插件表（扩展功能）';
 
 -- ============================================================================
--- 8. 创建智能体表
+-- 8. 创建智能体表（AI 扩展功能）
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS `aiot_core_agents` (
+CREATE TABLE IF NOT EXISTS `aiot_agents` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '智能体名称',
   `description` TEXT COLLATE utf8mb4_unicode_ci COMMENT '智能体描述',
@@ -485,7 +485,7 @@ CREATE TABLE IF NOT EXISTS `aiot_core_agents` (
   KEY `idx_is_active` (`is_active`),
   KEY `idx_is_system` (`is_system`),
   CONSTRAINT `fk_agent_user` FOREIGN KEY (`user_id`) REFERENCES `aiot_core_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='智能体表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI智能体表（扩展功能）';
 
 -- ============================================================================
 -- 10. 恢复外键检查

@@ -7,7 +7,7 @@ class Plugin(Base):
     """
     插件模型 - 存储 OpenAI 格式的插件定义（OpenAPI 3.0.0）
     """
-    __tablename__ = "aiot_core_plugins"
+    __tablename__ = "aiot_plugins"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, comment="插件名称")

@@ -8,7 +8,7 @@ class Agent(Base):
     智能体模型 - 用于创建和管理 AI 智能体
     目前只支持提示词和插件配置
     """
-    __tablename__ = "aiot_core_agents"
+    __tablename__ = "aiot_agents"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False, comment="智能体名称")
