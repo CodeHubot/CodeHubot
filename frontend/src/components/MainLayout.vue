@@ -248,7 +248,11 @@
                     <el-icon><TrendCharts /></el-icon>
                     偏好设置
                   </el-dropdown-item>
-                  <el-dropdown-item divided command="help">
+                  <el-dropdown-item divided command="about">
+                    <el-icon><Info /></el-icon>
+                    关于系统
+                  </el-dropdown-item>
+                  <el-dropdown-item command="help">
                     <el-icon><House /></el-icon>
                     帮助中心
                   </el-dropdown-item>
@@ -280,7 +284,8 @@ import { useUserStore } from '../store/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   House, Monitor, User, ArrowRight, ArrowDown, Setting, SwitchButton,
-  Fold, Expand, Menu, TrendCharts, UserFilled, Plus, List, Box, Collection
+  Fold, Expand, Menu, TrendCharts, UserFilled, Plus, List, Box, Collection,
+  Info
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -542,6 +547,20 @@ const handleCommand = (command) => {
     ElMessage.info('安全设置功能开发中...')
   } else if (command === 'preferences') {
     ElMessage.info('偏好设置功能开发中...')
+  } else if (command === 'about') {
+    const appTitle = import.meta.env.VITE_APP_TITLE || '物联网设备服务系统'
+    const appVersion = import.meta.env.VITE_APP_VERSION || '1.0.0'
+    ElMessageBox.alert(
+      `<div style="text-align: center; padding: 20px;">
+        <h3 style="margin: 0 0 10px 0; color: #409EFF;">${appTitle}</h3>
+        <p style="margin: 0; color: #909399;">版本 ${appVersion}</p>
+      </div>`,
+      '关于系统',
+      {
+        confirmButtonText: '确定',
+        dangerouslyUseHTMLString: true
+      }
+    )
   } else if (command === 'help') {
     ElMessage.info('帮助中心功能开发中...')
   } else if (command === 'logout') {

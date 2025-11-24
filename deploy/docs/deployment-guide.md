@@ -269,15 +269,68 @@ cd /opt/codehubot/frontend
 npm install
 ```
 
-### 2. 配置 API 地址
+### 2. 配置环境变量
 
-检查 `src/api/request.js` 文件，确保 API 基础地址正确：
+```bash
+cd /opt/codehubot/frontend
 
-```javascript
-// 修改为你的后端服务地址
-const baseURL = 'http://your-server-ip:8000/api'
-// 或使用域名
-// const baseURL = 'http://your-domain.com/api'
+# 复制公共环境变量示例文件（可选，所有环境共用）
+cp .env.example .env
+
+# 复制生产环境变量示例文件
+cp .env.production.example .env.production
+
+# 编辑配置文件
+nano .env.production
+# 如果需要修改公共配置，也可以编辑 .env
+nano .env
+```
+
+**环境变量文件说明**：
+- `.env`: 公共配置，所有环境都会加载（可选）
+- `.env.production`: 生产环境特定配置（必需）
+
+根据实际情况修改配置文件中的配置项：
+
+**必须配置的项**（在 `.env.production` 中）：
+- `VITE_API_BASE_URL`: 后端 API 基础地址
+  - **生产环境使用 Nginx 转发 API**，设置为 `/api`（相对路径）
+  - Nginx 会将 `/api` 请求代理到后端服务 `http://127.0.0.1:8000`
+  - 这样前后端使用同一域名，避免跨域问题
+
+**可选配置**：
+- 在 `.env` 中配置公共项（所有环境共用）：
+  - `VITE_APP_TITLE`: 应用标题（用于页面标题和"关于系统"显示）
+  - `VITE_APP_VERSION`: 应用版本（在"关于系统"中显示）
+  - `VITE_API_TIMEOUT`: API 请求超时时间（毫秒，默认 10000）
+- 在 `.env.production` 中配置生产环境特定项：
+  - `VITE_DEBUG_MODE`: 是否启用调试模式（生产环境建议设为 `false`）
+
+**生产环境配置示例**：
+
+`.env.production`:
+```bash
+# 使用 Nginx 反向代理（生产环境标准配置）
+VITE_API_BASE_URL=/api
+VITE_DEBUG_MODE=false
+```
+
+`.env`（可选，公共配置）:
+```bash
+# 应用标题和版本
+VITE_APP_TITLE=CodeHubot 物联网设备管理系统
+VITE_APP_VERSION=1.0.0
+
+# API 请求超时时间（毫秒）
+VITE_API_TIMEOUT=10000
+```
+
+**注意**：
+- Vite 会按优先级加载环境变量：`.env` → `.env.production`（后者会覆盖前者）
+- 如果后端独立部署在不同域名，才需要设置为完整地址（不推荐）：
+```bash
+# 仅当后端独立部署时使用（不推荐）
+# VITE_API_BASE_URL=https://api.your-domain.com
 ```
 
 ### 3. 构建生产版本

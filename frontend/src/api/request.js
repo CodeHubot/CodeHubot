@@ -4,9 +4,13 @@ import { useUserStore } from '../store/user'
 import logger from '../utils/logger'
 
 // 创建axios实例
+// 使用环境变量配置 API 地址，如果没有配置则使用默认值
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+const timeout = import.meta.env.VITE_API_TIMEOUT ? parseInt(import.meta.env.VITE_API_TIMEOUT) : 10000
+
 const request = axios.create({
-  baseURL: '/api',
-  timeout: 10000
+  baseURL,
+  timeout
 })
 
 // 验证token格式
