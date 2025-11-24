@@ -249,7 +249,7 @@
                     偏好设置
                   </el-dropdown-item>
                   <el-dropdown-item divided command="about">
-                    <el-icon><Info /></el-icon>
+                    <el-icon><InfoFilled /></el-icon>
                     关于系统
                   </el-dropdown-item>
                   <el-dropdown-item command="help">
@@ -285,7 +285,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   House, Monitor, User, ArrowRight, ArrowDown, Setting, SwitchButton,
   Fold, Expand, Menu, TrendCharts, UserFilled, Plus, List, Box, Collection,
-  Info
+  InfoFilled
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
