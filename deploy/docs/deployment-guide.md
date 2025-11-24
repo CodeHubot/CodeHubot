@@ -2,7 +2,7 @@
 
 本文档提供 CodeHubot 物联网设备服务系统的完整部署说明，适用于手动部署到服务器环境。
 
-## 目录
+## 📋 目录
 
 1. [环境准备](#环境准备)
 2. [数据库部署](#数据库部署)
@@ -11,26 +11,38 @@
 5. [前端服务部署](#前端服务部署)
 6. [配置服务部署](#配置服务部署)
 7. [插件服务部署](#插件服务部署)
-8. [服务验证](#服务验证)
-9. [常见问题](#常见问题)
 
 ---
 
-## 环境准备
+## 🔧 环境准备
 
+### 系统要求
 
 - **操作系统**: Linux (推荐 Ubuntu 20.04+ 或 CentOS 7+)
 - **Python**: 3.11+
 - **Node.js**: 18+
-- **MySQL**: 5.7.8+ 或 8.0+ (兼容 MySQL 5.7 和 8.0，需要 5.7.8+ 以支持 JSON 数据类型)
+- **MySQL**: 5.7.8+ 或 8.0+ (需要 5.7.8+ 以支持 JSON 数据类型)
 - **Docker**: 20.10+ (用于运行 MQTT 服务)
 - **Docker Compose**: 2.0+ (用于编排容器)
 - **Redis**: 6.0+ (可选，用于缓存)
-- **MQTT Broker**: Mosquitto 2.0+ (通过 Docker 容器部署)
+- **Nginx**: 1.18+ (用于前端部署以及后端服务的反向代理)
 
+### 创建项目目录
 
+```bash
+# 创建项目根目录
+sudo mkdir -p /opt/codehubot
+sudo chown $USER:$USER /opt/codehubot
+cd /opt/codehubot
 
-## 数据库部署
+# 克隆项目（或上传项目文件）
+git clone <your-repo-url> .
+# 或使用 scp/sftp 上传项目文件
+```
+
+---
+
+## 🗄️ 数据库部署
 
 ### 1. 创建数据库和用户
 
@@ -66,9 +78,6 @@ cd /opt/codehubot
 
 # 导入主系统数据库
 mysql -u aiot_user -p aiot_admin < SQL/init_database.sql
-
-# 如果存在演示数据，可以选择性导入
-# mysql -u aiot_user -p aiot_admin < SQL/aiot-demo.sql
 ```
 
 ### 3. 验证数据库
@@ -83,13 +92,14 @@ mysql -u aiot_user -p aiot_admin -e "SHOW TABLES;"
 - products
 - devices
 - device_binding_history
-- firmware
+- firmware_versions
 - interaction_logs
-- device_product_mapping (如果存在)
+- interaction_stats_hourly
+- interaction_stats_daily
 
 ---
 
-## MQTT 服务部署
+## 📡 MQTT 服务部署
 
 MQTT 服务通过 Docker 容器部署，使用项目提供的 Docker Compose 配置。
 
@@ -156,7 +166,7 @@ docker-compose exec mqtt mosquitto_passwd -c /mosquitto/config/passwd mqtt_user
 nano mosquitto.conf
 ```
 
-在 `mosquitto.conf` 中添加：
+在 `mosquitto.conf` 中修改：
 
 ```
 allow_anonymous false
@@ -169,109 +179,25 @@ password_file /mosquitto/config/passwd
 docker-compose restart mqtt
 ```
 
-### 5. 配置开机自启
+**注意**: 如果配置了 MQTT 认证，需要在后端服务的 `.env` 文件中配置 `MQTT_USERNAME` 和 `MQTT_PASSWORD`。
 
-```bash
-# 创建 systemd 服务文件（如果希望 MQTT 容器随系统启动）
-sudo nano /etc/systemd/system/codehubot-mqtt.service
-```
+### 5. 配置开机自启（可选）
 
-添加以下内容：
-
-```ini
-[Unit]
-Description=CodeHubot MQTT Service (Docker)
-Requires=docker.service
-After=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/opt/codehubot/docker
-ExecStart=/usr/local/bin/docker-compose up -d mqtt
-ExecStop=/usr/local/bin/docker-compose stop mqtt
-User=your_username
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**注意**: 将 `your_username` 替换为实际的用户名。
-
-```bash
-# 启用服务
-sudo systemctl daemon-reload
-sudo systemctl enable codehubot-mqtt
-sudo systemctl start codehubot-mqtt
-
-# 查看状态
-sudo systemctl status codehubot-mqtt
-```
-
-### 6. MQTT 常用命令
-
-```bash
-cd /opt/codehubot/docker
-
-# 查看日志
-docker-compose logs -f mqtt
-
-# 重启服务
-docker-compose restart mqtt
-
-# 停止服务
-docker-compose stop mqtt
-
-# 启动服务
-docker-compose start mqtt
-
-# 停止并删除容器（数据会保留在 volumes 中）
-docker-compose down mqtt
-
-# 完全删除（包括数据卷，谨慎使用）
-docker-compose down -v mqtt
-```
-
-### 7. 配置后端服务连接 MQTT
-
-在后端服务的 `.env` 文件中配置 MQTT 连接信息：
-
-```bash
-# 如果 MQTT 允许匿名访问
-MQTT_BROKER_HOST=localhost
-MQTT_BROKER_PORT=1883
-MQTT_USERNAME=
-MQTT_PASSWORD=
-
-# 如果 MQTT 需要认证
-MQTT_BROKER_HOST=localhost
-MQTT_BROKER_PORT=1883
-MQTT_USERNAME=mqtt_user
-MQTT_PASSWORD=your_mqtt_password
-```
+**注意**: 系统服务配置为可选，用户可根据实际情况自行处理。
 
 ---
 
-## 后端服务部署
+## 🚀 后端服务部署
 
-### 1. 创建虚拟环境
+### 1. 准备 Python 环境
 
-```bash
-cd /opt/codehubot/backend
-
-# 创建 Python 虚拟环境
-python3.11 -m venv venv
-
-# 激活虚拟环境
-source venv/bin/activate
-
-# 升级 pip
-pip install --upgrade pip
-```
+**注意**: 请根据实际情况创建和配置 Python 虚拟环境。可以使用 `venv`、`virtualenv`、`conda` 等方式。
 
 ### 2. 安装依赖
 
 ```bash
+cd /opt/codehubot/backend
+
 # 安装 Python 依赖
 pip install -r requirements.txt
 ```
@@ -279,65 +205,44 @@ pip install -r requirements.txt
 ### 3. 配置环境变量
 
 ```bash
-# 创建 .env 文件
-cat > .env << 'EOF'
-# 数据库配置
-DATABASE_URL=mysql+pymysql://aiot_user:your_secure_password@localhost:3306/aiot_admin
+cd /opt/codehubot/backend
 
-# Redis 配置（可选）
-REDIS_URL=redis://localhost:6379
+# 复制环境变量示例文件
+cp env.example .env
 
-# 服务器配置
-SERVER_BASE_URL=http://your-server-ip:8000
-FIRMWARE_BASE_URL=http://your-server-ip:8000
-
-# JWT 配置（必须，至少32个字符）
-SECRET_KEY=your-very-long-secret-key-at-least-32-characters-long
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_MINUTES=45
-
-# MQTT 配置
-MQTT_BROKER_HOST=localhost
-MQTT_BROKER_PORT=1883
-MQTT_USERNAME=your_mqtt_username
-MQTT_PASSWORD=your_mqtt_password
-
-# 邮件服务配置（可选）
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_email_password
-MAIL_FROM=your_email@gmail.com
-MAIL_PORT=587
-MAIL_SERVER=smtp.gmail.com
-MAIL_TLS=true
-MAIL_SSL=false
-
-# 内部 API 密钥（用于服务间调用）
-INTERNAL_API_KEY=your-internal-api-key-change-me
-
-# 环境配置
-ENVIRONMENT=production
-LOG_LEVEL=INFO
-EOF
-
-# 修改 .env 文件中的配置值
+# 编辑配置文件
 nano .env
 ```
 
+根据实际情况修改 `.env` 文件中的配置项：
+
+**必须配置的项**：
+- `DATABASE_URL`: 数据库连接URL，使用上面创建的数据库用户和密码
+- `SECRET_KEY`: JWT密钥，必须至少32个字符
+  - 生成方法：`python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- `MQTT_BROKER_HOST`: MQTT服务器地址，如果使用Docker容器部署，使用 `localhost`
+- `MQTT_USERNAME`: MQTT用户名（如果MQTT允许匿名访问，可以留空）
+- `MQTT_PASSWORD`: MQTT密码（如果MQTT允许匿名访问，可以留空）
+
 **重要配置说明**：
-- `SECRET_KEY`: 必须至少32个字符，用于JWT签名。生成方法：
-  ```bash
-  python -c "import secrets; print(secrets.token_urlsafe(32))"
-  ```
-- `INTERNAL_API_KEY`: 用于插件服务调用后端API，必须与插件服务配置一致
-- `DATABASE_URL`: 使用上面创建的数据库用户和密码
-- `MQTT_BROKER_HOST`: 如果 MQTT 使用 Docker 容器部署，使用 `localhost`；如果允许匿名访问，`MQTT_USERNAME` 和 `MQTT_PASSWORD` 可以留空
+- `SECRET_KEY`: 必须至少32个字符，用于JWT签名
+- `INTERNAL_API_KEY`: 用于插件服务调用后端API，如果配置了插件服务，必须与插件服务的 `BACKEND_API_KEY` 保持一致
+  - 生成方法：`python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- `SERVER_BASE_URL`: 服务器基础URL，用于生成固件下载链接等
+- `ENVIRONMENT`: 运行环境，生产环境请设置为 `production`
+- `LOG_LEVEL`: 日志级别，生产环境建议使用 `INFO`
+
+**可选配置**：
+- `REDIS_URL`: Redis连接URL（如果使用Redis缓存）
+- `FIRMWARE_BASE_URL`: 固件下载基础URL（可选，默认使用SERVER_BASE_URL）
+- `MAIL_*`: 邮件服务配置（如果不需要邮件功能可以不配置）
+- 其他高级配置项通常使用默认值即可
 
 ### 4. 测试运行
 
 ```bash
-# 确保虚拟环境已激活
-source venv/bin/activate
+# 确保虚拟环境已激活（如果使用虚拟环境）
+# source venv/bin/activate
 
 # 测试启动（前台运行）
 python main.py
@@ -347,89 +252,13 @@ python main.py
 
 按 `Ctrl+C` 停止服务。
 
-### 5. 配置系统服务（使用 systemd）
+### 5. 配置系统服务（可选）
 
-```bash
-# 创建 systemd 服务文件
-sudo nano /etc/systemd/system/codehubot-backend.service
-```
-
-添加以下内容：
-
-```ini
-[Unit]
-Description=CodeHubot Backend Service
-After=network.target mysql.service
-
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/codehubot/backend
-Environment="PATH=/opt/codehubot/backend/venv/bin"
-ExecStart=/opt/codehubot/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**注意**: 将 `your_username` 替换为实际的用户名。
-
-```bash
-# 重新加载 systemd
-sudo systemctl daemon-reload
-
-# 启动服务
-sudo systemctl start codehubot-backend
-
-# 设置开机自启
-sudo systemctl enable codehubot-backend
-
-# 查看服务状态
-sudo systemctl status codehubot-backend
-
-# 查看日志
-sudo journalctl -u codehubot-backend -f
-```
-
-### 6. 配置 Nginx 反向代理（可选）
-
-```bash
-sudo nano /etc/nginx/sites-available/codehubot-backend
-```
-
-添加以下配置：
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;  # 修改为你的域名或IP
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-```bash
-# 启用配置
-sudo ln -s /etc/nginx/sites-available/codehubot-backend /etc/nginx/sites-enabled/
-
-# 测试配置
-sudo nginx -t
-
-# 重启 Nginx
-sudo systemctl restart nginx
-```
+**注意**: 系统服务配置为可选，用户可根据实际情况自行处理。可以使用 systemd、supervisor、pm2 等方式管理服务。
 
 ---
 
-## 前端服务部署
+## 🎨 前端服务部署
 
 ### 1. 安装依赖
 
@@ -513,94 +342,53 @@ sudo systemctl restart nginx
 
 ---
 
-## 配置服务部署
+## ⚙️ 配置服务部署
 
 配置服务（config-service）为设备提供配置信息，包括设备UUID、MQTT配置等。
 
-### 1. 创建虚拟环境
+### 1. 准备 Python 环境
+
+**注意**: 请根据实际情况创建和配置 Python 虚拟环境。
+
+### 2. 安装依赖
 
 ```bash
 cd /opt/codehubot/config-service
-
-# 创建 Python 虚拟环境
-python3.11 -m venv venv
-
-# 激活虚拟环境
-source venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
 ```
 
-### 2. 配置环境变量
+### 3. 配置环境变量
 
 ```bash
-# 创建 .env 文件
-cat > .env << 'EOF'
-# 数据库配置（使用主系统的数据库）
-PROVISIONING_DB_URL=mysql+pymysql://aiot_user:your_secure_password@localhost:3306/aiot_device
+cd /opt/codehubot/config-service
 
-# MQTT 配置
-MQTT_BROKER=your-mqtt-server-ip
-MQTT_PORT=1883
-MQTT_USE_SSL=false
+# 复制环境变量示例文件
+cp env.example .env
 
-# API 服务器配置
-API_SERVER=http://your-server-ip:8000
-OTA_SERVER=http://your-server-ip:8000
-
-# 服务配置
-PORT=8001
-
-# 速率限制配置
-RATE_LIMIT_REQUESTS=10
-RATE_LIMIT_WINDOW=60
-
-# 日志配置
-LOG_LEVEL=INFO
-EOF
-
-# 修改配置值
+# 编辑配置文件
 nano .env
 ```
 
-### 3. 配置系统服务
+根据实际情况修改 `.env` 文件中的配置项：
 
-```bash
-sudo nano /etc/systemd/system/codehubot-config.service
-```
+**必须配置的项**：
+- `PROVISIONING_DB_URL`: 数据库连接URL，使用 `aiot_device` 数据库
+- `MQTT_BROKER`: MQTT服务器地址，如果使用Docker容器部署，使用 `localhost`
+- `API_SERVER`: 后端API服务器地址
+- `OTA_SERVER`: OTA固件服务器地址（通常与API_SERVER相同）
 
-添加以下内容：
+**重要配置说明**：
+- `PROVISIONING_DB_URL`: 注意使用 `aiot_device` 数据库，不是 `aiot_admin`
+- `MQTT_BROKER`: 如果MQTT使用Docker容器部署，使用 `localhost`
+- `PORT`: 服务监听端口，默认为 8001
 
-```ini
-[Unit]
-Description=CodeHubot Config Service
-After=network.target mysql.service
+### 4. 配置系统服务（可选）
 
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/codehubot/config-service
-Environment="PATH=/opt/codehubot/config-service/venv/bin"
-ExecStart=/opt/codehubot/config-service/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001
-Restart=always
-RestartSec=10
+**注意**: 系统服务配置为可选，用户可根据实际情况自行处理。
 
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-# 启动服务
-sudo systemctl daemon-reload
-sudo systemctl start codehubot-config
-sudo systemctl enable codehubot-config
-
-# 查看状态
-sudo systemctl status codehubot-config
-```
-
-### 4. 配置 Nginx 反向代理（可选）
+### 5. 配置 Nginx 反向代理（可选）
 
 如果需要通过域名访问，可以配置 Nginx：
 
@@ -620,94 +408,55 @@ server {
 
 ---
 
-## 插件服务部署
+## 🔌 插件服务部署
 
 插件服务（plugin-service）为外部插件（如 Coze、GPT 等）提供设备控制接口。
 
-### 1. 创建虚拟环境
+### 1. 准备 Python 环境
+
+**注意**: 请根据实际情况创建和配置 Python 虚拟环境。
+
+### 2. 安装依赖
 
 ```bash
 cd /opt/codehubot/plugin-service
-
-# 创建 Python 虚拟环境
-python3.11 -m venv venv
-
-# 激活虚拟环境
-source venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
 ```
 
-### 2. 配置环境变量
+### 3. 配置环境变量
 
 ```bash
-# 创建 .env 文件
-cat > .env << 'EOF'
-# 服务配置
-PORT=9000
-HOST=0.0.0.0
-LOG_LEVEL=INFO
-RELOAD=false
+cd /opt/codehubot/plugin-service
 
-# 后端服务配置
-BACKEND_URL=http://localhost:8000
+# 复制环境变量示例文件
+cp env.example .env
 
-# 后端内部 API 密钥（必须与后端 .env 中的 INTERNAL_API_KEY 一致）
-BACKEND_API_KEY=your-internal-api-key-change-me
-
-# 安全配置
-CORS_ENABLED=true
-CORS_ORIGINS=*
-
-# 其他配置
-REQUEST_TIMEOUT=30
-DEBUG_MODE=false
-EOF
-
-# 修改配置值
+# 编辑配置文件
 nano .env
 ```
 
-**重要**: `BACKEND_API_KEY` 必须与后端服务 `.env` 文件中的 `INTERNAL_API_KEY` 完全一致。
+根据实际情况修改 `.env` 文件中的配置项：
 
-### 3. 配置系统服务
+**必须配置的项**：
+- `BACKEND_URL`: 后端API服务地址
+- `BACKEND_API_KEY`: 后端内部API密钥，**必须与后端服务的 `INTERNAL_API_KEY` 完全一致**
 
-```bash
-sudo nano /etc/systemd/system/codehubot-plugin.service
-```
+**重要配置说明**：
+- `BACKEND_API_KEY`: **必须与后端服务 `.env` 文件中的 `INTERNAL_API_KEY` 完全一致**，否则插件服务无法调用后端API
+  - 生成方法：`python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- `RELOAD`: 生产环境建议设置为 `false`
+- `DEBUG_MODE`: 生产环境建议设置为 `false`
+- `CORS_ORIGINS`: 生产环境建议设置为具体域名，而不是 `*`
 
-添加以下内容：
+### 4. 配置系统服务（可选）
 
-```ini
-[Unit]
-Description=CodeHubot Plugin Service
-After=network.target
+**注意**: 系统服务配置为可选，用户可根据实际情况自行处理。
 
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/codehubot/plugin-service
-Environment="PATH=/opt/codehubot/plugin-service/venv/bin"
-ExecStart=/opt/codehubot/plugin-service/venv/bin/uvicorn main:app --host 0.0.0.0 --port 9000
-Restart=always
-RestartSec=10
+### 5. 配置 Nginx 反向代理（可选）
 
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-# 启动服务
-sudo systemctl daemon-reload
-sudo systemctl start codehubot-plugin
-sudo systemctl enable codehubot-plugin
-
-# 查看状态
-sudo systemctl status codehubot-plugin
-```
-
-### 4. 配置 Nginx 反向代理（可选）
+如果需要通过域名访问，可以配置 Nginx：
 
 ```nginx
 server {
@@ -725,271 +474,29 @@ server {
 
 ---
 
-## 服务验证
-
-### 1. 检查所有服务状态
-
-```bash
-# 检查后端服务
-sudo systemctl status codehubot-backend
-
-# 检查配置服务
-sudo systemctl status codehubot-config
-
-# 检查插件服务
-sudo systemctl status codehubot-plugin
-
-# 检查 Nginx
-sudo systemctl status nginx
-```
-
-### 2. 测试 API 端点
-
-```bash
-# 测试后端健康检查
-curl http://localhost:8000/health
-
-# 测试配置服务
-curl http://localhost:8001/health
-
-# 测试插件服务
-curl http://localhost:9000/
-```
-
-### 3. 检查 MQTT 容器
-
-```bash
-cd /opt/codehubot/docker
-
-# 检查容器状态
-docker-compose ps mqtt
-
-# 测试 MQTT 连接（需要安装 mosquitto-clients）
-sudo apt install mosquitto-clients -y
-mosquitto_pub -h localhost -p 1883 -t test/topic -m "Hello MQTT"
-```
-
-### 4. 检查端口监听
-
-```bash
-# 检查端口是否正常监听
-sudo netstat -tlnp | grep -E '8000|8001|9000|1883'
-```
-
-### 5. 查看日志
-
-```bash
-# 后端服务日志
-sudo journalctl -u codehubot-backend -f
-
-# 配置服务日志
-sudo journalctl -u codehubot-config -f
-
-# 插件服务日志
-sudo journalctl -u codehubot-plugin -f
-
-# Nginx 日志
-sudo tail -f /var/log/nginx/error.log
-
-# MQTT 容器日志
-cd /opt/codehubot/docker
-docker-compose logs -f mqtt
-```
-
-### 6. 访问前端界面
-
-在浏览器中访问：
-- `http://your-server-ip` 或 `http://your-domain.com`
-
-应该能看到登录界面。
-
----
-
-## 常见问题
-
-### 1. 数据库连接失败
-
-**问题**: 后端服务无法连接数据库
-
-**解决方案**:
-- 检查 MySQL 服务是否运行: `sudo systemctl status mysql`
-- 检查数据库用户权限: `mysql -u aiot_user -p`
-- 检查 `.env` 文件中的 `DATABASE_URL` 配置是否正确
-- 检查防火墙是否允许本地连接
-
-### 2. 端口被占用
-
-**问题**: 服务启动失败，提示端口被占用
-
-**解决方案**:
-```bash
-# 查看端口占用情况
-sudo lsof -i :8000
-sudo lsof -i :8001
-sudo lsof -i :9000
-
-# 停止占用端口的进程
-sudo kill -9 <PID>
-```
-
-### 3. 前端无法访问后端 API
-
-**问题**: 前端页面显示 API 请求失败
-
-**解决方案**:
-- 检查 `src/api/request.js` 中的 API 地址配置
-- 检查后端服务是否正常运行
-- 检查 Nginx 配置中的 `/api` 代理是否正确
-- 检查 CORS 配置（后端 `main.py` 中的 `allow_origins`）
-
-### 4. 插件服务无法调用后端 API
-
-**问题**: 插件服务返回认证失败
-
-**解决方案**:
-- 检查插件服务的 `.env` 文件中的 `BACKEND_API_KEY` 是否配置
-- 检查后端服务的 `.env` 文件中的 `INTERNAL_API_KEY` 是否配置
-- 确保两个服务的 API 密钥完全一致
-- 检查后端服务是否正常运行
-
-### 5. 服务无法自动启动
-
-**问题**: 服务器重启后服务未自动启动
-
-**解决方案**:
-```bash
-# 确保服务已启用开机自启
-sudo systemctl enable codehubot-backend
-sudo systemctl enable codehubot-config
-sudo systemctl enable codehubot-plugin
-
-# 检查服务状态
-sudo systemctl is-enabled codehubot-backend
-```
-
-### 6. MQTT 容器无法启动或连接失败
-
-**问题**: MQTT 容器无法启动，或后端服务无法连接 MQTT
-
-**解决方案**:
-```bash
-# 检查 Docker 是否运行
-sudo systemctl status docker
-
-# 检查 MQTT 容器状态
-cd /opt/codehubot/docker
-docker-compose ps mqtt
-
-# 查看 MQTT 容器日志
-docker-compose logs mqtt
-
-# 检查端口是否被占用
-sudo lsof -i :1883
-
-# 检查 MQTT 配置文件
-cat mosquitto.conf
-
-# 重启 MQTT 容器
-docker-compose restart mqtt
-
-# 如果容器无法启动，尝试重新创建
-docker-compose down mqtt
-docker-compose up -d mqtt
-```
-
-**后端连接 MQTT 失败**:
-- 检查后端 `.env` 文件中的 `MQTT_BROKER_HOST` 是否为 `localhost`
-- 检查 `MQTT_BROKER_PORT` 是否为 `1883`
-- 如果 MQTT 需要认证，确保 `MQTT_USERNAME` 和 `MQTT_PASSWORD` 配置正确
-- 检查后端服务日志: `sudo journalctl -u codehubot-backend -f`
-
-### 7. 权限问题
-
-**问题**: 服务启动失败，提示权限不足
-
-**解决方案**:
-```bash
-# 检查文件权限
-ls -la /opt/codehubot/
-
-# 修改文件所有者
-sudo chown -R your_username:your_username /opt/codehubot/
-
-# 检查 systemd 服务文件中的 User 配置是否正确
-
-# 检查 Docker 权限（如果使用 MQTT 容器）
-sudo usermod -aG docker $USER
-# 然后重新登录或执行: newgrp docker
-```
-
----
-
-## 部署完成检查清单
-
-- [ ] 数据库已创建并导入数据
-- [ ] 后端服务已部署并运行在 8000 端口
-- [ ] 前端已构建并可通过 Nginx 访问
-- [ ] 配置服务已部署并运行在 8001 端口
-- [ ] 插件服务已部署并运行在 9000 端口
-- [ ] 所有服务的 systemd 服务已配置并启用
-- [ ] Nginx 反向代理已配置（如需要）
-- [ ] 所有服务的健康检查端点正常响应
-- [ ] 前端可以正常登录和访问
-- [ ] 日志文件正常记录
-
----
-
-## 后续维护
-
-### 更新代码
-
-```bash
-cd /opt/codehubot
-
-# 拉取最新代码
-git pull
-
-# 重启服务
-sudo systemctl restart codehubot-backend
-sudo systemctl restart codehubot-config
-sudo systemctl restart codehubot-plugin
-
-# 如果前端有更新，需要重新构建
-cd frontend
-npm install
-npm run build
-sudo systemctl restart nginx
-```
-
-### 备份数据库
-
-```bash
-# 备份数据库
-mysqldump -u aiot_user -p aiot_admin > backup_aiot_admin_$(date +%Y%m%d).sql
-mysqldump -u aiot_user -p aiot_device > backup_aiot_device_$(date +%Y%m%d).sql
-```
-
-### 查看服务日志
-
-```bash
-# 实时查看日志
-sudo journalctl -u codehubot-backend -f
-sudo journalctl -u codehubot-config -f
-sudo journalctl -u codehubot-plugin -f
-```
-
----
-
-## 技术支持
-
-如遇到问题，请检查：
-1. 服务日志: `sudo journalctl -u <service-name> -f`
-2. Nginx 日志: `sudo tail -f /var/log/nginx/error.log`
-3. 系统日志: `sudo dmesg | tail`
-
----
-
-**部署完成！** 🎉
+## 🎉 部署完成
 
 现在你可以通过浏览器访问前端界面，开始使用 CodeHubot 系统了。
 
+**默认管理员账号**：
+- 邮箱: `admin@aiot.com`
+- 用户名: `admin`
+- 密码: `admin123`
+
+### 部署检查清单
+
+- [ ] 数据库已创建并导入数据
+- [ ] MQTT 服务已启动并可以连接
+- [ ] 后端服务已启动，可以访问 `/health` 端点
+- [ ] 前端已构建并可以通过 Nginx 访问
+- [ ] 配置服务已启动（如果使用）
+- [ ] 插件服务已启动（如果使用）
+- [ ] 所有服务的环境变量已正确配置
+
+### 服务端口汇总
+
+- **后端服务**: 8000
+- **配置服务**: 8001
+- **插件服务**: 9000
+- **MQTT 服务**: 1883, 9001
+- **前端**: 80 (通过 Nginx)
