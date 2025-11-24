@@ -1,24 +1,66 @@
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from app.core.config import settings
-from typing import List
+from typing import Optional
+import logging
 
-# 邮件配置
-conf = ConnectionConfig(
-    MAIL_USERNAME=settings.mail_username,
-    MAIL_PASSWORD=settings.mail_password,
-    MAIL_FROM=settings.mail_from,
-    MAIL_PORT=settings.mail_port,
-    MAIL_SERVER=settings.mail_server,
-    MAIL_STARTTLS=settings.mail_tls,
-    MAIL_SSL_TLS=settings.mail_ssl,
-    USE_CREDENTIALS=settings.use_credentials,
-    VALIDATE_CERTS=settings.validate_certs
-)
+logger = logging.getLogger(__name__)
 
-fastmail = FastMail(conf)
+# 邮件配置（延迟初始化，只有在配置完整时才创建）
+_conf: Optional[ConnectionConfig] = None
+_fastmail: Optional[FastMail] = None
+
+def _get_mail_config() -> Optional[ConnectionConfig]:
+    """获取邮件配置，如果配置不完整则返回 None"""
+    global _conf
+    if _conf is not None:
+        return _conf
+    
+    # 检查必需的邮件配置
+    if not all([settings.mail_username, settings.mail_password, settings.mail_from]):
+        logger.warning("邮件配置不完整，邮件功能已禁用")
+        return None
+    
+    try:
+        _conf = ConnectionConfig(
+            MAIL_USERNAME=settings.mail_username,
+            MAIL_PASSWORD=settings.mail_password,
+            MAIL_FROM=settings.mail_from,
+            MAIL_PORT=settings.mail_port,
+            MAIL_SERVER=settings.mail_server,
+            MAIL_STARTTLS=settings.mail_tls,
+            MAIL_SSL_TLS=settings.mail_ssl,
+            USE_CREDENTIALS=settings.use_credentials,
+            VALIDATE_CERTS=settings.validate_certs
+        )
+        return _conf
+    except Exception as e:
+        logger.error(f"创建邮件配置失败: {e}")
+        return None
+
+def _get_fastmail() -> Optional[FastMail]:
+    """获取 FastMail 实例，如果配置不完整则返回 None"""
+    global _fastmail
+    if _fastmail is not None:
+        return _fastmail
+    
+    conf = _get_mail_config()
+    if conf is None:
+        return None
+    
+    try:
+        _fastmail = FastMail(conf)
+        return _fastmail
+    except Exception as e:
+        logger.error(f"创建 FastMail 实例失败: {e}")
+        return None
 
 async def send_welcome_email(email: str, username: str):
     """发送欢迎邮件"""
+    fastmail = _get_fastmail()
+    if fastmail is None:
+        logger.warning("邮件服务未配置，跳过发送欢迎邮件")
+        return False
+    
     message = MessageSchema(
         subject="欢迎注册物联网设备服务系统",
         recipients=[email],
@@ -47,13 +89,19 @@ async def send_welcome_email(email: str, username: str):
     
     try:
         await fastmail.send_message(message)
+        logger.info(f"欢迎邮件已发送: {email}")
         return True
     except Exception as e:
-        print(f"发送欢迎邮件失败: {e}")
+        logger.error(f"发送欢迎邮件失败: {e}")
         return False
 
 async def send_password_reset_email(email: str, username: str, reset_token: str):
     """发送密码重置邮件"""
+    fastmail = _get_fastmail()
+    if fastmail is None:
+        logger.warning("邮件服务未配置，跳过发送密码重置邮件")
+        return False
+    
     reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
     
     message = MessageSchema(
@@ -80,7 +128,8 @@ async def send_password_reset_email(email: str, username: str, reset_token: str)
     
     try:
         await fastmail.send_message(message)
+        logger.info(f"密码重置邮件已发送: {email}")
         return True
     except Exception as e:
-        print(f"发送密码重置邮件失败: {e}")
+        logger.error(f"发送密码重置邮件失败: {e}")
         return False
