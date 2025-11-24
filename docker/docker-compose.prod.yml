@@ -68,7 +68,7 @@ services:
       context: ../backend
       dockerfile: Dockerfile
       args:
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-}
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
     container_name: codehubot-backend
@@ -123,7 +123,7 @@ services:
       context: ../config-service
       dockerfile: Dockerfile
       args:
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-}
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
     container_name: codehubot-config-service
@@ -184,7 +184,7 @@ services:
       context: ../plugin-service
       dockerfile: Dockerfile
       args:
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-}
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
     container_name: codehubot-plugin-service
