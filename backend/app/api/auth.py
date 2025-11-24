@@ -63,13 +63,13 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         logger.info(f"✅ 用户注册成功: {user_data.email} (ID: {db_user.id})")
         
-        # 发送欢迎邮件（异步，不影响注册流程）
-        try:
-            await send_welcome_email(user_data.email, user_data.username)
-            logger.info(f"欢迎邮件已发送: {user_data.email}")
-        except Exception as e:
-            logger.warning(f"发送欢迎邮件失败: {e}", exc_info=True)
-            # 邮件发送失败不影响注册流程
+        # 发送欢迎邮件（已禁用，避免 SSL 证书验证问题）
+        # try:
+        #     await send_welcome_email(user_data.email, user_data.username)
+        #     logger.info(f"欢迎邮件已发送: {user_data.email}")
+        # except Exception as e:
+        #     logger.warning(f"发送欢迎邮件失败: {e}", exc_info=True)
+        #     # 邮件发送失败不影响注册流程
         
         return db_user
         
