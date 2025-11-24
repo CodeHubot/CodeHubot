@@ -364,6 +364,9 @@ server {
     }
 
     # API 代理到后端
+    # 注意：proxy_pass 后面不需要 /api 后缀
+    # 因为后端路由已经有 /api 前缀（见 backend/main.py）
+    # 当请求 /api/auth/login 时，Nginx 会将整个 URI 传递给后端
     location /api {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
