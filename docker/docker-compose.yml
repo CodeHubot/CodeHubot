@@ -4,6 +4,7 @@ services:
   # MySQL数据库
   mysql:
     image: mysql:8.0
+    container_name: codehubot-mysql
     environment:
       MYSQL_DATABASE: aiot_admin
       MYSQL_USER: aiot_user
@@ -11,28 +12,57 @@ services:
       MYSQL_ROOT_PASSWORD: root_password
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     ports:
       - "3306:3306"
     command: --default-authentication-plugin=mysql_native_password --innodb-use-native-aio=0
     networks:
       - aiot-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: codehubot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - aiot-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # MQTT服务
   mqtt:
     image: eclipse-mosquitto:2.0
+    container_name: codehubot-mqtt
     ports:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mqtt_data:/mosquitto/data
       - mqtt_logs:/mosquitto/log
     networks:
       - aiot-network
-
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "$$SYS/health", "-C", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mysql_data:
+  redis_data:
   mqtt_data:
   mqtt_logs:
 

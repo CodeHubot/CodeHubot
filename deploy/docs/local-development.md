@@ -18,14 +18,14 @@
 
 - **Python**: 3.11+ (推荐使用 pyenv 管理 Python 版本)
 - **Node.js**: 18+ (推荐使用 nvm 管理 Node.js 版本)
-- **MySQL**: 5.7.8+ 或 8.0+ (本地安装或使用 Docker)
-- **Docker**: 20.10+ (用于运行 MQTT 服务，可选)
+- **Docker**: 20.10+ (用于运行 MySQL、Redis、MQTT 服务)
+- **Docker Compose**: 2.0+ (用于编排容器服务)
 - **Git**: 用于克隆和更新代码
 
-### 可选软件
+### 说明
 
-- **Redis**: 6.0+ (用于缓存，可选)
-- **Docker Compose**: 2.0+ (用于运行 MQTT 服务)
+- **MySQL、Redis、MQTT** 均使用 Docker 容器部署，无需本地安装
+- 所有服务通过 Docker Compose 统一管理，简化部署流程
 
 ---
 
@@ -38,72 +38,83 @@ git clone <your-repo-url> CodeHubot
 cd CodeHubot
 ```
 
-### 2. 数据库准备
+### 2. 启动基础服务（MySQL、Redis、MQTT）
 
-#### 方式一：使用本地 MySQL
-
-```bash
-# 创建数据库
-mysql -u root -p << EOF
-CREATE DATABASE aiot_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE aiot_device CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'aiot_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON aiot_admin.* TO 'aiot_user'@'localhost';
-GRANT ALL PRIVILEGES ON aiot_device.* TO 'aiot_user'@'localhost';
-FLUSH PRIVILEGES;
-EOF
-
-# 导入数据库结构
-mysql -u aiot_user -p aiot_admin < SQL/init_database.sql
-```
-
-#### 方式二：使用 Docker MySQL
-
-```bash
-# 启动 MySQL 容器
-docker run -d \
-  --name mysql-dev \
-  -e MYSQL_ROOT_PASSWORD=rootpassword \
-  -e MYSQL_DATABASE=aiot_admin \
-  -e MYSQL_USER=aiot_user \
-  -e MYSQL_PASSWORD=your_password \
-  -p 3306:3306 \
-  mysql:8.0
-
-# 等待 MySQL 启动（约 10-30 秒）
-sleep 30
-
-# 创建第二个数据库
-docker exec -i mysql-dev mysql -uroot -prootpassword << EOF
-CREATE DATABASE aiot_device CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-GRANT ALL PRIVILEGES ON aiot_device.* TO 'aiot_user'@'%';
-FLUSH PRIVILEGES;
-EOF
-
-# 导入数据库结构
-docker exec -i mysql-dev mysql -uaiot_user -pyour_password aiot_admin < SQL/init_database.sql
-```
-
-### 3. 启动 MQTT 服务
-
-#### 方式一：使用 Docker Compose（推荐）
+使用 Docker Compose 一键启动所有基础服务：
 
 ```bash
 cd docker
-docker-compose up -d mqtt
+
+# 启动所有服务（MySQL、Redis、MQTT）
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 查看服务日志
+docker-compose logs -f
 ```
 
-#### 方式二：使用本地 Mosquitto
+**服务说明**：
+- **MySQL**: 端口 3306，自动创建 `aiot_admin` 和 `aiot_device` 数据库
+- **Redis**: 端口 6379，用于缓存（可选）
+- **MQTT**: 端口 1883（MQTT），9001（WebSocket）
+
+**默认配置**（可在 `docker/docker-compose.yml` 中修改）：
+- MySQL 用户名: `aiot_user`
+- MySQL 密码: `aiot_password`
+- MySQL Root 密码: `root_password`
+
+**Docker 服务管理命令**：
 
 ```bash
-# macOS
-brew install mosquitto
-brew services start mosquitto
+cd docker
 
-# Linux
-sudo apt-get install mosquitto mosquitto-clients
-sudo systemctl start mosquitto
+# 启动所有服务
+docker-compose up -d
+
+# 停止所有服务
+docker-compose down
+
+# 停止并删除数据卷（谨慎使用，会删除所有数据）
+docker-compose down -v
+
+# 查看服务状态
+docker-compose ps
+
+# 查看服务日志
+docker-compose logs -f          # 所有服务
+docker-compose logs -f mysql    # MySQL 日志
+docker-compose logs -f redis    # Redis 日志
+docker-compose logs -f mqtt     # MQTT 日志
+
+# 重启服务
+docker-compose restart          # 所有服务
+docker-compose restart mysql   # 仅 MySQL
+docker-compose restart redis   # 仅 Redis
+docker-compose restart mqtt    # 仅 MQTT
+
+# 进入容器
+docker-compose exec mysql bash
+docker-compose exec redis sh
 ```
+
+### 3. 导入数据库结构
+
+等待 MySQL 容器完全启动（约 10-30 秒），然后导入数据库结构：
+
+```bash
+# 等待 MySQL 就绪
+docker-compose exec mysql mysqladmin ping -h localhost -u root -proot_password
+
+# 导入数据库结构
+docker-compose exec -T mysql mysql -uaiot_user -paiot_password aiot_admin < ../SQL/init_database.sql
+
+# 验证数据库
+docker-compose exec mysql mysql -uaiot_user -paiot_password -e "SHOW DATABASES;"
+```
+
+**提示**: 如果导入失败，可以稍等片刻后重试，确保 MySQL 完全启动。
 
 ### 4. 配置后端服务
 
@@ -127,22 +138,25 @@ nano .env  # 或使用你喜欢的编辑器
 **最小配置**（`.env` 文件）：
 
 ```bash
-# 数据库配置
+# 数据库配置（使用 Docker 容器）
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=aiot_user
-DB_PASSWORD=your_password
+DB_PASSWORD=aiot_password  # 与 docker-compose.yml 中的配置一致
 DB_NAME=aiot_admin
+
+# Redis 配置（使用 Docker 容器，可选）
+REDIS_URL=redis://localhost:6379
 
 # JWT 配置
 SECRET_KEY=your-very-long-secret-key-at-least-32-characters-long
 ALGORITHM=HS256
 
-# MQTT 配置
+# MQTT 配置（使用 Docker 容器）
 MQTT_BROKER_HOST=localhost
 MQTT_BROKER_PORT=1883
-MQTT_USERNAME=
-MQTT_PASSWORD=
+MQTT_USERNAME=  # 当前配置允许匿名访问，可以留空
+MQTT_PASSWORD=  # 当前配置允许匿名访问，可以留空
 
 # 服务器配置
 SERVER_BASE_URL=http://localhost:8000
@@ -150,13 +164,17 @@ ENVIRONMENT=development
 LOG_LEVEL=DEBUG
 ```
 
+**注意**: 
+- 数据库密码需要与 `docker/docker-compose.yml` 中的 `MYSQL_PASSWORD` 保持一致（默认: `aiot_password`）
+- 如果需要修改 Docker 服务配置，编辑 `docker/docker-compose.yml` 后执行 `docker-compose up -d` 重启服务
+
 **生成 SECRET_KEY**：
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-### 5. 启动后端服务
+### 6. 启动后端服务
 
 ```bash
 cd backend
@@ -183,7 +201,7 @@ curl http://localhost:8000/health
 open http://localhost:8000/docs
 ```
 
-### 6. 配置前端服务
+### 7. 配置前端服务
 
 ```bash
 cd frontend
@@ -209,7 +227,7 @@ VITE_API_BASE_URL=/api
 VITE_DEBUG_MODE=true
 ```
 
-### 7. 启动前端服务
+### 8. 启动前端服务
 
 ```bash
 cd frontend
@@ -233,6 +251,68 @@ npm run dev
 
 ## ⚙️ 详细配置
 
+### Docker 服务配置
+
+#### 修改服务配置
+
+编辑 `docker/docker-compose.yml` 可以修改服务配置：
+
+```yaml
+services:
+  mysql:
+    environment:
+      MYSQL_PASSWORD: aiot_password      # 修改数据库密码
+      MYSQL_ROOT_PASSWORD: root_password # 修改 root 密码
+    ports:
+      - "3306:3306"  # 修改端口映射，例如 "3307:3306"
+  
+  redis:
+    ports:
+      - "6379:6379"  # 修改端口映射，例如 "6380:6379"
+  
+  mqtt:
+    ports:
+      - "1883:1883"  # 修改端口映射，例如 "1884:1883"
+      - "9001:9001"  # WebSocket 端口
+```
+
+**修改后重启服务**：
+
+```bash
+cd docker
+docker-compose down
+docker-compose up -d
+```
+
+#### 数据持久化
+
+所有数据都存储在 Docker 数据卷中，即使容器删除数据也不会丢失：
+
+```bash
+# 查看数据卷
+docker volume ls | grep codehubot
+
+# 备份数据卷（可选）
+docker run --rm -v codehubot_mysql_data:/data -v $(pwd):/backup alpine tar czf /backup/mysql_backup.tar.gz /data
+```
+
+#### 服务健康检查
+
+所有服务都配置了健康检查，可以使用以下命令检查：
+
+```bash
+cd docker
+
+# 检查 MySQL 健康状态
+docker-compose exec mysql mysqladmin ping -h localhost -u root -proot_password
+
+# 检查 Redis 健康状态
+docker-compose exec redis redis-cli ping
+
+# 检查 MQTT 健康状态（需要安装 mosquitto-clients）
+mosquitto_pub -h localhost -p 1883 -t test -m "ping"
+```
+
 ### 后端服务配置
 
 #### 数据库配置
@@ -242,7 +322,7 @@ npm run dev
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=aiot_user
-DB_PASSWORD=your_password
+DB_PASSWORD=aiot_password  # 与 docker-compose.yml 中的 MYSQL_PASSWORD 一致
 DB_NAME=aiot_admin
 ```
 
@@ -253,15 +333,19 @@ DB_NAME=aiot_admin
 REDIS_URL=redis://localhost:6379
 ```
 
+**注意**: Redis 服务已通过 Docker 启动，无需额外配置。
+
 #### MQTT 配置
 
 ```bash
 # backend/.env
 MQTT_BROKER_HOST=localhost
 MQTT_BROKER_PORT=1883
-MQTT_USERNAME=  # 如果 MQTT 允许匿名访问，可以留空
-MQTT_PASSWORD=  # 如果 MQTT 允许匿名访问，可以留空
+MQTT_USERNAME=  # 当前配置允许匿名访问，可以留空
+MQTT_PASSWORD=  # 当前配置允许匿名访问，可以留空
 ```
+
+**注意**: MQTT 服务已通过 Docker 启动，配置在 `docker/mosquitto.conf` 中。
 
 ### 前端服务配置
 
@@ -305,11 +389,11 @@ nano .env
 **配置**（`config-service/.env`）：
 
 ```bash
-# 数据库配置（使用 aiot_device 数据库）
+# 数据库配置（使用 aiot_device 数据库，Docker 容器）
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=aiot_user
-DB_PASSWORD=your_password
+DB_PASSWORD=aiot_password  # 与 docker-compose.yml 中的配置一致
 DB_NAME=aiot_device
 
 # MQTT 配置
@@ -424,54 +508,104 @@ python -m pdb main.py
 
 ## ❓ 常见问题
 
-### 1. 数据库连接失败
+### 1. Docker 服务启动失败
+
+**问题**: `docker-compose up` 失败或服务无法启动
+
+**解决方案**:
+- 检查 Docker 是否运行
+- 检查端口是否被占用
+- 查看服务日志
+
+```bash
+# 检查 Docker 状态
+docker ps
+
+# 检查端口占用
+# macOS/Linux
+lsof -i :3306  # MySQL
+lsof -i :6379  # Redis
+lsof -i :1883  # MQTT
+
+# 查看服务日志
+cd docker
+docker-compose logs mysql
+docker-compose logs redis
+docker-compose logs mqtt
+
+# 重启服务
+docker-compose restart
+```
+
+### 2. 数据库连接失败
 
 **问题**: `Can't connect to MySQL server`
 
 **解决方案**:
-- 检查 MySQL 服务是否启动
-- 检查数据库用户名和密码是否正确
-- 检查数据库是否已创建
-- 检查防火墙设置（本地开发通常不需要）
+- 检查 MySQL 容器是否运行
+- 检查数据库用户名和密码是否正确（与 docker-compose.yml 一致）
+- 等待 MySQL 完全启动（首次启动需要 10-30 秒）
 
 ```bash
-# 检查 MySQL 服务状态
-# macOS
-brew services list
+# 检查 MySQL 容器状态
+cd docker
+docker-compose ps mysql
 
-# Linux
-sudo systemctl status mysql
+# 查看 MySQL 日志
+docker-compose logs mysql
+
+# 等待 MySQL 就绪
+docker-compose exec mysql mysqladmin ping -h localhost -u root -proot_password
 
 # 测试连接
-mysql -u aiot_user -p -h localhost
+docker-compose exec mysql mysql -uaiot_user -paiot_password -e "SHOW DATABASES;"
 ```
 
-### 2. MQTT 连接失败
+### 3. MQTT 连接失败
 
 **问题**: `Connection refused` 或 `Connection timeout`
 
 **解决方案**:
-- 检查 MQTT 服务是否启动
+- 检查 MQTT 容器是否运行
 - 检查端口是否正确（默认 1883）
-- 检查防火墙设置
+- 查看 MQTT 日志
 
 ```bash
-# 检查 MQTT 服务
-# Docker
-docker ps | grep mqtt
+# 检查 MQTT 容器状态
+cd docker
+docker-compose ps mqtt
 
-# 本地 Mosquitto
-# macOS
-brew services list | grep mosquitto
+# 查看 MQTT 日志
+docker-compose logs mqtt
 
-# Linux
-sudo systemctl status mosquitto
-
-# 测试连接
+# 测试连接（需要安装 mosquitto-clients）
+# macOS: brew install mosquitto
+# Linux: sudo apt-get install mosquitto-clients
 mosquitto_pub -h localhost -p 1883 -t test -m "hello"
+mosquitto_sub -h localhost -p 1883 -t test
 ```
 
-### 3. 前端无法连接后端
+### 4. Redis 连接失败
+
+**问题**: `Connection refused` 或无法连接 Redis
+
+**解决方案**:
+- 检查 Redis 容器是否运行
+- 检查端口是否正确（默认 6379）
+
+```bash
+# 检查 Redis 容器状态
+cd docker
+docker-compose ps redis
+
+# 查看 Redis 日志
+docker-compose logs redis
+
+# 测试连接
+docker-compose exec redis redis-cli ping
+```
+
+### 5. 前端无法连接后端
 
 **问题**: 前端请求返回 404 或连接失败
 
@@ -489,29 +623,50 @@ curl http://localhost:8000/health
 # 查看后端服务的控制台输出
 ```
 
-### 4. 端口被占用
+### 6. Docker 端口被占用
 
-**问题**: `Address already in use`
+**问题**: `port is already allocated` 或 `Address already in use`
 
 **解决方案**:
 - 查找占用端口的进程并关闭
-- 或修改服务配置使用其他端口
+- 或修改 docker-compose.yml 中的端口映射
 
 ```bash
 # 查找占用端口的进程
 # macOS/Linux
-lsof -i :8000
-lsof -i :3001
+lsof -i :3306  # MySQL
+lsof -i :6379  # Redis
+lsof -i :1883  # MQTT
 
 # 关闭进程
 kill -9 <PID>
 
-# 或修改端口配置
-# 后端: 修改 main.py 或 uvicorn 命令
-# 前端: 修改 vite.config.js 或 .env.development
+# 或修改 docker-compose.yml 中的端口映射
+# 例如将 MySQL 端口改为 3307:3306
 ```
 
-### 5. Python 依赖安装失败
+### 7. Docker 数据卷问题
+
+**问题**: 数据丢失或需要重置数据
+
+**解决方案**:
+- 删除数据卷重新开始
+- 备份数据卷
+
+```bash
+cd docker
+
+# 停止并删除所有数据卷（谨慎使用，会删除所有数据）
+docker-compose down -v
+
+# 备份 MySQL 数据
+docker-compose exec mysql mysqldump -uaiot_user -paiot_password aiot_admin > backup.sql
+
+# 恢复 MySQL 数据
+docker-compose exec -T mysql mysql -uaiot_user -paiot_password aiot_admin < backup.sql
+```
+
+### 8. Python 依赖安装失败
 
 **问题**: `pip install` 失败
 
@@ -531,7 +686,7 @@ pip install --upgrade pip
 python --version  # 需要 3.11+
 ```
 
-### 6. Node.js 依赖安装失败
+### 9. Node.js 依赖安装失败
 
 **问题**: `npm install` 失败
 
@@ -554,17 +709,21 @@ npm cache clean --force
 node --version  # 需要 18+
 ```
 
-### 7. 数据库迁移问题
+### 10. 数据库迁移问题
 
 **问题**: 数据库结构不匹配
 
 **解决方案**:
 - 重新导入数据库结构
-- 检查 MySQL 版本（需要 5.7.8+）
+- 检查 MySQL 容器是否正常运行
 
 ```bash
-# 重新导入数据库
-mysql -u aiot_user -p aiot_admin < SQL/init_database.sql
+# 重新导入数据库（使用 Docker）
+cd docker
+docker-compose exec -T mysql mysql -uaiot_user -paiot_password aiot_admin < ../SQL/init_database.sql
+
+# 或直接使用 mysql 客户端
+docker-compose exec mysql mysql -uaiot_user -paiot_password aiot_admin < /path/to/SQL/init_database.sql
 ```
 
 ---
