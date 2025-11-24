@@ -7,24 +7,38 @@
 ```
 deploy/
 ├── docs/                    # 部署文档
-│   ├── deployment-guide.md  # 完整部署指南
+│   ├── deployment-guide.md  # 生产环境部署指南
+│   ├── local-development.md # 本地开发环境部署指南
 │   └── quick-reference.md   # 快速参考文档
 └── README.md                # 本文件
 ```
 
 ## 快速开始
 
-### 1. 阅读部署指南
+### 选择部署环境
 
-首次部署请先阅读完整部署指南：
+- **本地开发环境**: 查看 [本地开发环境部署指南](./docs/local-development.md)
+- **生产环境**: 查看 [生产环境部署指南](./docs/deployment-guide.md)
+
+### 本地开发环境
+
+适用于在本地机器上开发和测试系统：
 
 ```bash
+# 查看本地开发指南
+cat docs/local-development.md
+```
+
+### 生产环境部署
+
+适用于部署到服务器环境：
+
+```bash
+# 查看生产环境部署指南
 cat docs/deployment-guide.md
 ```
 
-### 2. 按照顺序部署
-
-部署顺序：
+**部署顺序**：
 1. **数据库部署** - 创建数据库并导入数据
 2. **MQTT 服务部署** - 使用 Docker 容器部署 MQTT 服务
 3. **后端服务部署** - 部署主 API 服务
@@ -36,12 +50,22 @@ cat docs/deployment-guide.md
 
 ### deployment-guide.md
 
-完整的部署指南，包含：
+生产环境完整部署指南，包含：
 - 环境准备
 - 详细的部署步骤
 - 配置说明
+- Nginx 反向代理配置
+- 系统服务配置
 - 故障排查
-- 维护建议
+
+### local-development.md
+
+本地开发环境部署指南，包含：
+- 快速开始步骤
+- 开发环境配置
+- 开发工具推荐
+- 调试技巧
+- 常见问题解决
 
 ### quick-reference.md
 
