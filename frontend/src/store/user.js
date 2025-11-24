@@ -233,7 +233,8 @@ export const useUserStore = defineStore('user', () => {
     try {
       const response = await register(email, username, password)
       ElMessage.success('注册成功，请登录')
-      return response
+      // 返回响应数据，而不是整个响应对象
+      return response.data || response
     } catch (error) {
       ElMessage.error(error.response?.data?.detail || '注册失败')
       throw error

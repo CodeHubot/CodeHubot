@@ -137,12 +137,10 @@ const handleRegister = async () => {
     if (valid) {
       loading.value = true
       try {
-        const response = await userStore.registerUser(registerForm.email, registerForm.username, registerForm.password)
+        await userStore.registerUser(registerForm.email, registerForm.username, registerForm.password)
         // 注册成功，跳转到登录页面
-        // registerUser 内部已经显示了成功消息，这里不需要再显示
-        if (response) {
-          router.push('/login')
-        }
+        // registerUser 内部已经显示了成功消息，这里直接跳转
+        router.push('/login')
       } catch (error) {
         // 错误消息已经在 registerUser 中显示，这里只记录日志
         console.error('注册失败:', error)
