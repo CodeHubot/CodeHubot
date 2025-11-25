@@ -138,6 +138,12 @@ const routes = [
         component: () => import('../views/Agents.vue'),
         meta: { requiresAuth: true }
       },
+      {
+        path: 'agents/:id/edit',
+        name: 'AgentEditor',
+        component: () => import('../views/AgentEditor.vue'),
+        meta: { requiresAuth: true }
+      },
       // 插件管理
       {
         path: 'plugins',

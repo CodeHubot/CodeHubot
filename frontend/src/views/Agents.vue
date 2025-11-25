@@ -64,9 +64,10 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="scope">
-          <el-button size="small" @click="editAgent(scope.row)">编辑</el-button>
+          <el-button size="small" type="primary" @click="editAgent(scope.row)">编排</el-button>
+          <el-button size="small" @click="quickEdit(scope.row)">快速编辑</el-button>
           <el-button
             size="small"
             type="danger"
@@ -91,60 +92,41 @@
       style="margin-top: 20px; justify-content: flex-end;"
     />
 
-    <!-- 编辑对话框 -->
+    <!-- 快速添加/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="800px"
+      width="500px"
       @close="resetForm"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="智能体名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入智能体名称" />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
+        <el-form-item label="简介" prop="description">
           <el-input
             v-model="form.description"
             type="textarea"
-            :rows="3"
-            placeholder="请输入智能体描述"
+            :rows="4"
+            placeholder="请简要描述智能体的功能和用途"
           />
         </el-form-item>
-        <el-form-item label="系统提示词" prop="system_prompt">
-          <el-input
-            v-model="form.system_prompt"
-            type="textarea"
-            :rows="8"
-            placeholder="请输入系统提示词，用于指导AI智能体的行为"
-          />
-        </el-form-item>
-        <el-form-item label="关联插件" prop="plugin_ids">
-          <el-select
-            v-model="form.plugin_ids"
-            multiple
-            placeholder="请选择插件"
-            style="width: 100%"
-            filterable
-          >
-            <el-option
-              v-for="plugin in availablePlugins"
-              :key="plugin.id"
-              :label="plugin.name"
-              :value="plugin.id"
-            />
-          </el-select>
-          <div class="form-tip">可以选择多个插件，智能体将可以使用这些插件的功能</div>
-        </el-form-item>
-        <el-form-item label="状态" prop="is_active" v-if="form.id">
-          <el-radio-group v-model="form.is_active">
-            <el-radio :label="1">激活</el-radio>
-            <el-radio :label="0">禁用</el-radio>
-          </el-radio-group>
-        </el-form-item>
+        <el-alert
+          v-if="!form.id"
+          title="提示"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-top: 10px;"
+        >
+          创建后可以在"编排"页面配置系统提示词和插件
+        </el-alert>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          {{ form.id ? '保存' : '创建并编排' }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -152,10 +134,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { getAgents, createAgent, updateAgent, deleteAgent } from '../api/agent'
-import { getPlugins } from '../api/plugin'
+
+const router = useRouter()
 
 const loading = ref(false)
 const searchQuery = ref('')
@@ -164,7 +148,6 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const agents = ref([])
-const availablePlugins = ref([])
 const dialogVisible = ref(false)
 const dialogTitle = ref('添加智能体')
 const submitting = ref(false)
@@ -173,16 +156,16 @@ const formRef = ref(null)
 const form = reactive({
   id: null,
   name: '',
-  description: '',
-  system_prompt: '',
-  plugin_ids: [],
-  is_active: 1
+  description: ''
 })
 
 const rules = {
   name: [
     { required: true, message: '请输入智能体名称', trigger: 'blur' },
     { min: 1, max: 100, message: '长度在 1 到 100 个字符', trigger: 'blur' }
+  ],
+  description: [
+    { max: 500, message: '描述最多500个字符', trigger: 'blur' }
   ]
 }
 
@@ -230,22 +213,24 @@ const resetFilters = () => {
   loadAgents()
 }
 
-// 添加智能体
+// 添加智能体（快速创建）
 const addAgent = () => {
   dialogTitle.value = '添加智能体'
   resetForm()
   dialogVisible.value = true
 }
 
-// 编辑智能体
+// 跳转到编排页面
 const editAgent = (row) => {
-  dialogTitle.value = '编辑智能体'
+  router.push(`/agents/${row.id}/edit`)
+}
+
+// 快速编辑（名称和描述）
+const quickEdit = (row) => {
+  dialogTitle.value = '快速编辑'
   form.id = row.id
   form.name = row.name
   form.description = row.description || ''
-  form.system_prompt = row.system_prompt || ''
-  form.plugin_ids = row.plugin_ids || []
-  form.is_active = row.is_active
   dialogVisible.value = true
 }
 
@@ -274,35 +259,42 @@ const handleDelete = async (row) => {
 // 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    
-    submitting.value = true
-    try {
-      const data = {
+  
+  try {
+    await formRef.value.validate()
+  } catch {
+    return
+  }
+  
+  submitting.value = true
+  try {
+    if (form.id) {
+      // 快速编辑
+      await updateAgent(form.id, {
         name: form.name,
-        description: form.description,
-        system_prompt: form.system_prompt,
-        plugin_ids: form.plugin_ids
-      }
-      
-      if (form.id) {
-        data.is_active = form.is_active
-        await updateAgent(form.id, data)
-        ElMessage.success('更新成功')
-      } else {
-        await createAgent(data)
-        ElMessage.success('创建成功')
-      }
-      
+        description: form.description
+      })
+      ElMessage.success('更新成功')
       dialogVisible.value = false
       loadAgents()
-    } catch (error) {
-      ElMessage.error(form.id ? '更新失败' : '创建失败')
-    } finally {
-      submitting.value = false
+    } else {
+      // 创建并跳转到编排页面
+      const response = await createAgent({
+        name: form.name,
+        description: form.description
+      })
+      const newAgentId = response.data.id
+      ElMessage.success('创建成功，正在跳转到编排页面...')
+      dialogVisible.value = false
+      // 跳转到编排页面
+      router.push(`/agents/${newAgentId}/edit`)
     }
-  })
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '操作失败')
+    console.error(error)
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 重置表单
@@ -310,9 +302,6 @@ const resetForm = () => {
   form.id = null
   form.name = ''
   form.description = ''
-  form.system_prompt = ''
-  form.plugin_ids = []
-  form.is_active = 1
   if (formRef.value) {
     formRef.value.clearValidate()
   }
@@ -326,7 +315,6 @@ const formatDate = (date) => {
 
 onMounted(() => {
   loadAgents()
-  loadPlugins()
 })
 </script>
 
