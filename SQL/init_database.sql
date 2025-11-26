@@ -211,6 +211,9 @@ CREATE TABLE `aiot_llm_models` (
   `temperature` decimal(3,2) DEFAULT NULL COMMENT '温度参数',
   `top_p` decimal(3,2) DEFAULT NULL COMMENT 'top_p参数',
   `enable_deep_thinking` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否启用深度思考',
+  `frequency_penalty` decimal(3,2) NOT NULL DEFAULT '0.00' COMMENT '频率惩罚参数',
+  `presence_penalty` decimal(3,2) NOT NULL DEFAULT '0.00' COMMENT '存在惩罚参数',
+  `config` json DEFAULT NULL COMMENT '其他配置参数',
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '模型描述',
   `is_active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否激活',
   `is_default` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否默认模型',
@@ -224,9 +227,9 @@ CREATE TABLE `aiot_llm_models` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='LLM模型表';
 
 -- 插入LLM模型（API密钥需要自行配置）
-INSERT INTO `aiot_llm_models` (`uuid`, `name`, `display_name`, `provider`, `model_type`, `api_base`, `api_key`, `max_tokens`, `temperature`, `top_p`, `enable_deep_thinking`, `description`, `is_active`, `is_default`, `is_system`, `sort_order`, `created_at`, `updated_at`) VALUES
-(UUID(), 'qwen-turbo', '通义千问-Turbo', 'qwen', 'chat', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'YOUR_API_KEY_HERE', 8192, 0.70, 0.90, 0, '阿里云通义千问大语言模型，性能强劲，响应快速，适合对话场景', 1, 1, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(UUID(), 'qwen-plus', '通义千问-Plus', 'qwen', 'chat', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'YOUR_API_KEY_HERE', 32768, 0.70, 0.90, 0, '阿里云通义千问Plus版本，更强大的理解和生成能力', 1, 0, 1, 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO `aiot_llm_models` (`uuid`, `name`, `display_name`, `provider`, `model_type`, `api_base`, `api_key`, `max_tokens`, `temperature`, `top_p`, `enable_deep_thinking`, `frequency_penalty`, `presence_penalty`, `config`, `description`, `is_active`, `is_default`, `is_system`, `sort_order`, `created_at`, `updated_at`) VALUES
+(UUID(), 'qwen-turbo', '通义千问-Turbo', 'qwen', 'chat', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'YOUR_API_KEY_HERE', 8192, 0.70, 0.90, 0, 0.00, 0.00, NULL, '阿里云通义千问大语言模型，性能强劲，响应快速，适合对话场景', 1, 1, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(UUID(), 'qwen-plus', '通义千问-Plus', 'qwen', 'chat', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'YOUR_API_KEY_HERE', 32768, 0.70, 0.90, 0, 0.00, 0.00, NULL, '阿里云通义千问Plus版本，更强大的理解和生成能力', 1, 0, 1, 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================================
 -- 6. 插件表
