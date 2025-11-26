@@ -369,6 +369,8 @@ CREATE TABLE `aiot_interaction_logs` (
   `request_data` json DEFAULT NULL COMMENT '请求数据',
   `response_data` json DEFAULT NULL COMMENT '响应数据',
   `client_ip` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '客户端IP地址',
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '用户代理（User-Agent）',
+  `session_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '会话ID',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_timestamp` (`timestamp`),
