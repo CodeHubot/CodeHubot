@@ -1,0 +1,19 @@
+# Celery服务依赖
+
+# Celery和消息队列
+celery==5.3.4
+redis==5.0.1
+
+# Flower监控面板
+flower==2.0.1
+
+# 数据库
+SQLAlchemy==2.0.23
+PyMySQL==1.1.0
+
+# 环境变量
+python-dotenv==1.0.0
+
+# 事件循环（Windows支持）
+eventlet==0.33.3
+

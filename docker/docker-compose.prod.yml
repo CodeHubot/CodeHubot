@@ -11,14 +11,15 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
-    command: --default-authentication-plugin=mysql_native_password --innodb-use-native-aio=0
+    # 不暴露端口到外部，仅在Docker网络内部访问（安全考虑）
+    # ports:
+    #   - "${MYSQL_PORT:-3306}:3306"
+    command: --default-authentication-plugin=mysql_native_password --innodb-use-native-aio=0 --log-bin-trust-function-creators=1
     networks:
       - aiot-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
     restart: unless-stopped
@@ -27,8 +28,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: codehubot-redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    # 不暴露端口到外部，仅在Docker网络内部访问（安全考虑）
+    # ports:
+    #   - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -36,7 +38,7 @@ services:
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 30s
       timeout: 3s
       retries: 5
     restart: unless-stopped
@@ -56,7 +58,7 @@ services:
       - aiot-network
     healthcheck:
       test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health/check", "-m", "ping", "-i", "health-check-client"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
@@ -81,13 +83,15 @@ services:
       DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
       # Redis配置
       REDIS_URL: redis://redis:6379
+      # 阿里云API密钥（向量化需要）
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
       # 服务器配置
       SERVER_BASE_URL: ${SERVER_BASE_URL:-http://localhost:8000}
       # JWT配置
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
-      REFRESH_TOKEN_EXPIRE_MINUTES: ${REFRESH_TOKEN_EXPIRE_MINUTES:-45}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-120}
+      REFRESH_TOKEN_EXPIRE_MINUTES: ${REFRESH_TOKEN_EXPIRE_MINUTES:-10080}
       # MQTT配置
       MQTT_BROKER_HOST: mqtt
       MQTT_BROKER_PORT: 1883
@@ -98,6 +102,8 @@ services:
       # 环境配置
       ENVIRONMENT: ${ENVIRONMENT:-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # 文件存储路径（与共享卷挂载路径一致）
+      KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
@@ -109,12 +115,121 @@ services:
         condition: service_healthy
       mqtt:
         condition: service_healthy
+    volumes:
+      # 共享文件存储卷（知识库文档）- 统一使用backend路径
+      - knowledge_bases_data:/app/backend/data/knowledge-bases
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    restart: unless-stopped
+
+  # MQTT服务 - 设备消息处理（独立服务）
+  mqtt-service:
+    build:
+      context: ../mqtt-service
+      dockerfile: Dockerfile
+    container_name: codehubot-mqtt-service
+    environment:
+      # MQTT Broker配置
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+    networks:
+      - aiot-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Celery Worker - 异步任务处理（独立服务）
+  celery_worker:
+    build:
+      context: ..
+      dockerfile: celery-service/Dockerfile
+    container_name: codehubot-celery-worker
+    environment:
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+      # JWT密钥
+      SECRET_KEY: ${SECRET_KEY}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 阿里云API密钥（向量化需要）
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      # 文件存储路径（与共享卷挂载路径一致）
+      KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
+    volumes:
+      # 共享文件存储卷（知识库文档）- 与backend共享
+      - knowledge_bases_data:/app/backend/data/knowledge-bases
+    networks:
+      - aiot-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Flower - Celery任务监控面板（独立服务）
+  flower:
+    build:
+      context: ..
+      dockerfile: celery-service/Dockerfile
+    container_name: codehubot-flower
+    command: ["bash", "start_flower.sh"]
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    environment:
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+      # JWT密钥
+      SECRET_KEY: ${SECRET_KEY}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # Flower配置
+      FLOWER_PORT: 5555
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:admin}
+    networks:
+      - aiot-network
+    depends_on:
+      - redis
+      - celery_worker
     restart: unless-stopped
 
   # 配置服务
@@ -245,6 +360,7 @@ volumes:
   redis_data:
   mqtt_data:
   mqtt_logs:
+  knowledge_bases_data:  # 知识库文档共享存储卷
 
 networks:
   aiot-network:
