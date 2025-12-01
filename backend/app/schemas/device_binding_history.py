@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class DeviceBindingHistoryBase(BaseModel):
@@ -35,7 +35,7 @@ class DeviceBindingHistoryListResponse(BaseModel):
     last_action_time: Optional[datetime] = Field(None, description="最后操作时间")
     current_user_id: Optional[int] = Field(None, description="当前绑定用户ID（如果已绑定）")
     current_user_email: Optional[str] = Field(None, description="当前绑定用户邮箱")
-    history: list[DeviceBindingHistoryResponse] = Field(default_factory=list, description="历史记录列表")
+    history: List[DeviceBindingHistoryResponse] = Field(default_factory=list, description="历史记录列表")
     
     class Config:
         from_attributes = True

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, DECIMAL
 from app.core.database import Base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 import uuid as uuid_lib
 
 class LLMModel(Base):
@@ -31,8 +31,8 @@ class LLMModel(Base):
     is_default = Column(Integer, default=0, comment="是否默认模型")
     is_system = Column(Integer, default=0, comment="是否系统内置")
     sort_order = Column(Integer, default=0, comment="排序顺序")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_beijing_time_naive)
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive)
     
     def __repr__(self):
         return f"<LLMModel(id={self.id}, name='{self.name}', provider='{self.provider}')>"

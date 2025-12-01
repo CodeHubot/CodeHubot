@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 
 Base = declarative_base()
 
@@ -19,8 +19,8 @@ class Firmware(Base):
     release_notes = Column(Text, nullable=True, comment="发布说明")
     is_active = Column(Boolean, default=True, comment="是否激活")
     is_latest = Column(Boolean, default=False, comment="是否为最新版本")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    created_at = Column(DateTime, default=get_beijing_time_naive, comment="创建时间")
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive, comment="更新时间")
     
     def __repr__(self):
         return f"<Firmware(product_code='{self.product_code}', version='{self.version}')>"

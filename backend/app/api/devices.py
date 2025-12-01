@@ -104,24 +104,45 @@ def create_device(
     
     return db_device
 
+@router.get("", response_model=List[DeviceList])
 @router.get("/", response_model=List[DeviceList])
 def get_devices(
     skip: int = Query(0, ge=0, description="跳过的记录数"),
     limit: int = Query(100, ge=1, le=1000, description="返回的记录数"),
+    page: Optional[int] = Query(None, ge=1, description="页码（从1开始）"),
+    page_size: Optional[int] = Query(None, ge=1, le=1000, description="每页记录数"),
+    keyword: Optional[str] = Query(None, description="搜索关键词（name或sn）"),
     product_id: Optional[int] = Query(None, description="产品ID筛选"),
     is_online: Optional[bool] = Query(None, description="在线状态筛选"),
     is_active: Optional[bool] = Query(None, description="激活状态筛选"),
     device_status: Optional[str] = Query(None, description="设备状态筛选：pending/bound/active/offline/error"),
     has_error: Optional[bool] = Query(None, description="是否有故障（error_count>0）"),
     search: Optional[str] = Query(None, description="搜索关键词"),
+    exclude_grouped: Optional[bool] = Query(None, description="排除已在设备组中的设备"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取设备列表 - 数据权限控制：只返回用户注册的设备，管理员可以看到所有设备"""
+    # 支持page/page_size参数（转换为skip/limit）
+    if page is not None and page_size is not None:
+        skip = (page - 1) * page_size
+        limit = page_size
+    
+    # 支持keyword参数（映射到search）
+    if keyword:
+        search = keyword
+    
     query = db.query(Device)
     
-    # 数据权限过滤：管理员可以看到所有设备，普通用户只能看到自己注册的设备
-    if not is_admin_user(current_user):
+    # 数据权限过滤
+    if is_admin_user(current_user):
+        # 平台管理员可以看到所有设备
+        pass
+    elif current_user.role == 'school_admin' and current_user.school_id:
+        # 学校管理员只能看到明确归属于本校的设备
+        query = query.filter(Device.school_id == current_user.school_id)
+    else:
+        # 普通用户只能看到自己注册的设备
         query = query.filter(Device.user_id == current_user.id)
     
     # 应用筛选条件
@@ -143,6 +164,16 @@ def get_devices(
             (Device.location.like(search_pattern)) |
             (Device.group_name.like(search_pattern))
         )
+    
+    # 排除已在设备组中的设备
+    if exclude_grouped:
+        from app.models.device_group import DeviceGroupMember
+        # 使用子查询找出所有在设备组中的设备ID
+        grouped_device_ids = db.query(DeviceGroupMember.device_id).filter(
+            DeviceGroupMember.left_at.is_(None)  # 只查询未离开的设备
+        ).subquery()
+        # 排除这些设备
+        query = query.filter(~Device.id.in_(grouped_device_ids))
     
     # 分页
     devices = query.offset(skip).limit(limit).all()
@@ -279,7 +310,8 @@ def get_devices_with_product_info(
                 "device_id": device.device_id,
                 "uuid": device.uuid,
                 "product_id": device.product_id,
-                "mac_address": device.mac_address,  # 添加MAC地址
+                "mac_address": device.mac_address,  # MAC地址
+                "device_mac": device.mac_address or "",  # 设备MAC（用于显示，空值处理）
                 "ip_address": device.ip_address,    # 添加IP地址
                 "location": device.location,
                 "group_name": device.group_name,
@@ -387,6 +419,54 @@ def update_device(
     db.refresh(device)
     
     return device
+
+
+@router.put("/{device_uuid}/set-school")
+def set_device_school(
+    device_uuid: str,
+    school_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    设置设备归属学校
+    - 设备所有者可以将设备设置为学校设备
+    - 学校管理员可以将设备设置为本校设备
+    - 设置为NULL表示转为个人设备
+    """
+    device = db.query(Device).filter(Device.uuid == device_uuid).first()
+    
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    
+    # 权限检查
+    is_owner = device.user_id == current_user.id
+    is_school_admin_of_target = (
+        current_user.role == 'school_admin' and 
+        current_user.school_id == school_id
+    )
+    
+    if not (is_owner or is_school_admin_of_target or is_admin_user(current_user)):
+        raise HTTPException(
+            status_code=403,
+            detail="无权设置该设备的学校归属"
+        )
+    
+    # 如果设置为学校设备，验证学校存在
+    if school_id is not None:
+        from app.models.school import School
+        school = db.query(School).filter(School.id == school_id).first()
+        if not school:
+            raise HTTPException(status_code=404, detail="学校不存在")
+    
+    # 更新设备的学校归属
+    device.school_id = school_id
+    db.commit()
+    db.refresh(device)
+    
+    message = "设备已设置为学校设备" if school_id else "设备已设置为个人设备"
+    return {"code": 200, "message": message, "data": {"device_uuid": device_uuid, "school_id": school_id}}
+
 
 @router.delete("/{device_uuid}")
 def delete_device(
@@ -1302,16 +1382,23 @@ async def get_device_realtime_data(
         # 内部API调用：跳过权限检查
         logger.info(f"🔓 内部API调用，跳过权限检查: device_uuid={device_uuid}")
     
-    # 从InteractionLog中获取最近的传感器数据
-    from app.models.interaction_log import InteractionLog
-    from sqlalchemy import desc
+    # 从设备表获取最后上报的传感器数据（已优化：不再使用日志表）
     from datetime import timezone, timedelta
     import json
     
-    logs = db.query(InteractionLog).filter(
-        InteractionLog.device_id == device.device_id,
-        InteractionLog.interaction_type == "data_upload"
-    ).order_by(desc(InteractionLog.timestamp)).limit(limit).all()
+    # 由于已删除日志表，改为从设备的 last_report_data 获取最后数据
+    logs = []  # 保持兼容性，返回空列表
+    
+    # 如果设备有最后上报数据，构造一个假的日志记录
+    if device.last_report_data and device.last_seen:
+        class FakeLog:
+            def __init__(self, device_id, timestamp, data):
+                self.device_id = device_id
+                self.timestamp = timestamp
+                self.interaction_type = "data_upload"
+                self.request_data = data
+        
+        logs = [FakeLog(device.device_id, device.last_seen, device.last_report_data)]
     
     # 北京时区 (UTC+8)
     beijing_tz = timezone(timedelta(hours=8))
@@ -1710,26 +1797,41 @@ async def control_device(
             
             # 根据预设类型执行
             if target_preset.get("type") == "sequence" or target_preset.get("preset_type") == "sequence":
-                # 执行序列指令
+                # 执行序列指令（使用Celery异步执行，不阻塞HTTP请求）
                 from app.services.preset_sequence_service import preset_sequence_service
+                from app.core.celery_app import celery_app
                 
                 try:
                     steps = preset_sequence_service.parse_sequence_preset(target_preset)
-                    result = await preset_sequence_service.execute_sequence(
-                        device_uuid=device_uuid,
-                        steps=steps,
-                        db_session=db
+                    
+                    # 提交到Celery队列异步执行
+                    task = celery_app.send_task(
+                        'execute_preset_sequence',
+                        args=[device_uuid, steps]
                     )
-                    return result
+                    
+                    logger.info(f"✅ 预设序列已提交到Celery: task_id={task.id}, steps={len(steps)}")
+                    
+                    # 立即返回，不等待执行完成
+                    return {
+                        "success": True,
+                        "message": "预设序列已提交，正在后台执行",
+                        "device_uuid": device_uuid,
+                        "task_id": task.id,  # 可用于查询执行状态
+                        "total_steps": len(steps),
+                        "status_url": f"/api/devices/tasks/{task.id}/status"
+                    }
+                    
                 except ValueError as e:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"预设序列指令格式错误: {str(e)}"
                     )
-                except RuntimeError as e:
+                except Exception as e:
+                    logger.error(f"提交预设序列任务失败: {e}", exc_info=True)
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=str(e)
+                        detail=f"提交任务失败: {str(e)}"
                     )
             else:
                 # 执行普通预设指令
@@ -1769,21 +1871,41 @@ async def control_device(
         
         # 检查是否是序列指令
         elif control_data.get("type") == "sequence":
-            # 执行序列指令
+            # 执行序列指令（使用Celery异步执行，不阻塞HTTP请求）
             from app.services.preset_sequence_service import preset_sequence_service
+            from app.core.celery_app import celery_app
             
             try:
                 steps = preset_sequence_service.parse_sequence_preset(control_data)
-                result = await preset_sequence_service.execute_sequence(
-                    device_uuid=device_uuid,
-                    steps=steps,
-                    db_session=db
+                
+                # 提交到Celery队列异步执行
+                task = celery_app.send_task(
+                    'execute_preset_sequence',
+                    args=[device_uuid, steps]
                 )
-                return result
+                
+                logger.info(f"✅ 自定义序列已提交到Celery: task_id={task.id}, steps={len(steps)}")
+                
+                # 立即返回，不等待执行完成
+                return {
+                    "success": True,
+                    "message": "序列指令已提交，正在后台执行",
+                    "device_uuid": device_uuid,
+                    "task_id": task.id,  # 可用于查询执行状态
+                    "total_steps": len(steps),
+                    "status_url": f"/api/devices/tasks/{task.id}/status"
+                }
+                
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"序列指令格式错误: {str(e)}"
+                )
+            except Exception as e:
+                logger.error(f"提交序列任务失败: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"提交任务失败: {str(e)}"
                 )
             except RuntimeError as e:
                 raise HTTPException(
@@ -1972,33 +2094,14 @@ async def unbind_device(
         device.updated_at = get_beijing_now()
         device.is_online = False  # 重置在线状态
         
-        # 自动清除所有历史数据
+        # 清除设备最后上报数据（已优化：日志表已删除）
         try:
-            from app.models.interaction_log import InteractionLog
+            # 清空设备的最后上报数据
+            device.last_report_data = None
             
-            # 清除交互日志（使用device_id字符串）
-            deleted_interaction_logs = db.query(InteractionLog).filter(
-                InteractionLog.device_id == device_id
-            ).delete()
-            
-            # 清除设备数据日志（如果表存在）
-            try:
-                deleted_data_logs = db.execute(
-                    text("DELETE FROM device_data_logs WHERE device_id = :device_id"),
-                    {"device_id": device_id}
-                ).rowcount
-                logger.info(f"已清除设备 {device_uuid} 的 {deleted_data_logs} 条数据日志")
-            except Exception as e:
-                # 表可能不存在，忽略错误
-                logger.debug(f"清除device_data_logs表数据时出错（可能表不存在）: {e}")
-                deleted_data_logs = 0
-            
-            logger.info(
-                f"✅ 已清除设备 {device_uuid} 的所有历史数据: "
-                f"交互日志 {deleted_interaction_logs} 条, 数据日志 {deleted_data_logs} 条"
-            )
+            logger.info(f"✅ 已清除设备 {device_uuid} 的最后上报数据")
         except Exception as e:
-            logger.error(f"清除设备历史数据失败: {e}", exc_info=True)
+            logger.error(f"清除设备数据失败: {e}", exc_info=True)
             # 数据清除失败不影响解绑操作，但记录错误
         
         db.commit()
@@ -2175,3 +2278,84 @@ async def list_all_binding_history(
             for h in history_list
         ]
     }
+
+
+@router.get("/tasks/{task_id}/status", summary="查询任务执行状态")
+async def get_task_status(
+    task_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    查询Celery任务执行状态
+    
+    用途：
+    - 查询预设序列执行状态
+    - 查询文档向量化状态
+    - 查询其他异步任务状态
+    
+    返回状态：
+    - PENDING: 任务等待执行
+    - STARTED: 任务已开始
+    - PROGRESS: 任务执行中（带进度信息）
+    - SUCCESS: 任务成功完成
+    - FAILURE: 任务执行失败
+    - RETRY: 任务正在重试
+    """
+    try:
+        from celery.result import AsyncResult
+        from app.core.celery_app import celery_app
+        
+        # 获取任务结果
+        task = AsyncResult(task_id, app=celery_app)
+        
+        # 构建响应
+        response = {
+            "task_id": task_id,
+            "status": task.state,
+            "ready": task.ready()  # 是否已完成（无论成功或失败）
+        }
+        
+        # 根据状态添加额外信息
+        if task.state == 'PENDING':
+            response["message"] = "任务等待执行"
+            
+        elif task.state == 'STARTED':
+            response["message"] = "任务已开始执行"
+            
+        elif task.state == 'PROGRESS':
+            # 执行中，返回进度信息
+            response["message"] = "任务执行中"
+            if task.info:
+                response["progress"] = {
+                    "current": task.info.get('current'),
+                    "total": task.info.get('total'),
+                    "status": task.info.get('status')
+                }
+                
+        elif task.state == 'SUCCESS':
+            # 成功完成，返回结果
+            response["message"] = "任务执行成功"
+            response["result"] = task.result
+            
+        elif task.state == 'FAILURE':
+            # 执行失败，返回错误信息
+            response["message"] = "任务执行失败"
+            response["error"] = str(task.info)  # task.info包含异常信息
+            
+        elif task.state == 'RETRY':
+            response["message"] = "任务正在重试"
+            if task.info:
+                response["retry_info"] = str(task.info)
+        
+        else:
+            # 其他未知状态
+            response["message"] = f"任务状态: {task.state}"
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"查询任务状态失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"查询任务状态失败: {str(e)}"
+        )

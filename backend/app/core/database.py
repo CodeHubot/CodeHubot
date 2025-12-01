@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 engine_kwargs = {
     "pool_pre_ping": True,  # 连接前先ping，确保连接可用
     "pool_recycle": DB_POOL_RECYCLE,  # 1小时后回收连接
-    "echo": settings.environment == "development",  # 开发环境显示SQL
+    "echo": False,  # 关闭SQL日志输出（避免日志混乱）
     "future": True,  # 使用SQLAlchemy 2.0风格
 }
 

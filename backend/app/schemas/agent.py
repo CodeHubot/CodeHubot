@@ -41,6 +41,10 @@ class AgentResponse(AgentBase):
     created_at: datetime
     updated_at: datetime
     
+    # 所有者信息
+    owner_nickname: Optional[str] = Field(None, description="所有者昵称")
+    owner_username: Optional[str] = Field(None, description="所有者用户名")
+    
     class Config:
         from_attributes = True
 

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import field_validator, model_validator
+from pydantic import field_validator, model_validator, Field
 from typing import Optional
 import secrets
 import logging
@@ -27,8 +27,16 @@ class Settings(BaseSettings):
     # JWT配置（必须从环境变量读取）
     secret_key: str
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15  # access token有效期：15分钟
-    refresh_token_expire_minutes: int = 45  # refresh token有效期：45分钟
+    access_token_expire_minutes: int = Field(
+        default=15,
+        validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES",
+        description="access token有效期（分钟）"
+    )
+    refresh_token_expire_minutes: int = Field(
+        default=45,
+        validation_alias="REFRESH_TOKEN_EXPIRE_MINUTES",
+        description="refresh token有效期（分钟）"
+    )
     
     # 内部API密钥（用于内部服务调用，可选）
     internal_api_key: Optional[str] = None
@@ -102,6 +110,9 @@ class Settings(BaseSettings):
         if self.environment == "production":
             if "your-secret-key" in self.secret_key.lower() or "change" in self.secret_key.lower():
                 raise ValueError("生产环境禁止使用默认密钥！")
+        
+        # 输出Token配置信息（用于调试）
+        logger.info(f"🔑 Token有效期 - Access: {self.access_token_expire_minutes}分钟, Refresh: {self.refresh_token_expire_minutes}分钟")
         
         logger.info("✅ 安全配置验证通过")
     

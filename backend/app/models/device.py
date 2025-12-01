@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Foreign
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, validates
 from app.core.database import Base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 import enum
 
 class DeviceStatus(str, enum.Enum):
@@ -27,6 +27,7 @@ class Device(Base):
     # 关联信息
     product_id = Column(Integer, ForeignKey("aiot_core_products.id"), nullable=True, comment="关联产品ID（动态绑定，可为空）")
     user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="关联用户ID")
+    school_id = Column(Integer, ForeignKey("aiot_schools.id"), nullable=True, index=True, comment="所属学校ID（用于教学场景）")
     
     # 设备基本信息
     name = Column(String(100), nullable=False, comment="设备名称")
@@ -77,7 +78,8 @@ class Device(Base):
     # 运行状态信息
     last_heartbeat = Column(DateTime, comment="最后心跳时间")
     error_count = Column(Integer, default=0, comment="错误计数")
-    last_error = Column(Text, comment="最后错误信息")
+    # last_error = Column(Text, comment="最后错误信息")  # 已删除，未使用
+    last_report_data = Column(JSON, comment="最后上报数据（JSON格式）")
     uptime = Column(Integer, default=0, comment="运行时间（秒）")
     
     # 维护信息
@@ -87,12 +89,14 @@ class Device(Base):
     next_maintenance = Column(DateTime, comment="下次维护时间")
     
     # 时间戳
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_beijing_time_naive)
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive)
     
     # 关系
     product = relationship("Product", back_populates="devices")
     user = relationship("User", back_populates="devices")
+    school = relationship("School", foreign_keys=[school_id])
+    group_memberships = relationship("DeviceGroupMember", back_populates="device", cascade="all, delete-orphan")
     
     # 数据验证
     @validates('device_status')

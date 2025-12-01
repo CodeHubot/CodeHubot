@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 import uuid as uuid_lib
 
 class Plugin(Base):
@@ -26,8 +26,8 @@ class Plugin(Base):
     is_system = Column(Integer, default=0, comment="是否系统内置（1=是，0=否）")
     
     # 时间戳
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_beijing_time_naive)
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive)
     
     def __repr__(self):
         return f"<Plugin(id={self.id}, name='{self.name}')>"

@@ -39,12 +39,20 @@ class ErrorResponse(BaseModel):
         }
 
 
-def success_response(data: Any = None, message: str = "操作成功") -> StandardResponse:
+def success_response(data: Any = None, message: str = "操作成功") -> dict:
     """创建成功响应"""
-    return StandardResponse(code=200, message=message, data=data)
+    return {
+        "code": 200,
+        "message": message,
+        "data": data
+    }
 
 
-def error_response(code: int, message: str, detail: Optional[str] = None) -> ErrorResponse:
+def error_response(code: int, message: str, detail: Optional[str] = None) -> dict:
     """创建错误响应"""
-    return ErrorResponse(code=code, message=message, detail=detail)
+    return {
+        "code": code,
+        "message": message,
+        "detail": detail
+    }
 
