@@ -7,7 +7,8 @@ export function chatWithAgent(data) {
   return request({
     url: '/chat/',
     method: 'post',
-    data
+    data,
+    timeout: 120000 // 120秒超时（大模型响应可能需要较长时间）
   })
 }
 

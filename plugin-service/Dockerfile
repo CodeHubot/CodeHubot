@@ -7,16 +7,16 @@ ARG USE_CHINA_MIRROR=false
 ARG PIP_INDEX_URL=""
 ARG PIP_TRUSTED_HOST=""
 
-# 根据构建参数设置 pip 镜像源（如果启用）
-RUN if [ "$USE_CHINA_MIRROR" = "true" ]; then \
-        pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
-        pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn; \
-    elif [ -n "$PIP_INDEX_URL" ]; then \
-        pip config set global.index-url $PIP_INDEX_URL && \
-        if [ -n "$PIP_TRUSTED_HOST" ]; then \
-            pip config set global.trusted-host $PIP_TRUSTED_HOST; \
-        fi; \
-    fi
+# 使用国内镜像源加速（默认使用阿里云）
+# Debian 12使用新的sources格式
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
+RUN sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
+
+# 配置pip国内镜像源（默认使用阿里云）
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set install.trusted-host mirrors.aliyun.com
 
 # 安装系统依赖（优化：使用 no-install-recommends 减少下载量，合并清理操作）
 RUN apt-get update && \

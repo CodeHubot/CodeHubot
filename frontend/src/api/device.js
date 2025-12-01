@@ -52,6 +52,15 @@ export function deleteDevice(uuid) {
   })
 }
 
+// 设置设备归属学校
+export function setDeviceSchool(uuid, schoolId) {
+  return request({
+    url: `/devices/${uuid}/set-school`,
+    method: 'put',
+    params: { school_id: schoolId }
+  })
+}
+
 // 设备心跳（使用UUID）
 export function deviceHeartbeat(uuid) {
   return request({

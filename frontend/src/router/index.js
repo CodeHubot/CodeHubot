@@ -150,6 +150,19 @@ const routes = [
         component: () => import('../views/Chat.vue'),
         meta: { requiresAuth: true }
       },
+      // 知识库管理
+      {
+        path: 'knowledge-bases',
+        name: 'KnowledgeBases',
+        component: () => import('../views/KnowledgeBaseManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'knowledge-bases/:uuid',
+        name: 'KnowledgeBaseDetail',
+        component: () => import('../views/KnowledgeBaseDetail.vue'),
+        meta: { requiresAuth: true }
+      },
       // 插件管理
       {
         path: 'plugins',
@@ -176,12 +189,82 @@ const routes = [
         component: () => import('../views/LLMModels.vue'),
         meta: { requiresAuth: true, requiresRole: 'admin' }
       },
-      // 用户管理
+      // 个人信息
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('../views/Profile.vue'),
+        meta: { requiresAuth: true }
+      },
+      // 学校管理（平台管理员）
+      {
+        path: 'schools',
+        name: 'Schools',
+        component: () => import('../views/SchoolManagement.vue'),
+        meta: { requiresAuth: true, requiresRole: 'platform_admin' }
+      },
+      // 课程管理（学校管理员/教师）
+      {
+        path: 'courses',
+        name: 'Courses',
+        component: () => import('../views/CourseManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      // 课程学生管理（学校管理员/教师）
+      {
+        path: 'courses/:courseUuid/students',
+        name: 'CourseStudents',
+        component: () => import('../views/CourseStudentManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      // 课程教师管理（学校管理员）
+      {
+        path: 'courses/:courseUuid/teachers',
+        name: 'CourseTeachers',
+        component: () => import('../views/CourseTeacherManagement.vue'),
+        meta: { requiresAuth: true, requiresRole: 'school_admin' }
+      },
+      // 课程分组管理（学校管理员/教师）
+      {
+        path: 'courses/:courseUuid/groups',
+        name: 'CourseGroups',
+        component: () => import('../views/CourseGroupManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      // 设备分组管理（学校管理员）
+      {
+        path: 'device-groups',
+        name: 'DeviceGroups',
+        component: () => import('../views/DeviceGroupManagement.vue'),
+        meta: { requiresAuth: true, requiresRole: 'school_admin' }
+      },
+      // 教师管理（学校管理员）
+      {
+        path: 'teachers',
+        name: 'Teachers',
+        component: () => import('../views/TeacherManagement.vue'),
+        meta: { requiresAuth: true, requiresRole: 'school_admin' }
+      },
+      // 学生管理（学校管理员/教师）
+      {
+        path: 'students',
+        name: 'Students',
+        component: () => import('../views/StudentManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      // 分组管理（学校管理员/教师）- 课程分组
+      {
+        path: 'groups',
+        name: 'Groups',
+        component: () => import('../views/CourseGroupManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      // 用户管理（旧的，保留兼容）
       {
         path: 'users',
         name: 'Users',
         component: () => import('../views/Users.vue'),
-        meta: { requiresAuth: true, requiresRole: 'admin' }
+        meta: { requiresAuth: true, requiresRole: 'platform_admin' }
       },
       {
         path: 'roles',
@@ -220,7 +303,16 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // 路由切换时的滚动行为
+  scrollBehavior(to, from, savedPosition) {
+    // 如果有保存的位置（浏览器前进/后退），使用保存的位置
+    if (savedPosition) {
+      return savedPosition
+    }
+    // 否则滚动到页面顶部
+    return { top: 0, behavior: 'smooth' }
+  }
 })
 
 // 路由守卫
@@ -240,10 +332,21 @@ router.beforeEach(async (to, from, next) => {
     // 检查是否已登录（有有效的 token 和用户信息）
     if (userStore.isLoggedIn) {
       // 已登录，检查权限
-      if (to.meta.requiresRole && userStore.userInfo?.role !== to.meta.requiresRole) {
-        logger.warn('权限不足，重定向到首页')
-        next('/agents')
-        return
+      if (to.meta.requiresRole) {
+        const userRole = userStore.userInfo?.role
+        const requiredRole = to.meta.requiresRole
+        
+        // 平台管理员可以访问所有页面
+        if (userRole !== 'platform_admin' && userRole !== requiredRole) {
+          // 特殊处理：学生管理页面，学校管理员和教师都可以访问
+          if (to.path === '/students' && (userRole === 'school_admin' || userRole === 'teacher')) {
+            // 允许访问
+          } else {
+            logger.warn('权限不足，重定向到首页')
+            next('/agents')
+            return
+          }
+        }
       }
       logger.debug('已登录，路由守卫检查通过')
       next()
@@ -257,10 +360,21 @@ router.beforeEach(async (to, from, next) => {
         await userStore.fetchUserInfo()
         logger.debug('用户信息获取成功')
         // 获取成功后，检查权限
-        if (to.meta.requiresRole && userStore.userInfo?.role !== to.meta.requiresRole) {
-          logger.warn('权限不足，重定向到仪表盘')
-          next('/dashboard')
-          return
+        if (to.meta.requiresRole) {
+          const userRole = userStore.userInfo?.role
+          const requiredRole = to.meta.requiresRole
+          
+          // 平台管理员可以访问所有页面
+          if (userRole !== 'platform_admin' && userRole !== requiredRole) {
+            // 特殊处理：学生管理页面，学校管理员和教师都可以访问
+            if (to.path === '/students' && (userRole === 'school_admin' || userRole === 'teacher')) {
+              // 允许访问
+            } else {
+              logger.warn('权限不足，重定向到首页')
+              next('/agents')
+              return
+            }
+          }
         }
         next()
         return
@@ -282,10 +396,21 @@ router.beforeEach(async (to, from, next) => {
             await userStore.fetchUserInfo()
             logger.info('✅ 用户信息获取成功，继续访问目标页面')
             // 检查权限
-            if (to.meta.requiresRole && userStore.userInfo?.role !== to.meta.requiresRole) {
-              logger.warn('权限不足，重定向到仪表盘')
-              next('/dashboard')
-              return
+            if (to.meta.requiresRole) {
+              const userRole = userStore.userInfo?.role
+              const requiredRole = to.meta.requiresRole
+              
+              // 平台管理员可以访问所有页面
+              if (userRole !== 'platform_admin' && userRole !== requiredRole) {
+                // 特殊处理：学生管理页面，学校管理员和教师都可以访问
+                if (to.path === '/students' && (userRole === 'school_admin' || userRole === 'teacher')) {
+                  // 允许访问
+                } else {
+                  logger.warn('权限不足，重定向到首页')
+                  next('/agents')
+                  return
+                }
+              }
             }
             next() // 继续访问目标页面
             return

@@ -157,6 +157,115 @@
           </div>
         </div>
       </el-card>
+
+      <!-- 知识库配置卡片 -->
+      <el-card class="section-card">
+        <template #header>
+          <div class="card-header">
+            <span class="card-title">知识库配置 ({{ knowledgeBases.length }})</span>
+            <el-button type="primary" @click="showKnowledgeBaseSelector">
+              <el-icon><Plus /></el-icon>
+              添加知识库
+            </el-button>
+          </div>
+        </template>
+        <div class="knowledge-bases-config">
+          <el-empty v-if="knowledgeBases.length === 0" description="暂未关联任何知识库">
+            <el-button type="primary" @click="showKnowledgeBaseSelector">添加知识库</el-button>
+          </el-empty>
+
+          <div v-else class="knowledge-bases-list">
+            <el-card
+              v-for="kb in knowledgeBases"
+              :key="kb.id"
+              class="kb-card"
+              shadow="hover"
+            >
+              <template #header>
+                <div class="kb-card-header">
+                  <div>
+                    <span class="kb-name">{{ kb.knowledge_base_name }}</span>
+                    <el-tag size="small" style="margin-left: 10px">{{ scopeTypeLabel(kb.scope_type) }}</el-tag>
+                  </div>
+                  <el-button
+                    type="danger"
+                    size="small"
+                    text
+                    @click="removeKnowledgeBase(kb.knowledge_base_uuid)"
+                  >
+                    <el-icon><Delete /></el-icon>
+                    移除
+                  </el-button>
+                </div>
+              </template>
+              <div class="kb-info">
+                <div class="kb-row">
+                  <span class="kb-label">优先级:</span>
+                  <el-input-number
+                    v-model="kb.priority"
+                    :min="1"
+                    :max="10"
+                    size="small"
+                    @change="updateKBConfig(kb)"
+                  />
+                  <span class="kb-tip">（1-10，数字越大越优先）</span>
+                </div>
+                <div class="kb-row">
+                  <span class="kb-label">启用:</span>
+                  <el-switch
+                    v-model="kb.is_enabled"
+                    @change="updateKBConfig(kb)"
+                  />
+                </div>
+                <div class="kb-row">
+                  <span class="kb-label">返回结果数:</span>
+                  <el-input-number
+                    v-model="kb.top_k"
+                    :min="1"
+                    :max="20"
+                    size="small"
+                    @change="updateKBConfig(kb)"
+                  />
+                  <span class="kb-tip">（返回最相关的N条）</span>
+                </div>
+                <div class="kb-row">
+                  <span class="kb-label">相似度阈值:</span>
+                  <el-slider
+                    v-model="kb.similarity_threshold"
+                    :min="0.3"
+                    :max="1.0"
+                    :step="0.05"
+                    :format-tooltip="(val) => `${(val * 100).toFixed(0)}%`"
+                    style="width: 150px; margin: 0 10px;"
+                    @change="updateKBConfig(kb)"
+                  />
+                  <span class="kb-value">{{ (kb.similarity_threshold * 100).toFixed(0) }}%</span>
+                  <el-popover
+                    placement="top"
+                    width="250"
+                    trigger="hover"
+                  >
+                    <template #reference>
+                      <el-icon style="margin-left: 5px; cursor: help;"><QuestionFilled /></el-icon>
+                    </template>
+                    <div style="font-size: 13px; line-height: 1.6;">
+                      <p><strong>相似度阈值说明：</strong></p>
+                      <p>• 80-100%：极高相关（严格）</p>
+                      <p>• 70-80%：高相关（推荐）</p>
+                      <p>• 60-70%：中等相关</p>
+                      <p>• <60%：低相关（宽松）</p>
+                    </div>
+                  </el-popover>
+                </div>
+                <div class="kb-row">
+                  <span class="kb-label">文档:</span>
+                  <span>{{ kb.document_count || 0 }} 个</span>
+                </div>
+              </div>
+            </el-card>
+          </div>
+        </div>
+      </el-card>
     </div>
 
     <!-- 插件选择对话框 -->
@@ -219,6 +328,45 @@
         </el-card>
       </div>
     </el-dialog>
+
+    <!-- 知识库选择对话框 -->
+    <el-dialog
+      v-model="kbSelectorVisible"
+      title="选择知识库"
+      width="900px"
+    >
+      <div style="margin-bottom: 15px;">
+        <el-alert
+          title="批量添加知识库，优先级将自动从高到低分配"
+          type="info"
+          :closable="false"
+        />
+      </div>
+
+      <el-table
+        :data="availableKnowledgeBases"
+        @selection-change="handleKBSelectionChange"
+        max-height="400px"
+        v-loading="kbLoading"
+      >
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="name" label="知识库名称" min-width="200" />
+        <el-table-column label="类型" width="100">
+          <template #default="scope">
+            <el-tag size="small">{{ scopeTypeLabel(scope.row.scope_type) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="document_count" label="文档数" width="80" />
+        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+      </el-table>
+
+      <template #footer>
+        <el-button @click="kbSelectorVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmKBSelection" :disabled="selectedKBUuids.length === 0">
+          确定 (已选 {{ selectedKBUuids.length }} 个)
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -226,10 +374,18 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, Search, QuestionFilled } from '@element-plus/icons-vue'
 import { getAgent, updateAgent } from '@/api/agent'
 import { getPlugins } from '@/api/plugin'
 import { getActiveLLMModels } from '@/api/llm-model'
+import { getPromptTemplates } from '@/api/prompt-template'
+import { 
+  getAvailableKnowledgeBases,
+  getAgentKnowledgeBases, 
+  batchAddAgentKnowledgeBases,
+  updateAgentKnowledgeBase,
+  removeAgentKnowledgeBase
+} from '@/api/knowledgeBases'
 
 const route = useRoute()
 const router = useRouter()
@@ -243,6 +399,13 @@ const pluginSearchQuery = ref('')
 const availablePlugins = ref([])
 const availableModels = ref([])
 const selectedPluginIds = ref([])
+
+// 知识库相关
+const kbSelectorVisible = ref(false)
+const kbLoading = ref(false)
+const availableKnowledgeBases = ref([])
+const knowledgeBases = ref([])
+const selectedKBUuids = ref([])
 
 const agentUuid = computed(() => route.params.uuid)
 const pageTitle = computed(() => agentForm.name || '智能体编排')
@@ -265,65 +428,8 @@ const rules = {
   ]
 }
 
-// 提示词模板
-const promptTemplates = [
-  {
-    id: 1,
-    name: '物联网设备助手',
-    description: '专业的物联网设备管理和控制助手',
-    content: `你是一个专业的物联网助手，擅长帮助用户管理和控制智能设备。
-
-你的主要职责包括：
-1. 解答用户关于设备使用的问题
-2. 帮助用户控制智能设备（如开关灯、调节温度等）
-3. 分析传感器数据并提供建议
-4. 设置自动化场景
-
-请用友好、专业的语气与用户交流，并在必要时主动询问以获取更多信息。`
-  },
-  {
-    id: 2,
-    name: '数据分析助手',
-    description: '专注于传感器数据分析和可视化',
-    content: `你是一个数据分析专家，专注于物联网传感器数据的分析和解读。
-
-你的核心能力：
-1. 分析温度、湿度等传感器数据的趋势
-2. 发现数据中的异常情况并告警
-3. 提供数据可视化建议
-4. 基于历史数据做出预测
-
-请用专业但易懂的方式解释数据，帮助用户做出明智的决策。`
-  },
-  {
-    id: 3,
-    name: '智能家居管家',
-    description: '贴心的智能家居生活助手',
-    content: `你是一个贴心的智能家居管家，致力于让用户的生活更舒适便捷。
-
-你的服务内容：
-1. 根据用户习惯自动调节家居环境
-2. 提供节能建议
-3. 设置场景模式（如回家模式、睡眠模式）
-4. 提醒维护和保养设备
-
-请以管家的身份，用亲切、体贴的语气与用户交流。`
-  },
-  {
-    id: 4,
-    name: '教学助手',
-    description: '用于物联网教学的互动助手',
-    content: `你是一个物联网教学助手，帮助学生学习物联网知识和实践。
-
-你的教学目标：
-1. 讲解物联网基础概念（传感器、通信协议等）
-2. 指导学生完成实验项目
-3. 解答编程和硬件相关问题
-4. 提供项目创意和改进建议
-
-请用耐心、鼓励的方式引导学生学习，注重培养动手能力和创新思维。`
-  }
-]
+// 提示词模板（从后端动态加载）
+const promptTemplates = ref([])
 
 // 已选中的插件详情
 const selectedPlugins = computed(() => {
@@ -451,8 +557,27 @@ const removePlugin = (pluginId) => {
   }).catch(() => {})
 }
 
+// 加载提示词模板
+const loadPromptTemplates = async () => {
+  try {
+    const response = await getPromptTemplates({
+      is_active: true,
+      page: 1,
+      page_size: 100
+    })
+    promptTemplates.value = response.data.items
+  } catch (error) {
+    console.error('加载提示词模板失败:', error)
+    ElMessage.error('加载提示词模板失败')
+  }
+}
+
 // 显示提示词模板
-const showPromptTemplates = () => {
+const showPromptTemplates = async () => {
+  // 如果模板还未加载，先加载
+  if (promptTemplates.value.length === 0) {
+    await loadPromptTemplates()
+  }
   templateDialogVisible.value = true
 }
 
@@ -473,10 +598,133 @@ const useTemplate = (template) => {
   }).catch(() => {})
 }
 
+// ============================================================================
+// 知识库相关方法
+// ============================================================================
+
+// 作用域类型标签
+const scopeTypeLabel = (scopeType) => {
+  const labels = {
+    system: '系统级',
+    school: '学校级',
+    course: '课程级',
+    personal: '个人级'
+  }
+  return labels[scopeType] || scopeType
+}
+
+// 加载智能体的知识库列表
+const loadKnowledgeBases = async () => {
+  if (!agentUuid.value) return
+  
+  try {
+    const response = await getAgentKnowledgeBases(agentUuid.value)
+    const kbs = response.data.knowledge_bases || []
+    // 确保每个知识库都有必要的配置字段
+    knowledgeBases.value = kbs.map(kb => ({
+      ...kb,
+      top_k: kb.top_k || 5,
+      similarity_threshold: kb.similarity_threshold || 0.70,
+      retrieval_mode: kb.retrieval_mode || 'hybrid'
+    }))
+  } catch (error) {
+    console.error('加载知识库列表失败:', error)
+  }
+}
+
+// 显示知识库选择器
+const showKnowledgeBaseSelector = async () => {
+  kbLoading.value = true
+  kbSelectorVisible.value = true
+  selectedKBUuids.value = []
+  
+  try {
+    const response = await getAvailableKnowledgeBases(agentUuid.value)
+    availableKnowledgeBases.value = response.data.knowledge_bases || []
+  } catch (error) {
+    console.error('加载可用知识库失败:', error)
+    ElMessage.error('加载可用知识库失败')
+  } finally {
+    kbLoading.value = false
+  }
+}
+
+// 知识库选择变化
+const handleKBSelectionChange = (selection) => {
+  selectedKBUuids.value = selection.map(kb => kb.uuid)
+}
+
+// 确认知识库选择
+const confirmKBSelection = async () => {
+  if (selectedKBUuids.value.length === 0) {
+    return
+  }
+  
+  // 构建批量添加数据，优先级从10递减（简化：只配置必要参数）
+  const data = selectedKBUuids.value.map((uuid, index) => ({
+    knowledge_base_uuid: uuid,
+    priority: Math.max(1, 10 - index),  // 1-10范围
+    is_enabled: true,
+    // 其他参数使用后端默认值
+    top_k: 5,
+    similarity_threshold: 0.70,
+    retrieval_mode: 'hybrid'
+  }))
+  
+  try {
+    await batchAddAgentKnowledgeBases(agentUuid.value, data)
+    ElMessage.success(`成功添加 ${selectedKBUuids.value.length} 个知识库`)
+    kbSelectorVisible.value = false
+    await loadKnowledgeBases()
+  } catch (error) {
+    console.error('添加知识库失败:', error)
+    ElMessage.error('添加知识库失败')
+  }
+}
+
+// 更新知识库配置
+const updateKBConfig = async (kb) => {
+  try {
+    await updateAgentKnowledgeBase(agentUuid.value, kb.knowledge_base_uuid, {
+      priority: kb.priority,
+      is_enabled: kb.is_enabled,
+      top_k: kb.top_k,
+      similarity_threshold: kb.similarity_threshold,
+      retrieval_mode: kb.retrieval_mode
+    })
+    ElMessage.success('配置已更新')
+  } catch (error) {
+    console.error('更新配置失败:', error)
+    ElMessage.error('更新配置失败')
+    // 重新加载以恢复原值
+    await loadKnowledgeBases()
+  }
+}
+
+// 移除知识库
+const removeKnowledgeBase = (kbUuid) => {
+  ElMessageBox.confirm('确定要移除此知识库吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await removeAgentKnowledgeBase(agentUuid.value, kbUuid)
+      ElMessage.success('知识库已移除')
+      await loadKnowledgeBases()
+    } catch (error) {
+      console.error('移除知识库失败:', error)
+      ElMessage.error('移除知识库失败')
+    }
+  }).catch(() => {})
+}
+
 onMounted(() => {
   loadAgent()
   loadPlugins()
   loadModels()
+  loadPromptTemplates()
+  loadKnowledgeBases()
 })
 </script>
 
@@ -595,6 +843,79 @@ onMounted(() => {
 
 .template-desc {
   font-size: 13px;
+  color: #909399;
+}
+
+/* 知识库配置相关样式 */
+.knowledge-bases-config {
+  min-height: 100px;
+}
+
+.knowledge-bases-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 15px;
+}
+
+.kb-card {
+  cursor: default;
+}
+
+.kb-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kb-name {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.kb-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.kb-row:last-child {
+  margin-bottom: 0;
+}
+
+.kb-label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 60px;
+}
+
+.kb-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-left: 5px;
+}
+
+.kb-value {
+  font-weight: 600;
+  color: #409eff;
+  font-size: 14px;
+  min-width: 40px;
+  text-align: right;
+}
+
+.kb-status {
+  margin-left: 5px;
+  color: #67c23a;
+}
+
+.kb-status:not(.is-enabled) {
   color: #909399;
 }
 </style>

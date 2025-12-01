@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.device import Device
 from app.models.product import Product
-from app.models.interaction_log import InteractionLog
+# from app.models.interaction_log import InteractionLog  # 已删除，改为更新设备表
 from app.core.config import settings
 from datetime import datetime, timezone, timedelta
 
@@ -207,46 +207,27 @@ class MQTTService:
                 except Exception as parse_error:
                     logger.error(f"解析传感器数据失败: {parse_error}")
                 
-                # 存储传感器数据到交互日志表
+                # 更新设备最后上报数据（已优化：改为直接更新设备表）
                 try:
-                    # 计算数据大小（JSON字符串长度）
-                    data_size = len(json.dumps(data))
-                    
-                    interaction_log = InteractionLog(
-                        device_id=device.device_id,  # 使用设备ID字符串，不是数字ID
-                        interaction_type="data_upload",  # 使用正确的交互类型
-                        direction="inbound",  # 设备到服务器
-                        status="success",  # 成功接收
-                        request_data=data,  # 使用request_data字段，不是data
-                        data_size=data_size,  # 数据大小
-                        timestamp=get_beijing_now()
-                    )
-                    db.add(interaction_log)
-                    logger.debug(f"传感器数据已记录到交互日志")
+                    device.last_report_data = data
+                    device.last_seen = get_beijing_now()
+                    device.is_online = True
+                    logger.debug(f"传感器数据已更新到设备表")
                 except Exception as log_error:
-                    logger.error(f"记录传感器数据失败: {log_error}")
+                    logger.error(f"更新传感器数据失败: {log_error}")
                 
             elif message_type == "status":
                 # 处理设备状态
                 logger.info(f"📊 设备 {device_uuid} 状态更新: {data}")
                 
-                # 存储状态数据到交互日志表
+                # 更新设备状态数据（已优化：改为直接更新设备表）
                 try:
-                    data_size = len(json.dumps(data))
-                    
-                    interaction_log = InteractionLog(
-                        device_id=device.device_id,  # 使用设备ID字符串
-                        interaction_type="status",  # 状态更新
-                        direction="inbound",  # 设备到服务器
-                        status="success",  # 成功接收
-                        request_data=data,  # 状态数据
-                        data_size=data_size,  # 数据大小
-                        timestamp=get_beijing_now()
-                    )
-                    db.add(interaction_log)
-                    logger.debug(f"设备状态已记录到交互日志")
+                    device.last_report_data = data
+                    device.last_seen = get_beijing_now()
+                    device.is_online = True
+                    logger.debug(f"设备状态已更新到设备表")
                 except Exception as log_error:
-                    logger.error(f"记录设备状态失败: {log_error}")
+                    logger.error(f"更新设备状态失败: {log_error}")
                 
                 # 更新设备状态信息
                 if 'wifi_status' in data:
@@ -258,23 +239,14 @@ class MQTTService:
                 # 处理心跳数据
                 logger.info(f"💓 设备 {device_uuid} 心跳: {data}")
                 
-                # 存储心跳数据到交互日志表
+                # 更新设备心跳数据（已优化：改为直接更新设备表）
                 try:
-                    data_size = len(json.dumps(data))
-                    
-                    interaction_log = InteractionLog(
-                        device_id=device.device_id,  # 使用设备ID字符串
-                        interaction_type="heartbeat",  # 心跳
-                        direction="inbound",  # 设备到服务器
-                        status="success",  # 成功接收
-                        request_data=data,  # 心跳数据
-                        data_size=data_size,  # 数据大小
-                        timestamp=get_beijing_now()
-                    )
-                    db.add(interaction_log)
-                    logger.debug(f"心跳数据已记录到交互日志")
+                    # 心跳不需要保存完整数据，只更新时间和在线状态
+                    device.last_seen = get_beijing_now()
+                    device.is_online = True
+                    logger.debug(f"设备心跳已更新到设备表")
                 except Exception as log_error:
-                    logger.error(f"记录心跳数据失败: {log_error}")
+                    logger.error(f"更新设备心跳失败: {log_error}")
                 
                 device.is_online = True
                 # 更新最后心跳时间（北京时间）
@@ -291,7 +263,14 @@ class MQTTService:
     def start(self):
         """启动MQTT客户端"""
         try:
-            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            # 兼容 paho-mqtt 1.x 和 2.x 版本
+            try:
+                # paho-mqtt 2.0+ 使用 CallbackAPIVersion
+                self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            except AttributeError:
+                # paho-mqtt 1.x 使用旧的 API
+                self.client = mqtt.Client()
+            
             self.client.username_pw_set(self.username, self.password)
             
             # 设置回调函数

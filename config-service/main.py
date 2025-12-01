@@ -58,7 +58,7 @@ RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 
 # ==================== 数据库模型 ====================
 Base = declarative_base()
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -111,8 +111,8 @@ class AccessLog(Base):
     user_agent = Column(String(256), nullable=True)
 
 
-# 创建表
-Base.metadata.create_all(bind=engine)
+# 创建表（已禁用，直接在数据库中初始化）
+# Base.metadata.create_all(bind=engine)
 
 
 # ==================== 依赖注入 ====================

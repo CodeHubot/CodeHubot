@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from app.core.database import Base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 import uuid as uuid_lib
 
 class LLMProvider(Base):
@@ -24,8 +24,8 @@ class LLMProvider(Base):
     country = Column(String(20), default="cn", comment="国家")
     sort_order = Column(Integer, default=0, comment="排序顺序")
     is_active = Column(Integer, default=1, comment="是否启用")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_beijing_time_naive)
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive)
     
     def __repr__(self):
         return f"<LLMProvider(id={self.id}, name='{self.name}', code='{self.code}')>"

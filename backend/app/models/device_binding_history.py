@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 
 class DeviceBindingHistory(Base):
     """
@@ -32,13 +32,13 @@ class DeviceBindingHistory(Base):
     
     # 绑定/解绑操作
     action = Column(String(20), nullable=False, comment="操作类型：bind/unbind")
-    action_time = Column(DateTime, nullable=False, default=datetime.utcnow, index=True, comment="操作时间")
+    action_time = Column(DateTime, nullable=False, default=get_beijing_time_naive, index=True, comment="操作时间")
     
     # 备注信息
     notes = Column(Text, nullable=True, comment="备注信息（如解绑原因等）")
     
     # 时间戳
-    created_at = Column(DateTime, default=datetime.utcnow, comment="记录创建时间")
+    created_at = Column(DateTime, default=get_beijing_time_naive, comment="记录创建时间")
     
     # 关系
     user = relationship("User", foreign_keys=[user_id])

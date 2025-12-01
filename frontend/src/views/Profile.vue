@@ -46,8 +46,11 @@
               <el-form-item label="用户名">
                 <el-input v-model="userForm.username" placeholder="请输入用户名" />
               </el-form-item>
+              <el-form-item label="昵称">
+                <el-input v-model="userForm.nickname" placeholder="请输入昵称（可选）" />
+              </el-form-item>
               <el-form-item label="邮箱">
-                <el-input v-model="userForm.email" disabled />
+                <el-input v-model="userForm.email" placeholder="请输入邮箱（可选）" />
               </el-form-item>
               <el-form-item label="注册时间">
                 <el-input v-model="userForm.created_at" disabled />
@@ -101,7 +104,7 @@
           <el-card class="info-card" shadow="hover">
             <template #header>
               <div class="card-header">
-                <el-icon size="20" color="#67C23A"><Shield /></el-icon>
+                <el-icon size="20" color="#67C23A"><Lock /></el-icon>
                 <span>账户安全</span>
               </div>
             </template>
@@ -210,8 +213,8 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  User, Lock, Key, Shield, Setting, Check, CircleCheck, Warning, Document,
-  Monitor, Login, Edit
+  User, Lock, Key, Setting, Check, CircleCheck, Warning, Document,
+  Monitor, UserFilled, Edit
 } from '@element-plus/icons-vue'
 import { getUserInfo, updateProfile as updateUserProfile, changePassword as changeUserPassword, getUserStats } from '@/api/auth'
 import logger from '@/utils/logger'
@@ -234,6 +237,7 @@ const userStats = reactive({
 // 用户表单
 const userForm = reactive({
   username: '',
+  nickname: '',
   email: '',
   created_at: '',
   last_login: ''
@@ -259,7 +263,7 @@ const activities = ref([
     id: 1,
     title: '登录系统',
     time: '2024-01-15 14:30:25',
-    icon: 'Login',
+    icon: 'UserFilled',
     color: '#67C23A'
   },
   {
@@ -285,7 +289,12 @@ const passwordRules = {
   ],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+    { min: 8, message: '密码长度不能少于8位', trigger: 'blur' },
+    { 
+      pattern: /^(?=.*[A-Za-z])(?=.*\d).+$/,
+      message: '密码必须包含字母和数字',
+      trigger: 'blur'
+    }
   ],
   confirmPassword: [
     { required: true, message: '请再次输入新密码', trigger: 'blur' },
@@ -314,6 +323,7 @@ const loadUserInfo = async () => {
     const userResponse = await getUserInfo()
     if (userResponse.data) {
       userForm.username = userResponse.data.username
+      userForm.nickname = userResponse.data.nickname || ''
       userForm.email = userResponse.data.email
       userForm.created_at = userResponse.data.created_at ? new Date(userResponse.data.created_at).toLocaleString() : '未知'
       userForm.last_login = userResponse.data.last_login ? new Date(userResponse.data.last_login).toLocaleString() : '未知'
@@ -347,17 +357,22 @@ const updateProfile = async () => {
   try {
     // 调用API更新用户信息
     const response = await updateUserProfile({
-      username: userForm.username
+      username: userForm.username,
+      nickname: userForm.nickname || null,
+      email: userForm.email || null
     })
     
     if (response.data) {
       // 更新store中的用户信息
-      userStore.userInfo.username = userForm.username
+      userStore.userInfo.username = response.data.username
+      userStore.userInfo.nickname = response.data.nickname
+      userStore.userInfo.email = response.data.email
       ElMessage.success('个人信息更新成功')
     }
   } catch (error) {
     logger.error('更新个人信息失败:', error)
-    ElMessage.error('更新失败，请重试')
+    const errorMsg = error.response?.data?.detail || '更新失败，请重试'
+    ElMessage.error(errorMsg)
   } finally {
     updateLoading.value = false
   }
@@ -372,7 +387,7 @@ const changePassword = async () => {
       try {
         // 调用API修改密码
         const response = await changeUserPassword({
-          current_password: passwordForm.currentPassword,
+          old_password: passwordForm.currentPassword,
           new_password: passwordForm.newPassword
         })
         
@@ -387,7 +402,8 @@ const changePassword = async () => {
         }
       } catch (error) {
         logger.error('密码修改失败:', error)
-        ElMessage.error('密码修改失败，请重试')
+        const errorMsg = error.response?.data?.detail || '密码修改失败，请重试'
+        ElMessage.error(errorMsg)
       } finally {
         passwordLoading.value = false
       }

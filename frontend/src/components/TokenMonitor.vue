@@ -13,19 +13,16 @@ const router = useRouter()
 const userStore = useUserStore()
 let checkInterval = null
 
-// 定期检查token状态
+// 定期检查token状态（仅作为兜底机制）
+// 注意：token刷新主要由请求拦截器和响应拦截器处理
+// 这里只检查refresh token是否过期，如果过期则登出
 const startTokenMonitoring = () => {
-  logger.debug('TokenMonitor: 开始token监控')
-  // 每分钟检查一次token状态
+  logger.debug('TokenMonitor: 开始token监控（兜底检查）')
+  // 每5分钟检查一次refresh token状态（降低频率，减少不必要的检查）
   checkInterval = setInterval(() => {
-    logger.debug('TokenMonitor: 执行定期token检查', {
-      hasToken: !!userStore.token,
-      isExpired: userStore.isTokenExpired,
-      isExpiringSoon: userStore.isTokenExpiringSoon
-    })
-    
-    if (userStore.token) {
-      // 检查 refresh token 是否过期
+    if (userStore.token || userStore.refreshToken) {
+      // 只检查 refresh token 是否过期（作为兜底机制）
+      // token刷新由请求拦截器和响应拦截器自动处理
       if (userStore.isRefreshTokenExpired) {
         logger.warn('TokenMonitor: Refresh token已过期，执行登出')
         ElMessage.warning('登录已过期，请重新登录')
@@ -34,39 +31,9 @@ const startTokenMonitoring = () => {
           logger.info('TokenMonitor: 重定向到登录页')
           router.push('/login')
         }
-        return
       }
-      
-      // 检查token是否过期
-      if (userStore.isTokenExpired) {
-        logger.warn('TokenMonitor: 检测到token过期，尝试刷新')
-        // 尝试刷新 token
-        userStore.refreshAccessToken().then(success => {
-          if (!success) {
-            ElMessage.warning('登录已过期，请重新登录')
-            if (router.currentRoute.value.path !== '/login') {
-              router.push('/login')
-            }
-          }
-        })
-        return
-      }
-      
-      // 检查token是否即将过期（提前3分钟），主动刷新
-      if (userStore.isTokenExpiringSoon && !userStore.isRefreshing) {
-        logger.info('TokenMonitor: 检测到token即将过期，主动刷新')
-        userStore.proactiveRefreshToken().then(success => {
-          if (success) {
-            logger.info('TokenMonitor: Token主动刷新成功')
-          } else {
-            logger.warn('TokenMonitor: Token主动刷新失败')
-          }
-        })
-      }
-    } else {
-      logger.debug('TokenMonitor: 无token，跳过检查')
     }
-  }, 60000) // 每分钟检查一次
+  }, 300000) // 每5分钟检查一次（降低频率）
 }
 
 const stopTokenMonitoring = () => {

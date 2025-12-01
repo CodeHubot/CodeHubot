@@ -225,6 +225,25 @@
                 <el-icon><Setting /></el-icon>
                 设备配置
               </el-button>
+              <el-button 
+                v-if="userStore.isSchoolAdmin && !device.school_id"
+                type="warning" 
+                size="small" 
+                @click.stop="setAsSchoolDevice(device)"
+                class="action-btn school-btn"
+              >
+                <el-icon><School /></el-icon>
+                设为学校设备
+              </el-button>
+              <el-tag 
+                v-if="device.school_id"
+                type="success"
+                size="small"
+                style="margin-left: 8px;"
+              >
+                <el-icon><School /></el-icon>
+                学校设备
+              </el-tag>
             </div>
           </div>
         </div>
@@ -272,12 +291,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDevices, getDevicesWithProductInfo, getDevicesStatistics } from '@/api/device'
+import { getDevices, getDevicesWithProductInfo, getDevicesStatistics, setDeviceSchool } from '@/api/device'
 import { getProductsSummary } from '@/api/product'
 import {
   Monitor, Plus, Refresh, Search,
   TrendCharts, Operation, View, Edit, Setting, Document, Delete, DocumentCopy,
-  CircleCheck, CircleClose
+  CircleCheck, CircleClose, School
 } from '@element-plus/icons-vue'
 import logger from '@/utils/logger'
 
@@ -627,6 +646,34 @@ const navigateToDeviceConfig = (device) => {
     return
   }
   router.push(`/device/${device.uuid}/config`)
+}
+
+// 设置为学校设备
+const setAsSchoolDevice = async (device) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要将设备"${device.name}"设置为学校设备吗？设置后，设备将可用于课程教学和设备分组。`,
+      '设置为学校设备',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    // 调用API设置为学校设备
+    await setDeviceSchool(device.uuid, userStore.userInfo.school_id)
+    
+    ElMessage.success('设备已设置为学校设备')
+    
+    // 刷新设备列表
+    loadDevices()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('设置学校设备失败:', error)
+      ElMessage.error(error.message || '设置失败')
+    }
+  }
 }
 
 

@@ -32,12 +32,12 @@ export const getUserInfo = () => {
 
 // 更新用户个人信息
 export const updateProfile = (data) => {
-  return request.put('/users/profile', data)
+  return request.put('/auth/profile', data)
 }
 
 // 修改密码
 export const changePassword = (data) => {
-  return request.put('/users/change-password', data)
+  return request.post('/auth/change-password', data)
 }
 
 // 获取用户统计信息

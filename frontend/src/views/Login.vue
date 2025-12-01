@@ -43,21 +43,33 @@
             <h2>欢迎回来</h2>
             <p>请登录您的账户</p>
           </div>
+
+          <!-- 登录方式切换 -->
+          <div class="login-type-switch">
+            <el-radio-group v-model="loginType" @change="handleLoginTypeChange">
+              <el-radio-button label="normal">普通登录</el-radio-button>
+              <el-radio-button label="institution">机构登录</el-radio-button>
+            </el-radio-group>
+          </div>
           
+          <!-- 普通登录表单 -->
           <el-form
+            v-if="loginType === 'normal'"
             ref="loginFormRef"
             :model="loginForm"
             :rules="loginRules"
             class="login-form"
+            autocomplete="off"
             @submit.prevent="handleLogin"
           >
             <el-form-item prop="email">
               <el-input
                 v-model="loginForm.email"
-                placeholder="请输入用户名或邮箱"
+                placeholder="请输入用户名"
                 size="large"
                 prefix-icon="User"
                 class="form-input"
+                autocomplete="off"
               />
             </el-form-item>
             
@@ -70,6 +82,7 @@
                 prefix-icon="Lock"
                 show-password
                 class="form-input"
+                autocomplete="off"
                 @keyup.enter="handleLogin"
               />
             </el-form-item>
@@ -96,6 +109,73 @@
               </el-button>
             </el-form-item>
           </el-form>
+
+          <!-- 机构登录表单 -->
+          <el-form
+            v-else
+            ref="institutionFormRef"
+            :model="institutionForm"
+            :rules="institutionRules"
+            class="login-form"
+            autocomplete="off"
+            @submit.prevent="handleInstitutionLogin"
+          >
+            <el-form-item prop="school_code">
+              <el-input
+                v-model="institutionForm.school_code"
+                placeholder="学校代码（如：BJ-YCZX）"
+                size="large"
+                prefix-icon="School"
+                class="form-input"
+                autocomplete="off"
+              />
+            </el-form-item>
+
+            <el-form-item prop="number">
+              <el-input
+                v-model="institutionForm.number"
+                placeholder="工号/学号"
+                size="large"
+                prefix-icon="Tickets"
+                class="form-input"
+                autocomplete="off"
+              />
+            </el-form-item>
+            
+            <el-form-item prop="password">
+              <el-input
+                v-model="institutionForm.password"
+                type="password"
+                placeholder="请输入密码"
+                size="large"
+                prefix-icon="Lock"
+                show-password
+                class="form-input"
+                autocomplete="off"
+                @keyup.enter="handleInstitutionLogin"
+              />
+            </el-form-item>
+            
+            <el-form-item>
+              <div class="form-options">
+                <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+                <span style="color: #999; font-size: 12px;">使用学校代码+工号/学号登录</span>
+              </div>
+            </el-form-item>
+            
+            <el-form-item>
+              <el-button
+                type="primary"
+                size="large"
+                class="login-btn"
+                :loading="loading"
+                @click="handleInstitutionLogin"
+              >
+                <span v-if="!loading">登录</span>
+                <span v-else>登录中...</span>
+              </el-button>
+            </el-form-item>
+          </el-form>
           
           <div class="form-footer">
             <p>还没有账户？ <el-link type="primary" @click="$router.push('/register')">立即注册</el-link></p>
@@ -112,16 +192,25 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
 import { ElMessage } from 'element-plus'
 import logger from '../utils/logger'
+import { institutionLogin } from '@/api/userManagement'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const loginFormRef = ref()
+const institutionFormRef = ref()
 const loading = ref(false)
 const rememberMe = ref(false)
+const loginType = ref('normal') // normal | institution
 
 const loginForm = reactive({
   email: '',
+  password: ''
+})
+
+const institutionForm = reactive({
+  school_code: '',
+  number: '',
   password: ''
 })
 
@@ -134,6 +223,29 @@ const loginRules = {
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ]
+}
+
+const institutionRules = {
+  school_code: [
+    { required: true, message: '请输入学校代码', trigger: 'blur' },
+    { min: 2, message: '学校代码至少2个字符', trigger: 'blur' }
+  ],
+  number: [
+    { required: true, message: '请输入工号/学号', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+  ]
+}
+
+const handleLoginTypeChange = () => {
+  // 清空表单
+  if (loginType.value === 'normal') {
+    institutionFormRef.value?.clearValidate()
+  } else {
+    loginFormRef.value?.clearValidate()
+  }
 }
 
 const handleLogin = async () => {
@@ -151,6 +263,34 @@ const handleLogin = async () => {
       } catch (error) {
         logger.error('登录失败:', error)
         ElMessage.error('登录失败，请检查用户名/邮箱和密码')
+      } finally {
+        loading.value = false
+      }
+    }
+  })
+}
+
+const handleInstitutionLogin = async () => {
+  if (!institutionFormRef.value) return
+  
+  await institutionFormRef.value.validate(async (valid) => {
+    if (valid) {
+      loading.value = true
+      try {
+        const response = await institutionLogin(institutionForm)
+        if (response.data) {
+          // 保存token和用户信息
+          const { access_token, refresh_token, user } = response.data
+          userStore.setToken(access_token)
+          userStore.setRefreshToken(refresh_token)
+          userStore.setUser(user)
+          
+          ElMessage.success('登录成功！')
+          await router.push('/agents')
+        }
+      } catch (error) {
+        logger.error('机构登录失败:', error)
+        ElMessage.error('机构登录失败: ' + (error.response?.data?.message || '请检查学校代码、工号/学号和密码'))
       } finally {
         loading.value = false
       }
@@ -294,7 +434,7 @@ const handleLogin = async () => {
 
 .form-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
 }
 
 .form-header h2 {
@@ -307,6 +447,40 @@ const handleLogin = async () => {
 .form-header p {
   color: #666;
   font-size: 1rem;
+}
+
+.login-type-switch {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.login-type-switch :deep(.el-radio-group) {
+  width: 100%;
+}
+
+.login-type-switch :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.login-type-switch :deep(.el-radio-button__inner) {
+  width: 100%;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.login-type-switch :deep(.el-radio-button:first-child .el-radio-button__inner) {
+  border-radius: 8px 0 0 8px;
+}
+
+.login-type-switch :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-radius: 0 8px 8px 0;
+}
+
+.login-type-switch :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
+  border-color: #409eff;
 }
 
 .login-form {

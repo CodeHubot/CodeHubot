@@ -45,52 +45,76 @@
         shadow="hover"
         :body-style="{ padding: '0' }"
       >
+        <!-- 卡片头部 -->
         <div class="card-header">
-          <div class="header-top">
-            <div class="agent-icon">
-              <el-icon size="24"><ChatDotRound /></el-icon>
+          <div class="header-content">
+            <div class="header-left">
+              <div class="agent-icon">
+                <el-icon size="28"><ChatDotRound /></el-icon>
+              </div>
+              <div class="agent-title">
+                <h3 class="agent-name">{{ agent.name }}</h3>
+                <div class="agent-meta">
+                  <span class="owner-info">
+                    <el-icon size="14"><User /></el-icon>
+                    {{ getOwnerDisplayName(agent) }}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="agent-info">
-              <h3 class="agent-name">{{ agent.name }}</h3>
-              <div class="agent-badges">
-                <el-tag :type="agent.is_active === 1 ? 'success' : 'info'" size="small">
-                  {{ agent.is_active === 1 ? '激活' : '禁用' }}
-                </el-tag>
-                <el-tag v-if="agent.is_system === 1" type="warning" size="small">系统内置</el-tag>
+            <div class="header-right">
+              <el-tag :type="agent.is_active === 1 ? 'success' : 'info'" size="small" effect="plain">
+                {{ agent.is_active === 1 ? '激活' : '禁用' }}
+              </el-tag>
+              <el-tag v-if="agent.is_system === 1" type="warning" size="small" effect="plain">系统</el-tag>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 卡片主体 -->
+        <div class="card-body">
+          <p class="agent-description" :title="agent.description || '暂无描述'">
+            {{ agent.description || '暂无描述' }}
+          </p>
+          
+          <div class="agent-info-grid">
+            <div class="info-item">
+              <div class="info-icon">
+                <el-icon size="16" color="#409eff"><Connection /></el-icon>
+              </div>
+              <div class="info-text">
+                <span class="info-label">插件</span>
+                <span class="info-value">{{ agent.plugin_ids?.length || 0 }}</span>
+              </div>
+            </div>
+            <div class="info-item">
+              <div class="info-icon">
+                <el-icon size="16" color="#67c23a"><Clock /></el-icon>
+              </div>
+              <div class="info-text">
+                <span class="info-label">创建</span>
+                <span class="info-value">{{ formatDateShort(agent.created_at) }}</span>
               </div>
             </div>
           </div>
         </div>
         
-        <div class="card-body">
-          <p class="agent-description">{{ agent.description || '暂无描述' }}</p>
-          
-          <div class="agent-stats">
-            <div class="stat-item">
-              <el-icon><Connection /></el-icon>
-              <span>{{ agent.plugin_ids?.length || 0 }} 个插件</span>
-            </div>
-            <div class="stat-item">
-              <el-icon><Clock /></el-icon>
-              <span>{{ formatDate(agent.created_at) }}</span>
-            </div>
-          </div>
-        </div>
-        
+        <!-- 卡片底部 -->
         <div class="card-footer">
-          <el-button type="success" size="small" @click="useAgent(agent)">
+          <el-button type="success" size="default" @click="useAgent(agent)" plain>
             <el-icon><ChatDotRound /></el-icon>
             立即使用
           </el-button>
-          <el-button type="primary" size="small" @click="editAgent(agent)">
+          <el-button type="primary" size="default" @click="editAgent(agent)" plain>
             <el-icon><Edit /></el-icon>
             编排
           </el-button>
           <el-button
             type="danger"
-            size="small"
+            size="default"
             @click="handleDelete(agent)"
             :disabled="agent.is_system === 1"
+            plain
           >
             <el-icon><Delete /></el-icon>
             删除
@@ -155,7 +179,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus, ChatDotRound, Connection, Clock, Edit, Delete } from '@element-plus/icons-vue'
+import { Search, Plus, ChatDotRound, Connection, Clock, Edit, Delete, User } from '@element-plus/icons-vue'
 import { getAgents, createAgent, updateAgent, deleteAgent } from '../api/agent'
 
 const router = useRouter()
@@ -317,6 +341,29 @@ const formatDate = (date) => {
   return new Date(date).toLocaleString('zh-CN')
 }
 
+// 格式化日期（短格式）
+const formatDateShort = (date) => {
+  if (!date) return ''
+  const d = new Date(date)
+  const now = new Date()
+  const diff = now - d
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  
+  if (days === 0) return '今天'
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days}天前`
+  if (days < 30) return `${Math.floor(days / 7)}周前`
+  if (days < 365) return `${Math.floor(days / 30)}月前`
+  return `${Math.floor(days / 365)}年前`
+}
+
+// 获取所有者显示名称（优先昵称）
+const getOwnerDisplayName = (agent) => {
+  if (!agent) return '未知'
+  // 优先显示昵称，没有昵称则显示用户名
+  return agent.owner_nickname || agent.owner_username || '未知'
+}
+
 onMounted(() => {
   loadAgents()
 })
@@ -371,43 +418,74 @@ onMounted(() => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.header-top {
+.header-content {
   display: flex;
+  justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
 .agent-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.agent-info {
+.agent-title {
   flex: 1;
   min-width: 0;
 }
 
 .agent-name {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 6px 0;
+  font-size: 19px;
   font-weight: 600;
   color: #ffffff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.agent-badges {
+.agent-meta {
   display: flex;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+}
+
+.owner-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 3px 10px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
 }
 
 /* 卡片主体 */
@@ -417,11 +495,11 @@ onMounted(() => {
 }
 
 .agent-description {
-  margin: 0 0 16px 0;
+  margin: 0 0 18px 0;
   font-size: 14px;
   color: #606266;
-  line-height: 1.6;
-  min-height: 44px;
+  line-height: 1.7;
+  min-height: 48px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -429,23 +507,57 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
-.agent-stats {
-  display: flex;
-  gap: 20px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+.agent-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
-.stat-item {
+.info-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #909399;
+  gap: 10px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  transition: all 0.2s;
 }
 
-.stat-item .el-icon {
-  font-size: 16px;
+.info-item:hover {
+  background: #f0f2f5;
+  transform: translateY(-1px);
+}
+
+.info-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1;
+}
+
+.info-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1;
 }
 
 /* 卡片底部 */

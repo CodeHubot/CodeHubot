@@ -94,8 +94,17 @@ export const useUserStore = defineStore('user', () => {
   
   // 用户角色相关计算属性
   const user = computed(() => userInfo.value)
-  const isAdmin = computed(() => userInfo.value?.role === 'admin')
-  const isSuperUser = computed(() => userInfo.value?.is_superuser === true)
+  
+  // 新角色系统
+  const isPlatformAdmin = computed(() => userInfo.value?.role === 'platform_admin')
+  const isSchoolAdmin = computed(() => userInfo.value?.role === 'school_admin')
+  const isTeacher = computed(() => userInfo.value?.role === 'teacher')
+  const isStudent = computed(() => userInfo.value?.role === 'student')
+  const isIndividual = computed(() => userInfo.value?.role === 'individual')
+  
+  // 旧角色系统（兼容性）
+  const isAdmin = computed(() => userInfo.value?.role === 'admin' || userInfo.value?.role === 'platform_admin')
+  const isSuperUser = computed(() => userInfo.value?.is_superuser === true || userInfo.value?.role === 'platform_admin')
 
   // Token过期检查
   const isTokenExpired = computed(() => {
@@ -174,7 +183,9 @@ export const useUserStore = defineStore('user', () => {
       ElMessage.success('登录成功')
       return response
     } catch (error) {
-      ElMessage.error(error.response?.data?.detail || '登录失败')
+      // 优先使用 message 字段，如果没有则使用 detail
+      const errorMessage = error.response?.data?.message || error.response?.data?.detail || '登录失败'
+      ElMessage.error(errorMessage)
       throw error
     }
   }
@@ -261,7 +272,9 @@ export const useUserStore = defineStore('user', () => {
       // 返回响应数据，而不是整个响应对象
       return response.data || response
     } catch (error) {
-      ElMessage.error(error.response?.data?.detail || '注册失败')
+      // 优先使用 message 字段，如果没有则使用 detail
+      const errorMessage = error.response?.data?.message || error.response?.data?.detail || '注册失败'
+      ElMessage.error(errorMessage)
       throw error
     }
   }
@@ -273,7 +286,9 @@ export const useUserStore = defineStore('user', () => {
       ElMessage.success('密码重置成功，请登录')
       return response
     } catch (error) {
-      ElMessage.error(error.response?.data?.detail || '密码重置失败')
+      // 优先使用 message 字段，如果没有则使用 detail
+      const errorMessage = error.response?.data?.message || error.response?.data?.detail || '密码重置失败'
+      ElMessage.error(errorMessage)
       throw error
     }
   }
@@ -325,6 +340,25 @@ export const useUserStore = defineStore('user', () => {
     return false
   }
 
+  // 设置token（用于机构登录等场景）
+  const setToken = (newToken) => {
+    token.value = newToken
+    localStorage.setItem('token', newToken)
+    setTokenExpiry()
+  }
+
+  // 设置refresh token
+  const setRefreshToken = (newRefreshToken) => {
+    refreshToken.value = newRefreshToken
+    localStorage.setItem('refreshToken', newRefreshToken)
+  }
+
+  // 设置用户信息
+  const setUser = (user) => {
+    userInfo.value = user
+    logger.info('用户信息已设置', { username: user.username, role: user.role })
+  }
+
   // 退出登录
   const logout = (reason = '手动退出') => {
     logger.info('用户退出登录:', { reason })
@@ -350,13 +384,22 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     user,
     isLoggedIn,
+    // 新角色系统
+    isPlatformAdmin,
+    isSchoolAdmin,
+    isTeacher,
+    isStudent,
+    isIndividual,
+    // 旧角色系统（兼容）
     isAdmin,
     isSuperUser,
+    // Token相关
     isTokenExpired,
     isTokenExpiringSoon,
     isRefreshTokenExpired,
     isRefreshing,
     proactiveRefreshToken,
+    // 方法
     initializeAuth,
     loginUser,
     registerUser,
@@ -364,6 +407,9 @@ export const useUserStore = defineStore('user', () => {
     refreshAccessToken,
     fetchUserInfo,
     checkAuth,
+    setToken,
+    setRefreshToken,
+    setUser,
     logout
   }
 })

@@ -48,6 +48,15 @@ class PluginCallInfo(BaseModel):
     result: str = Field(..., description="调用结果")
 
 
+class KnowledgeSourceInfo(BaseModel):
+    """知识库检索来源信息"""
+    knowledge_base_name: str = Field(..., description="知识库名称")
+    document_title: str = Field(..., description="文档标题")
+    chunk_content: str = Field(..., description="文本块内容")
+    similarity: float = Field(..., description="相似度")
+    chunk_index: int = Field(..., description="文本块序号")
+
+
 class TokenUsage(BaseModel):
     """Token使用量"""
     prompt_tokens: int = Field(..., description="输入Token数")
@@ -60,6 +69,7 @@ class ChatResponse(BaseModel):
     function_call: Optional[FunctionCall] = None
     token_usage: Optional[TokenUsage] = Field(None, description="Token使用量")
     plugin_calls: Optional[List[PluginCallInfo]] = Field(default=[], description="插件调用信息")
+    knowledge_sources: Optional[List[KnowledgeSourceInfo]] = Field(default=[], description="知识库检索来源")
 
 
 class ChatDeviceResponse(BaseModel):
@@ -101,6 +111,11 @@ async def chat_with_agent(
     if not agent:
         raise HTTPException(status_code=404, detail="智能体不存在")
     
+    # 权限检查：普通用户只能使用自己的智能体，管理员可以使用所有智能体
+    from app.api.agents import is_admin_user
+    if not is_admin_user(current_user) and agent.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权使用此智能体")
+    
     # 2. 获取智能体关联的插件
     plugins = []
     if agent.plugin_ids:
@@ -135,14 +150,134 @@ async def chat_with_agent(
     plugin_service = PluginService()
     functions = plugin_service.parse_openapi_to_functions(plugins)
     
-    # 5. 构建消息列表
+    # 5. 检索知识库（如果智能体关联了知识库）
+    knowledge_sources = []
+    knowledge_context = ""
+    
+    try:
+        from app.models.knowledge_base import KnowledgeBase, AgentKnowledgeBase
+        from app.models.document import Document, DocumentChunk
+        from app.services.embedding_service import get_embedding_service
+        import numpy as np
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # 查询智能体关联的知识库
+        kb_associations = db.query(AgentKnowledgeBase).filter(
+            AgentKnowledgeBase.agent_id == agent.id,
+            AgentKnowledgeBase.is_enabled == 1
+        ).order_by(AgentKnowledgeBase.priority.desc()).all()
+        
+        if kb_associations:
+            logger.info(f"[知识库检索] 智能体 {agent.name} 关联了 {len(kb_associations)} 个知识库")
+            
+            # 对用户消息进行向量化
+            embedding_service = get_embedding_service()
+            query_vector = await embedding_service.embed_text(request.message)
+            
+            if query_vector:
+                logger.info(f"[知识库检索] 用户消息向量化成功")
+                
+                # 在每个关联的知识库中检索
+                all_results = []
+                for assoc in kb_associations:
+                    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == assoc.knowledge_base_id).first()
+                    if not kb:
+                        continue
+                    
+                    logger.info(f"[知识库检索] 在知识库 '{kb.name}' 中检索...")
+                    
+                    # 获取该知识库的所有已向量化文本块
+                    chunks = db.query(DocumentChunk).filter(
+                        DocumentChunk.knowledge_base_id == kb.id,
+                        DocumentChunk.embedding_vector.isnot(None)
+                    ).all()
+                    
+                    logger.info(f"[知识库检索] 找到 {len(chunks)} 个已向量化文本块")
+                    
+                    # 收集所有相似度用于调试
+                    similarities = []
+                    threshold = float(assoc.similarity_threshold) if assoc.similarity_threshold else 0.7
+                    
+                    for chunk in chunks:
+                        if chunk.embedding_vector:
+                            # 使用embedding_service的calculate_similarity方法（已归一化到0-1）
+                            # 与测试界面保持一致
+                            similarity = embedding_service.calculate_similarity(
+                                query_vector,
+                                chunk.embedding_vector
+                            )
+                            similarities.append(similarity)
+                            
+                            # 只保留相似度高于阈值的结果
+                            if similarity >= threshold:
+                                doc = db.query(Document).filter(Document.id == chunk.document_id).first()
+                                if doc:
+                                    all_results.append({
+                                        'kb_name': kb.name,
+                                        'doc_title': doc.title,
+                                        'chunk_content': chunk.content,
+                                        'similarity': similarity,
+                                        'chunk_index': chunk.chunk_index
+                                    })
+                    
+                    # 输出相似度统计信息
+                    if similarities:
+                        max_sim = max(similarities)
+                        min_sim = min(similarities)
+                        avg_sim = sum(similarities) / len(similarities)
+                        above_threshold = sum(1 for s in similarities if s >= threshold)
+                        logger.info(f"[知识库检索] 相似度统计 - 最高:{max_sim:.4f}, 最低:{min_sim:.4f}, 平均:{avg_sim:.4f}, 阈值:{threshold}, 超过阈值:{above_threshold}个")
+                        # 输出前5个最高相似度
+                        top5 = sorted(similarities, reverse=True)[:5]
+                        logger.info(f"[知识库检索] Top5相似度: {[f'{s:.4f}' for s in top5]}")
+                
+                # 排序并取top_k
+                all_results.sort(key=lambda x: x['similarity'], reverse=True)
+                max_results = max([assoc.top_k for assoc in kb_associations]) if kb_associations else 5
+                top_results = all_results[:max_results]
+                
+                logger.info(f"[知识库检索] 共找到 {len(all_results)} 个相关结果，取前 {len(top_results)} 个")
+                
+                # 构建知识库上下文
+                if top_results:
+                    knowledge_parts = ["\n\n[参考知识库内容]"]
+                    for idx, result in enumerate(top_results, 1):
+                        knowledge_parts.append(
+                            f"\n{idx}. 来自《{result['doc_title']}》(相似度:{result['similarity']:.0%}):\n{result['chunk_content']}"
+                        )
+                        knowledge_sources.append(KnowledgeSourceInfo(
+                            knowledge_base_name=result['kb_name'],
+                            document_title=result['doc_title'],
+                            chunk_content=result['chunk_content'][:200] + "..." if len(result['chunk_content']) > 200 else result['chunk_content'],
+                            similarity=round(result['similarity'], 4),
+                            chunk_index=result['chunk_index']
+                        ))
+                    knowledge_context = "\n".join(knowledge_parts)
+                    logger.info(f"[知识库检索] 构建知识库上下文成功，共{len(knowledge_sources)}条")
+            else:
+                logger.warning("[知识库检索] 用户消息向量化失败")
+    except Exception as e:
+        import traceback
+        logger.error(f"[知识库检索] 检索失败: {str(e)}")
+        logger.error(traceback.format_exc())
+        # 检索失败不影响对话，继续执行
+    
+    # 6. 构建消息列表
     messages = []
     
     # 添加系统提示词
-    if agent.system_prompt:
+    system_content = agent.system_prompt if agent.system_prompt else "你是一个智能助手。"
+    
+    # 如果有知识库检索结果，添加到系统提示词中
+    if knowledge_context:
+        system_content += knowledge_context
+        system_content += "\n\n请基于以上参考内容回答用户问题。如果参考内容中没有相关信息，可以使用你的知识进行回答，但请说明这不是来自参考资料。"
+    
         messages.append({
             "role": "system",
-            "content": agent.system_prompt
+        "content": system_content
         })
     
     # 添加插件能力说明
@@ -273,7 +408,8 @@ async def chat_with_agent(
             response=result.get("response", "抱歉，我现在无法回答这个问题。"),
             function_call=result.get("function_call"),
             token_usage=token_usage,
-            plugin_calls=plugin_calls_info if plugin_calls_info else []
+            plugin_calls=plugin_calls_info if plugin_calls_info else [],
+            knowledge_sources=knowledge_sources if knowledge_sources else []
         )
         
         return response

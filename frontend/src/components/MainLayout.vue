@@ -53,6 +53,21 @@
 
               <div 
                 class="nav-item"
+                :class="{ active: $route.path === '/knowledge-bases' || $route.path.startsWith('/knowledge-bases/') }"
+                @click="handleNavItemClick({route: '/knowledge-bases'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><Collection /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">知识库管理</span>
+                  <span class="item-desc">管理知识库和文档</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+
+              <div 
+                class="nav-item"
                 :class="{ active: $route.path === '/plugins' }"
                 @click="handleNavItemClick({route: '/plugins'}, $event)"
               >
@@ -167,12 +182,141 @@
             </div>
           </div> -->
 
-          <!-- 系统管理区域 -->
-          <div class="nav-section" v-if="canAccessUserManagement || canAccessSystemManagement">
+          <!-- 平台管理区域（仅平台管理员） -->
+          <div class="nav-section" v-if="isPlatformAdmin">
+            <div class="section-label" v-if="!sidebarCollapsed">平台管理</div>
+            <div class="nav-items">
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/schools' }"
+                @click="handleNavItemClick({route: '/schools'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><OfficeBuilding /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">学校管理</span>
+                  <span class="item-desc">管理所有学校</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 学校管理区域（学校管理员） -->
+          <div class="nav-section" v-if="isSchoolAdmin">
+            <div class="section-label" v-if="!sidebarCollapsed">教学管理</div>
+            <div class="nav-items">
+              <!-- 1. 教师管理：批量导入教师 -->
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/teachers' }"
+                @click="handleNavItemClick({route: '/teachers'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><UserFilled /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">教师管理</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+
+              <!-- 2. 学生管理：批量导入学生 -->
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/students' }"
+                @click="handleNavItemClick({route: '/students'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><User /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">学生管理</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+
+              <!-- 3. 课程管理：教师创建课程、添加学生、分组 -->
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/courses' }"
+                @click="handleNavItemClick({route: '/courses'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><Collection /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">课程管理</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+
+              <!-- 4. 设备管理：设备分组、授权给课程 -->
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/device-groups' }"
+                @click="handleNavItemClick({route: '/device-groups'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><Box /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">设备管理</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 课程管理区域（教师） -->
+          <div class="nav-section" v-if="isTeacher">
+            <div class="section-label" v-if="!sidebarCollapsed">我的工作</div>
+            <div class="nav-items">
+              <!-- 我的课程：教师创建和管理自己的课程 -->
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/courses' }"
+                @click="handleNavItemClick({route: '/courses'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><Collection /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">我的课程</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 原有的教师课程管理区域（临时保留）TODO: 待删除 -->
+          <div class="nav-section" v-if="false && isTeacher">
+            <div class="section-label" v-if="!sidebarCollapsed">OLD-课程管理</div>
+            <div class="nav-items">
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/students' }"
+                @click="handleNavItemClick({route: '/students'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><User /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">学生管理</span>
+                  <span class="item-desc">管理班级学生</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 系统管理区域（保留旧的管理功能） -->
+          <div class="nav-section" v-if="canAccessSystemManagement">
             <div class="section-label" v-if="!sidebarCollapsed">系统管理</div>
             <div class="nav-items">
               <div 
-                v-if="canAccessUserManagement"
+                v-if="isPlatformAdmin"
                 class="nav-item"
                 :class="{ active: $route.path === '/users' }"
                 @click="handleNavItemClick({route: '/users'}, $event)"
@@ -188,7 +332,6 @@
               </div>
 
               <div 
-                v-if="canAccessSystemManagement"
                 class="nav-item"
                 :class="{ active: $route.path === '/system-config' }"
                 @click="handleNavItemClick({route: '/system-config'}, $event)"
@@ -256,8 +399,8 @@
                   <el-icon><User /></el-icon>
                 </el-avatar>
                 <div class="user-details" v-if="!isMobile">
-                  <span class="user-name">{{ userStore.userInfo?.username || '用户' }}</span>
-                  <span class="user-email">{{ userStore.userInfo?.email }}</span>
+                  <span class="user-name">{{ displayName }}</span>
+                  <span class="user-email">{{ displayRole }}</span>
                 </div>
                 <el-icon class="dropdown-icon" v-if="!isMobile"><ArrowDown /></el-icon>
               </div>
@@ -316,7 +459,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   House, Monitor, User, ArrowRight, ArrowDown, Setting, SwitchButton,
   Fold, Expand, Menu, TrendCharts, UserFilled, Plus, List, Box, Collection,
-  InfoFilled, ChatDotRound, Connection
+  InfoFilled, ChatDotRound, Connection, OfficeBuilding, Postcard
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -343,12 +486,21 @@ const pageConfig = {
 
   // AI 智能体
   '/agents': { title: '智能体管理', icon: 'ChatDotRound', color: '#409EFF' },
+  '/knowledge-bases': { title: '知识库管理', icon: 'Collection', color: '#409EFF' },
   '/plugins': { title: '插件管理', icon: 'Connection', color: '#409EFF' },
   '/plugin': { title: '插件详情', icon: 'Connection', color: '#409EFF' },
   '/llm-models': { title: '模型配置', icon: 'TrendCharts', color: '#409EFF' },
   '/agents/.*/chat': { title: '智能体对话', icon: 'ChatDotSquare', color: '#67C23A' },
 
-  // '/data-overview': { title: '数据概览', icon: 'TrendCharts', color: '#67C23A' }, // 暂时隐藏
+  // 用户管理模块（按业务流程顺序：教师→学生→课程→设备）
+  '/schools': { title: '学校管理', icon: 'OfficeBuilding', color: '#E6A23C' },
+  '/teachers': { title: '教师管理', icon: 'UserFilled', color: '#E6A23C' },
+  '/students': { title: '学生管理', icon: 'User', color: '#E6A23C' },
+  '/courses': { title: '课程管理', icon: 'Collection', color: '#E6A23C' },
+  '/device-groups': { title: '设备管理', icon: 'Box', color: '#E6A23C' },
+  '/groups': { title: '分组管理', icon: 'Postcard', color: '#E6A23C' },
+  
+  // 旧的用户管理
   '/users': { title: '用户列表', icon: 'UserFilled', color: '#E6A23C' },
   '/roles': { title: '角色管理', icon: 'UserFilled', color: '#E6A23C' },
   '/permissions': { title: '权限管理', icon: 'UserFilled', color: '#E6A23C' },
@@ -408,6 +560,10 @@ const breadcrumbs = computed(() => {
     crumbs.push('AI 智能体', '智能体管理', '智能体对话')
   } else if (path.startsWith('/agents')) {
     crumbs.push('AI 智能体', '智能体管理')
+  } else if (path.startsWith('/knowledge-bases/')) {
+    crumbs.push('AI 智能体', '知识库管理', '知识库详情')
+  } else if (path.startsWith('/knowledge-bases')) {
+    crumbs.push('AI 智能体', '知识库管理')
   } else if (path.includes('/plugins/') && path.includes('/view')) {
     crumbs.push('AI 智能体', '插件管理', '查看插件')
   } else if (path.includes('/plugins/') && path.includes('/edit')) {
@@ -416,6 +572,16 @@ const breadcrumbs = computed(() => {
     crumbs.push('AI 智能体', '插件管理')
   } else if (path.startsWith('/llm-models')) {
     crumbs.push('AI 智能体', '模型配置')
+  } else if (path.startsWith('/schools')) {
+    crumbs.push('平台管理', '学校管理')
+  } else if (path.startsWith('/classes')) {
+    crumbs.push('学校管理', '课程管理')
+  } else if (path.startsWith('/teachers')) {
+    crumbs.push('学校管理', '教师管理')
+  } else if (path.startsWith('/students')) {
+    crumbs.push('学校管理', '学生管理')
+  } else if (path.startsWith('/groups')) {
+    crumbs.push('学校管理', '分组管理')
   } else if (path.startsWith('/users')) {
     crumbs.push('用户管理', '用户列表')
   } else if (path.startsWith('/roles')) {
@@ -433,15 +599,45 @@ const breadcrumbs = computed(() => {
   return crumbs
 })
 
+// 用户显示名称
+const displayName = computed(() => {
+  const user = userStore.userInfo
+  if (!user) return '用户'
+  return user.real_name || user.nickname || user.username || '用户'
+})
+
+// 用户角色显示
+const displayRole = computed(() => {
+  const role = userStore.userInfo?.role
+  const roleMap = {
+    'platform_admin': '平台管理员',
+    'school_admin': '学校管理员',
+    'teacher': '教师',
+    'student': '学生',
+    'individual': '个人用户',
+    'admin': '管理员',
+    'user': '普通用户'
+  }
+  return roleMap[role] || role || '未知角色'
+})
+
 // 用户头像
 const userAvatar = computed(() => {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${userStore.userInfo?.username || 'user'}`
 })
 
-// 权限检查
-const canAccessUserManagement = computed(() => userStore.isAdmin || userStore.isSuperUser)
-const canAccessSystemManagement = computed(() => userStore.isSuperUser)
-const canAccessLLMModels = computed(() => userStore.isAdmin || userStore.isSuperUser)
+// 角色判断
+const userRole = computed(() => userStore.userInfo?.role || 'individual')
+const isPlatformAdmin = computed(() => userRole.value === 'platform_admin')
+const isSchoolAdmin = computed(() => userRole.value === 'school_admin')
+const isTeacher = computed(() => userRole.value === 'teacher')
+const isStudent = computed(() => userRole.value === 'student')
+const isIndividual = computed(() => userRole.value === 'individual')
+
+// 权限检查（兼容旧系统）
+const canAccessUserManagement = computed(() => isPlatformAdmin.value || userStore.isAdmin || userStore.isSuperUser)
+const canAccessSystemManagement = computed(() => isPlatformAdmin.value || userStore.isSuperUser)
+const canAccessLLMModels = computed(() => isPlatformAdmin.value || isSchoolAdmin.value || userStore.isAdmin)
 
 // 切换侧边栏
 const toggleSidebar = () => {
@@ -481,6 +677,9 @@ const handleNavItemClick = (item, event) => {
   setTimeout(() => {
     element.style.transform = 'scale(1)'
   }, 150)
+  
+  // 滚动到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' })
   
   // 路由跳转
   router.push(item.route)
@@ -591,9 +790,9 @@ const handleLogout = () => {
 // 处理用户下拉菜单命令
 const handleCommand = (command) => {
   if (command === 'profile') {
-    ElMessage.info('个人信息功能开发中...')
+    router.push('/profile')
   } else if (command === 'account') {
-    ElMessage.info('账户设置功能开发中...')
+    router.push('/profile')
   } else if (command === 'security') {
     ElMessage.info('安全设置功能开发中...')
   } else if (command === 'preferences') {
@@ -870,7 +1069,7 @@ onUnmounted(() => {
 }
 
 .nav-section {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .section-label {
@@ -878,9 +1077,9 @@ onUnmounted(() => {
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin: 0 20px 12px 20px;
-  padding-bottom: 8px;
+  letter-spacing: 1.2px;
+  margin: 0 16px 8px 16px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(100, 116, 139, 0.2);
   position: relative;
 }
@@ -898,24 +1097,24 @@ onUnmounted(() => {
 .nav-items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 16px;
+  gap: 2px;
+  padding: 0 12px;
 }
 
 /* 导航项目设计 */
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
-  border-radius: 16px;
+  padding: 10px 16px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
   background: rgba(51, 65, 85, 0.3);
   border: 1px solid rgba(148, 163, 184, 0.1);
   backdrop-filter: blur(10px);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .nav-item::before {
@@ -933,55 +1132,55 @@ onUnmounted(() => {
 }
 
 .item-icon {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   background: rgba(59, 130, 246, 0.1);
-  border-radius: 12px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
+  margin-right: 12px;
   transition: all 0.3s ease;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
 }
 
 .item-icon .el-icon {
   color: #60a5fa;
   transition: all 0.3s ease;
+  font-size: 18px;
 }
 
 .item-content {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   position: relative;
   z-index: 2;
 }
 
 .item-title {
   color: #e2e8f0;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 500;
   transition: color 0.3s ease;
+  white-space: nowrap;
 }
 
 .item-desc {
-  color: #94a3b8;
-  font-size: 0.75rem;
-  font-weight: 400;
-  transition: color 0.3s ease;
+  display: none; /* 隐藏描述文字 */
 }
 
 .item-indicator {
-  width: 4px;
-  height: 24px;
+  width: 3px;
+  height: 20px;
   background: transparent;
   border-radius: 2px;
   transition: all 0.3s ease;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
 }
 
 /* 悬停效果 */
@@ -990,11 +1189,10 @@ onUnmounted(() => {
     rgba(59, 130, 246, 0.2) 0%, 
     rgba(147, 51, 234, 0.2) 100%);
   border-color: rgba(59, 130, 246, 0.3);
-  transform: translateX(8px) scale(1.02);
+  transform: translateX(6px);
   box-shadow: 
-    0 12px 40px rgba(59, 130, 246, 0.2),
+    0 4px 12px rgba(59, 130, 246, 0.2),
     0 0 0 1px rgba(59, 130, 246, 0.1);
-  animation: float 2s ease-in-out infinite;
 }
 
 .nav-item:hover::before {
@@ -1003,22 +1201,19 @@ onUnmounted(() => {
 
 .nav-item:hover .item-icon {
   background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  transform: scale(1.1);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .nav-item:hover .item-icon .el-icon {
   color: #ffffff;
-  transform: scale(1.1);
 }
 
 .nav-item:hover .item-title {
   color: #ffffff;
 }
 
-.nav-item:hover .item-desc {
-  color: #cbd5e1;
-}
+/* .item-desc 已隐藏，不需要悬停样式 */
 
 .nav-item:hover .item-indicator {
   background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%);
@@ -1030,11 +1225,10 @@ onUnmounted(() => {
     rgba(59, 130, 246, 0.25) 0%, 
     rgba(147, 51, 234, 0.25) 100%);
   border-color: rgba(59, 130, 246, 0.4);
-  transform: translateX(6px);
+  transform: translateX(4px);
   box-shadow: 
-    0 16px 48px rgba(59, 130, 246, 0.25),
+    0 4px 16px rgba(59, 130, 246, 0.25),
     0 0 0 1px rgba(59, 130, 246, 0.2);
-  animation: pulse 2s infinite;
 }
 
 .nav-item.active::before {
@@ -1055,9 +1249,7 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-.nav-item.active .item-desc {
-  color: #cbd5e1;
-}
+/* .item-desc 已隐藏 */
 
 .nav-item.active .item-indicator {
   background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%);
@@ -1090,7 +1282,7 @@ onUnmounted(() => {
 
 .new-sidebar.collapsed .nav-item {
   justify-content: center;
-  padding: 16px;
+  padding: 10px;
 }
 
 .new-sidebar.collapsed .item-icon {

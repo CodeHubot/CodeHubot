@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON, F
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from datetime import datetime
+from app.utils.timezone import get_beijing_time_naive
 
 class Product(Base):
     """
@@ -101,8 +101,8 @@ class Product(Base):
     is_shared = Column(Boolean, default=False, comment="是否共享给其他用户（用户创建的产品可选择共享）")
     
     # 时间戳
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_beijing_time_naive)
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive)
     
     # 关系 - 直接关联设备
     devices = relationship("Device", back_populates="product", cascade="all, delete-orphan")

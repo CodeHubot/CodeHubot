@@ -6,7 +6,7 @@ import logger from '../utils/logger'
 // 创建axios实例
 // 使用环境变量配置 API 地址，如果没有配置则使用默认值
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
-const timeout = import.meta.env.VITE_API_TIMEOUT ? parseInt(import.meta.env.VITE_API_TIMEOUT) : 10000
+const timeout = import.meta.env.VITE_API_TIMEOUT ? parseInt(import.meta.env.VITE_API_TIMEOUT) : 30000 // 默认30秒
 
 const request = axios.create({
   baseURL,
@@ -24,6 +24,11 @@ const isValidTokenFormat = (token) => {
 request.interceptors.request.use(
   config => {
     const userStore = useUserStore()
+    
+    // 如果是 FormData，删除手动设置的 Content-Type，让浏览器自动设置（包括 boundary）
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
     
     logger.api(config.method, config.url, config.data)
     
@@ -88,11 +93,15 @@ let isRefreshing = false
 let failedQueue = []
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach(item => {
     if (error) {
-      prom.reject(error)
+      item.reject(error)
     } else {
-      prom.resolve(token)
+      // 更新等待请求的Authorization头
+      if (item.config) {
+        item.config.headers.Authorization = `Bearer ${token}`
+      }
+      item.resolve(token)
     }
   })
   failedQueue = []
@@ -129,7 +138,7 @@ request.interceptors.response.use(
     })
     
     // 处理401错误 - 尝试刷新token
-    if (status === 401 && !originalRequest._retry) {
+    if (status === 401) {
       // 如果是refresh端点失败，直接登出
       if (url?.includes('/auth/refresh')) {
         logger.error('Refresh token失败，执行登出')
@@ -143,15 +152,26 @@ request.interceptors.response.use(
         return Promise.reject(error)
       }
       
+      // 如果已经重试过，说明刷新token后仍然失败，直接拒绝请求（不登出，避免重复登出）
+      if (originalRequest._retry) {
+        logger.warn('Token刷新后请求仍然失败，拒绝请求')
+        return Promise.reject(error)
+      }
+      
       // 标记此请求已重试过
       originalRequest._retry = true
       
       if (isRefreshing) {
-        // 如果正在刷新token，将请求加入队列
-        logger.debug('Token刷新中，请求加入队列')
+        // 如果正在刷新token，将请求加入队列，等待刷新完成
+        logger.debug('Token刷新中，请求加入队列等待')
         return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
+          failedQueue.push({ 
+            resolve, 
+            reject,
+            config: originalRequest
+          })
         }).then(token => {
+          // 刷新完成，使用新token重试请求
           originalRequest.headers.Authorization = `Bearer ${token}`
           return request(originalRequest)
         }).catch(err => {
@@ -168,15 +188,14 @@ request.interceptors.response.use(
         const newToken = await userStore.refreshAccessToken()
         
         if (newToken) {
-          // 刷新成功，更新请求头并重试
+          // 刷新成功，更新请求头并处理队列
           logger.info('✅ Token刷新成功，重试原请求')
           originalRequest.headers.Authorization = `Bearer ${newToken}`
+          
+          // 处理等待队列中的所有请求
           processQueue(null, newToken)
           
           // 重试原请求
-          // 注意：如果重试时又返回 401，响应拦截器会再次处理
-          // 但由于 _retry 已经设置为 true，不会再次刷新，会直接进入错误处理
-          // 这是合理的，因为新 token 应该有效，如果无效说明服务器或配置有问题
           return request(originalRequest)
         } else {
           // 刷新失败，登出
@@ -184,7 +203,17 @@ request.interceptors.response.use(
         }
       } catch (err) {
         logger.error('Token刷新失败，执行登出')
+        // 处理等待队列，通知所有等待的请求刷新失败
         processQueue(err, null)
+        
+        // 只有在确实刷新失败时才登出（避免重复登出）
+        if (!userStore.isRefreshTokenExpired) {
+          // refresh token还有效但刷新失败，可能是网络问题，不立即登出
+          logger.warn('Token刷新失败，但refresh token仍有效，可能是网络问题')
+          return Promise.reject(err)
+        }
+        
+        // refresh token已过期，执行登出
         userStore.logout('认证失败')
         ElMessage.error('登录已过期，请重新登录')
         
@@ -197,9 +226,8 @@ request.interceptors.response.use(
       }
     } else if (error.message === 'Token expired') {
       logger.warn('Token过期错误')
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
-      }
+      // 不在这里登出，让响应拦截器的401处理逻辑来处理
+      return Promise.reject(error)
     } else if (status >= 500) {
       ElMessage.error('服务器错误，请稍后重试')
     } else if (status >= 400) {

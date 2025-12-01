@@ -6,7 +6,8 @@
         <el-icon class="agent-icon"><ChatDotRound /></el-icon>
         <div class="agent-details">
           <h3>{{ agent?.name || '智能体' }}</h3>
-          <p>{{ agent?.description || '正在加载...' }}</p>
+          <p v-if="!agent">正在加载...</p>
+          <p v-else>{{ agent.description || '暂无描述' }}</p>
         </div>
       </div>
       <div class="header-actions">
@@ -55,6 +56,34 @@
         </div>
         <div class="message-content">
           <div class="message-text" v-html="formatMessage(message.content)"></div>
+          
+          <!-- 知识库检索来源 -->
+          <div v-if="message.knowledge_sources && message.knowledge_sources.length > 0" class="knowledge-sources">
+            <div v-for="(source, idx) in message.knowledge_sources" :key="idx" class="knowledge-source-item">
+              <el-alert type="success" :closable="false">
+                <template #title>
+                  <div class="knowledge-header">
+                    <el-icon><Reading /></el-icon>
+                    <span>检索知识库: {{ source.knowledge_base_name }}</span>
+                    <el-tag size="small" type="success" style="margin-left: 8px;">命中</el-tag>
+                  </div>
+                </template>
+                <div class="knowledge-source-details">
+                  <div class="source-info">
+                    <div class="source-header">
+                      <el-tag size="small" type="primary">文档</el-tag>
+                      <span class="source-title">《{{ source.document_title }}》</span>
+                      <el-tag size="small" :type="getSimilarityType(source.similarity)">
+                        相似度: {{ (source.similarity * 100).toFixed(1) }}%
+                      </el-tag>
+                    </div>
+                    <div class="source-content">{{ source.chunk_content }}</div>
+                    <div class="source-meta">文本块 #{{ source.chunk_index }}</div>
+                  </div>
+                </div>
+              </el-alert>
+            </div>
+          </div>
           
           <!-- 插件调用信息 -->
           <div v-if="message.plugin_calls && message.plugin_calls.length > 0" class="plugin-calls">
@@ -147,24 +176,28 @@
         </div>
       </div>
 
-      <el-input
-        v-model="inputMessage"
-        type="textarea"
-        :rows="3"
-        :placeholder="selectedDevice ? `向 ${selectedDevice.name} 发送指令... (Ctrl+Enter 发送)` : '输入消息... (Ctrl+Enter 发送)'"
-        @keydown.ctrl.enter="handleSend"
-        :disabled="isThinking"
-      />
-      <div class="input-actions">
-        <el-button
-          type="primary"
-          @click="handleSend"
-          :loading="isThinking"
-          :disabled="!inputMessage.trim()"
-        >
-          <el-icon><Promotion /></el-icon>
-          发送
-        </el-button>
+      <div class="input-wrapper">
+        <el-input
+          v-model="inputMessage"
+          type="textarea"
+          :rows="3"
+          :placeholder="selectedDevice ? `向 ${selectedDevice.name} 发送指令... (Ctrl+Enter 发送)` : '输入消息... (Ctrl+Enter 发送)'"
+          @keydown.ctrl.enter="handleSend"
+          :disabled="isThinking"
+          class="message-input"
+        />
+        <div class="input-actions">
+          <el-button
+            type="primary"
+            @click="handleSend"
+            :loading="isThinking"
+            :disabled="!inputMessage.trim()"
+            class="send-button"
+          >
+            <el-icon><Promotion /></el-icon>
+            发送
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -187,7 +220,8 @@ import {
   Promotion,
   Monitor,
   CircleCheck,
-  DataAnalysis
+  DataAnalysis,
+  Reading
 } from '@element-plus/icons-vue'
 import { getAgent } from '@/api/agent'
 import { chatWithAgent, getMyDevices } from '@/api/chat'
@@ -379,6 +413,13 @@ const formatTime = (timestamp) => {
       minute: '2-digit'
     })
   }
+}
+
+// 获取相似度标签类型
+const getSimilarityType = (similarity) => {
+  if (similarity >= 0.8) return 'success'
+  if (similarity >= 0.7) return 'warning'
+  return 'info'
 }
 
 // 加载用户设备列表（使用聊天专用接口）
@@ -601,11 +642,15 @@ onMounted(async () => {
 
 .message-text {
   background: white;
-  padding: 12px 16px;
+  padding: 16px 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   word-wrap: break-word;
-  line-height: 1.6;
+  line-height: 1.8;
+  color: #303133;
+  font-size: 15px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .message-item.user .message-text {
@@ -643,6 +688,130 @@ onMounted(async () => {
 .message-text :deep(pre code) {
   background: none;
   padding: 0;
+}
+
+/* Markdown 列表样式 */
+.message-text :deep(ul),
+.message-text :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.message-text :deep(li) {
+  margin: 4px 0;
+  line-height: 1.8;
+}
+
+.message-text :deep(ul li) {
+  list-style-type: disc;
+}
+
+.message-text :deep(ol li) {
+  list-style-type: decimal;
+}
+
+.message-text :deep(ul ul),
+.message-text :deep(ol ol) {
+  margin: 4px 0;
+}
+
+/* Markdown 标题样式 */
+.message-text :deep(h1),
+.message-text :deep(h2),
+.message-text :deep(h3),
+.message-text :deep(h4),
+.message-text :deep(h5),
+.message-text :deep(h6) {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.message-text :deep(h1) { font-size: 24px; }
+.message-text :deep(h2) { font-size: 20px; }
+.message-text :deep(h3) { font-size: 18px; }
+.message-text :deep(h4) { font-size: 16px; }
+.message-text :deep(h5) { font-size: 14px; }
+.message-text :deep(h6) { font-size: 13px; }
+
+/* Markdown 表格样式 */
+.message-text :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 14px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.message-text :deep(thead) {
+  background: #f5f7fa;
+}
+
+.message-text :deep(th) {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #e4e7ed;
+  color: #303133;
+}
+
+.message-text :deep(td) {
+  padding: 10px 12px;
+  border-bottom: 1px solid #ebeef5;
+  color: #606266;
+}
+
+.message-text :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+.message-text :deep(tr:hover) {
+  background: #fafafa;
+}
+
+/* Markdown 引用样式 */
+.message-text :deep(blockquote) {
+  border-left: 4px solid #409eff;
+  padding: 8px 16px;
+  margin: 12px 0;
+  background: #f0f9ff;
+  color: #606266;
+  border-radius: 0 4px 4px 0;
+}
+
+.message-text :deep(blockquote p) {
+  margin: 0;
+}
+
+/* Markdown 分割线样式 */
+.message-text :deep(hr) {
+  border: none;
+  border-top: 1px solid #e4e7ed;
+  margin: 16px 0;
+}
+
+/* Markdown 链接样式 */
+.message-text :deep(a) {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.message-text :deep(a:hover) {
+  text-decoration: underline;
+}
+
+/* Markdown 强调样式 */
+.message-text :deep(strong) {
+  font-weight: 600;
+  color: #303133;
+}
+
+.message-text :deep(em) {
+  font-style: italic;
+  color: #606266;
 }
 
 .function-call {
@@ -716,9 +885,37 @@ onMounted(async () => {
   gap: 12px;
 }
 
-.input-actions {
+.input-wrapper {
+  position: relative;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+}
+
+.message-input {
+  flex: 1;
+}
+
+.input-actions {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.send-button {
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.send-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.send-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .input-toolbar {
@@ -763,6 +960,64 @@ onMounted(async () => {
   margin-left: 12px;
   color: #67c23a;
   font-size: 14px;
+}
+
+/* 知识库来源样式 */
+.knowledge-sources {
+  margin-top: 12px;
+}
+
+.knowledge-source-item {
+  margin-bottom: 8px;
+}
+
+.knowledge-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.knowledge-source-details {
+  margin-top: 8px;
+}
+
+.source-info {
+  padding: 8px 0;
+}
+
+.source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.source-title {
+  font-weight: 500;
+  color: #303133;
+  flex: 1;
+}
+
+.source-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #606266;
+  padding: 8px 0;
+  border-top: 1px dashed #e4e7ed;
+  border-bottom: 1px dashed #e4e7ed;
+  margin: 8px 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.source-meta {
+  font-size: 12px;
+  color: #909399;
+  font-style: italic;
+  margin-top: 4px;
 }
 
 .plugin-calls {
