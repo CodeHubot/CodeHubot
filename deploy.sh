@@ -197,6 +197,15 @@ build_images() {
     log_info "构建插件服务镜像..."
     docker-compose -f docker-compose.prod.yml build plugin-service
     
+    log_info "构建MQTT独立服务镜像..."
+    docker-compose -f docker-compose.prod.yml build mqtt-service
+    
+    log_info "构建Celery Worker镜像..."
+    docker-compose -f docker-compose.prod.yml build celery_worker
+    
+    log_info "构建Flower监控镜像..."
+    docker-compose -f docker-compose.prod.yml build flower
+    
     log_info "所有镜像构建完成 ✓"
 }
 
@@ -251,8 +260,25 @@ start_services() {
     fi
     
     # 启动应用服务
-    log_info "启动应用服务（后端、配置服务、前端、插件服务、phpMyAdmin）..."
-    docker-compose -f docker-compose.prod.yml up -d backend config-service frontend plugin-service phpmyadmin
+    log_info "启动应用服务..."
+    log_info "  - Backend (HTTP API)"
+    log_info "  - Config Service (配置服务)"
+    log_info "  - Frontend (前端)"
+    log_info "  - Plugin Service (插件服务)"
+    log_info "  - MQTT Service (设备消息处理)"
+    log_info "  - Celery Worker (异步任务)"
+    log_info "  - Flower (任务监控)"
+    log_info "  - phpMyAdmin (数据库管理)"
+    
+    docker-compose -f docker-compose.prod.yml up -d \
+        backend \
+        config-service \
+        frontend \
+        plugin-service \
+        mqtt-service \
+        celery_worker \
+        flower \
+        phpmyadmin
     
     log_info "所有服务启动完成 ✓"
 }
@@ -299,6 +325,49 @@ check_services() {
         log_warn "插件服务: ✗ 未响应（可能需要等待服务完全启动）"
     fi
     
+    # 检查MQTT服务
+    if docker-compose -f docker-compose.prod.yml ps mqtt-service | grep -q "Up"; then
+        log_info "MQTT服务: ✓ 运行中"
+    else
+        log_warn "MQTT服务: ✗ 未运行"
+    fi
+    
+    # 检查Celery Worker
+    if docker-compose -f docker-compose.prod.yml ps celery_worker | grep -q "Up"; then
+        log_info "Celery Worker: ✓ 运行中"
+    else
+        log_warn "Celery Worker: ✗ 未运行"
+    fi
+    
+    # 检查Flower监控（检查进程和端口）
+    if ! docker-compose -f docker-compose.prod.yml ps flower | grep -q "Up"; then
+        log_warn "Flower监控: ✗ 容器未运行"
+    else
+        # 检查进程
+        if docker-compose -f docker-compose.prod.yml exec -T flower pgrep -f "celery.*flower" >/dev/null 2>&1; then
+            log_info "Flower监控: ✓ 运行中"
+            log_info "  访问地址: http://localhost:${FLOWER_PORT:-5555}/flower"
+            log_info "  默认账号: admin / 密码: admin"
+            log_info "  修改账号: 在.env中设置 FLOWER_BASIC_AUTH=用户名:密码"
+        # 检查端口（即使进程检查失败，端口监听也说明服务在运行）
+        elif command -v nc >/dev/null 2>&1 && nc -z localhost ${FLOWER_PORT:-5555} 2>/dev/null; then
+            log_info "Flower监控: ✓ 运行中（端口已监听）"
+            log_info "  访问地址: http://localhost:${FLOWER_PORT:-5555}/flower"
+            log_info "  默认账号: admin / 密码: admin"
+            log_info "  修改账号: 在.env中设置 FLOWER_BASIC_AUTH=用户名:密码"
+        # 检查容器日志中是否有启动成功的标志
+        elif docker-compose -f docker-compose.prod.yml logs flower 2>&1 | grep -q "Visit me at"; then
+            log_info "Flower监控: ✓ 运行中（日志显示已启动）"
+            log_info "  访问地址: http://localhost:${FLOWER_PORT:-5555}/flower"
+            log_info "  默认账号: admin / 密码: admin"
+            log_info "  修改账号: 在.env中设置 FLOWER_BASIC_AUTH=用户名:密码"
+        else
+            log_warn "Flower监控: ✗ 可能未完全启动"
+            log_warn "  查看日志: docker-compose -f docker-compose.prod.yml logs flower"
+            log_warn "  如果日志显示'Visit me at'，说明服务已启动，请稍等片刻"
+        fi
+    fi
+    
     # 检查 phpMyAdmin 服务
     if curl -f http://localhost:${PHPMYADMIN_PORT:-8081}/ &>/dev/null; then
         log_info "phpMyAdmin: ✓ 健康"
@@ -318,16 +387,23 @@ show_info() {
     source "${DOCKER_DIR}/.env" 2>/dev/null || true
     
     log_info "服务访问地址："
-    log_info "  前端:       http://localhost:${FRONTEND_PORT:-80}"
-    log_info "  后端API:    http://localhost:${BACKEND_PORT:-8000}"
-    log_info "  配置服务:   http://localhost:${CONFIG_SERVICE_PORT:-8001}"
-    log_info "  插件服务:   http://localhost:${PLUGIN_SERVICE_PORT:-9000}"
-    log_info "  phpMyAdmin: http://localhost:${PHPMYADMIN_PORT:-8081}"
+    log_info "  前端:          http://localhost:${FRONTEND_PORT:-80}"
+    log_info "  后端API:       http://localhost:${BACKEND_PORT:-8000}"
+    log_info "  配置服务:      http://localhost:${CONFIG_SERVICE_PORT:-8001}"
+    log_info "  插件服务:      http://localhost:${PLUGIN_SERVICE_PORT:-9000}"
+    log_info "  Flower监控:    http://localhost:${FLOWER_PORT:-5555}/flower"
+    log_info "                (默认账号: admin / 密码: admin)"
+    log_info "  phpMyAdmin:    http://localhost:${PHPMYADMIN_PORT:-8081}"
     log_info ""
-    log_info "数据库："
-    log_info "  MySQL:    localhost:${MYSQL_PORT:-3306}"
-    log_info "  Redis:    localhost:${REDIS_PORT:-6379}"
-    log_info "  MQTT:     localhost:${MQTT_PORT:-1883}"
+    log_info "后台服务（无HTTP接口）："
+    log_info "  MQTT服务:      处理设备消息"
+    log_info "  Celery Worker: 处理异步任务"
+    log_info ""
+    log_info "基础服务："
+    log_info "  MySQL:         仅内部访问（不对外暴露，安全考虑）"
+    log_info "                 可通过phpMyAdmin访问: http://localhost:${PHPMYADMIN_PORT:-8081}"
+    log_info "  Redis:         仅内部访问（不对外暴露，安全考虑）"
+    log_info "  MQTT Broker:   localhost:${MQTT_PORT:-1883}"
     log_info ""
     log_info "管理命令："
     log_info "  查看日志: cd docker && docker-compose -f docker-compose.prod.yml logs -f [服务名]"
@@ -354,7 +430,13 @@ main() {
             stop_services
             build_images
             start_services
-            sleep 5
+            log_info "等待所有服务完全启动..."
+            # 倒计时30秒
+            for i in {30..1}; do
+                printf "\r${GREEN}[INFO]${NC} 等待服务启动中... 剩余 ${YELLOW}%2d${NC} 秒" $i
+                sleep 1
+            done
+            echo ""
             check_services
             show_info
             ;;
@@ -366,6 +448,13 @@ main() {
             check_dependencies
             check_env_file
             start_services
+            log_info "等待所有服务完全启动..."
+            # 倒计时30秒
+            for i in {30..1}; do
+                printf "\r${GREEN}[INFO]${NC} 等待服务启动中... 剩余 ${YELLOW}%2d${NC} 秒" $i
+                sleep 1
+            done
+            echo ""
             check_services
             show_info
             ;;
@@ -377,6 +466,13 @@ main() {
             check_env_file
             stop_services
             start_services
+            log_info "等待所有服务完全启动..."
+            # 倒计时30秒
+            for i in {30..1}; do
+                printf "\r${GREEN}[INFO]${NC} 等待服务启动中... 剩余 ${YELLOW}%2d${NC} 秒" $i
+                sleep 1
+            done
+            echo ""
             check_services
             show_info
             ;;

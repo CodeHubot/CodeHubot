@@ -1,10 +1,9 @@
-FROM python:3.11-slim
+FROM python:3.8-slim
 
-# 设置工作目录
 WORKDIR /app
 
-# 使用国内镜像源加速（默认使用阿里云）
-# Debian 12使用新的sources格式
+# 使用国内镜像源加速（阿里云）
+# Python 3.8使用Debian 11，有sources.list文件
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
     sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
 RUN sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
@@ -28,13 +27,9 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
 # 复制应用代码
 COPY . .
 
-# 暴露端口
-EXPOSE 9001
+# 创建日志目录
+RUN mkdir -p /var/log/mqtt-service
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:9001/health', timeout=5)"
-
-# 启动命令
+# 启动服务
 CMD ["python", "main.py"]
 

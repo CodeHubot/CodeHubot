@@ -117,7 +117,7 @@ cd ..
 - **后端 API**: http://localhost:8000
 - **API 文档**: http://localhost:8000/docs
 - **Plugin Service**: http://localhost:9000 (插件对外接口)
-- **Plugin Backend**: http://localhost:9001 (插件内部服务) 
+- **Plugin Backend**: http://localhost:9002 (插件内部服务) 
 
 📖 **详细部署文档**：
 - [完整部署指南](deploy/DEPLOYMENT_COMPLETE_GUIDE.md) ⭐ 推荐

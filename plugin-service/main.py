@@ -171,50 +171,6 @@ def get_internal_headers() -> dict:
     return headers
 
 
-async def verify_device_exists(device_uuid: str) -> bool:
-    """验证设备是否存在
-    
-    通过调用设备配置接口验证设备存在性
-    该接口已支持内部API密钥认证
-    """
-    try:
-        headers = get_internal_headers()
-        url = f"{BACKEND_URL}/api/devices/{device_uuid}/config"
-        logger.info(f"🔍 验证设备: {device_uuid}")
-        logger.debug(f"🔗 请求URL: {url}")
-        logger.debug(f"📋 请求头: {headers}")
-        
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # 调用设备配置接口（已支持内部API密钥）
-            response = await client.get(url, headers=headers)
-            
-            logger.info(f"📡 后端响应状态: {response.status_code}")
-            
-            # 200表示设备存在，404表示设备不存在
-            if response.status_code == 200:
-                logger.info(f"✅ 设备验证成功: {device_uuid}")
-                return True
-            elif response.status_code == 404:
-                logger.warning(f"⚠️ 设备不存在(404): {device_uuid}")
-                return False
-            else:
-                # 其他错误（如401认证失败）也返回False
-                logger.error(f"❌ 验证设备时返回异常状态码 {response.status_code}: {response.text[:200]}")
-                return False
-    except httpx.TimeoutException as e:
-        logger.error(f"❌ 验证设备超时: {e}, URL: {BACKEND_URL}")
-        return False
-    except httpx.ConnectError as e:
-        logger.error(f"❌ 无法连接到后端服务: {e}, URL: {BACKEND_URL}")
-        logger.error(f"💡 请检查: 1) 后端服务是否运行 2) BACKEND_URL配置是否正确")
-                return False
-    except Exception as e:
-        logger.error(f"❌ 验证设备失败: {type(e).__name__}: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return False
-
-
 def map_sensor_key(sensor_name: str) -> str:
     """映射传感器名称到数据库键"""
     sensor_map = {
@@ -278,10 +234,8 @@ async def get_device_aliases(
             data=mock_aliases
         )
     
-    # 验证设备
-    if not await verify_device_exists(uuid):
-        logger.warning(f"❌ 设备不存在: {uuid}")
-        raise HTTPException(status_code=404, detail=f"设备 {uuid} 不存在")
+    # 注意：不需要预先验证设备，后端 API 会自己验证
+    # 如果设备不存在，后端会返回 404 错误
     
     try:
         # 调用后端API获取设备配置（使用内部API密钥）
@@ -397,7 +351,7 @@ async def get_sensor_data(
     logger.info(f"🔹 查询参数:")
     logger.info(f"   - uuid: {uuid}")
     logger.info(f"   - sensor: {sensor}")
-    logger.info(f"🔹 当前 BACKEND_URL: {BACKEND_URL}")
+    logger.info(f"🔹 当前 PLUGIN_BACKEND_URL: {PLUGIN_BACKEND_URL}")
     logger.info(f"🔹 时间戳: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 80)
     
@@ -524,7 +478,7 @@ async def control_device(request: ControlRequest, raw_request: Request):
     logger.info(f"   - port_id: {request.port_id}")
     logger.info(f"   - action: {request.action}")
     logger.info(f"   - value: {request.value}")
-    logger.info(f"🔹 当前 BACKEND_URL: {BACKEND_URL}")
+    logger.info(f"🔹 当前 PLUGIN_BACKEND_URL: {PLUGIN_BACKEND_URL}")
     logger.info(f"🔹 时间戳: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 80)
     
@@ -606,7 +560,7 @@ async def execute_preset(request: PresetRequest, raw_request: Request):
     logger.info(f"   - device_uuid: {request.device_uuid}")
     logger.info(f"   - preset_name: {request.preset_name}")
     logger.info(f"   - parameters: {request.parameters}")
-    logger.info(f"🔹 当前 BACKEND_URL: {BACKEND_URL}")
+    logger.info(f"🔹 当前 PLUGIN_BACKEND_URL: {PLUGIN_BACKEND_URL}")
     logger.info(f"🔹 时间戳: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 80)
     logger.info(f"🎯 执行预设: uuid={request.device_uuid}, preset={request.preset_name}")
@@ -649,165 +603,95 @@ async def execute_preset(request: PresetRequest, raw_request: Request):
             data={"result": "success"}
         )
     
-    # 验证设备
-    if not await verify_device_exists(request.device_uuid):
-        logger.warning(f"❌ 设备不存在: {request.device_uuid}")
-        raise HTTPException(status_code=404, detail=f"设备 {request.device_uuid} 不存在")
+    # 注意：不需要在这里验证设备，plugin-backend-service 会自己验证
+    # 这样可以避免额外的网络请求，提高性能
     
     try:
-        # 方式1：通过preset_key执行（推荐）
-        # 直接将preset_key发送到后端，由后端查找并执行对应的预设
-        logger.info(f"📤 通过preset_key执行预设: {request.preset_name}")
+        # 调用 plugin-backend-service 执行预设
+        logger.info(f"📤 调用 plugin-backend-service 执行预设: {request.preset_name}")
         
-        # 调用后端API（使用内部API密钥）
-        headers = get_internal_headers()
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # 预设指令可能包含多个步骤和延时，需要更长的超时时间
+        # 例如：10个步骤，每步延时5秒 = 50秒
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
-                f"{BACKEND_URL}/api/devices/{request.device_uuid}/control",
-                json={"preset_key": request.preset_name},  # preset_name其实是preset_key
-                headers=headers
+                f"{PLUGIN_BACKEND_URL}/api/preset",
+                json={
+                    "device_uuid": request.device_uuid,
+                    "preset_key": request.preset_name,  # preset_name其实是preset_key
+                    "parameters": request.parameters or {}
+                }
             )
             
-            if response.status_code == 401 or response.status_code == 403:
-                logger.error(f"❌ 后端API认证失败: {response.status_code}")
-                raise HTTPException(
-                    status_code=500, 
-                    detail="后端API认证失败，请检查BACKEND_API_KEY配置"
-                )
-            
             if response.status_code == 404:
+                logger.error(f"❌ 未找到预设指令: {request.preset_name}")
                 raise HTTPException(
                     status_code=404,
                     detail=f"未找到预设指令: {request.preset_name}"
                 )
             
+            if response.status_code == 400:
+                error_data = response.json() if response.text else {}
+                error_msg = error_data.get("detail", "设备离线或预设格式错误")
+                logger.error(f"❌ 预设执行失败: {error_msg}")
+                raise HTTPException(status_code=400, detail=error_msg)
+            
             if response.status_code != 200:
                 error_detail = response.json() if response.text else "预设执行失败"
+                logger.error(f"❌ 预设执行失败: {error_detail}")
                 raise HTTPException(status_code=500, detail=error_detail)
             
-            logger.info(f"✅ 预设执行成功: {request.preset_name}")
+            # 解析响应
+            response_data = response.json()
+            if not isinstance(response_data, dict):
+                logger.error(f"❌ 响应格式错误: {type(response_data)}")
+                raise HTTPException(status_code=500, detail="响应格式错误")
             
-            # 精简返回：只返回结果
+            data = response_data.get("data", {})
+            
+            # 记录执行结果
+            if isinstance(data, dict):
+                preset_name = data.get("preset_name", request.preset_name)
+                if data.get("success"):
+                    message = data.get("message", "预设执行成功")
+                    logger.info(f"✅ {message}")
+                    
+                    # 如果是序列指令，记录详细信息
+                    if "total_steps" in data:
+                        logger.info(f"📊 总步骤: {data.get('total_steps')}, "
+                                  f"执行步骤: {len(data.get('executed_steps', []))}")
+                        if data.get("errors"):
+                            logger.warning(f"⚠️  部分步骤执行失败: {data.get('errors')}")
+                else:
+                    logger.warning(f"⚠️  预设执行完成但有错误: {data.get('message')}")
+            
+            # 返回详细结果（保持与后端一致）
             return StandardResponse(
                 code=200,
                 msg="成功",
-                data={"result": "success"}
+                data=data
             )
             
+    except httpx.TimeoutException as e:
+        logger.error(f"❌ 预设执行超时: {e}")
+        logger.error(f"💡 提示: 预设可能包含多个步骤，执行时间较长")
+        raise HTTPException(
+            status_code=504,
+            detail="预设执行超时，可能包含多个步骤需要较长时间"
+        )
+    except httpx.ConnectError as e:
+        logger.error(f"❌ 无法连接到 plugin-backend-service: {e}")
+        logger.error(f"💡 请检查: 1) plugin-backend-service 是否运行 2) PLUGIN_BACKEND_URL={PLUGIN_BACKEND_URL}")
+        raise HTTPException(
+            status_code=503,
+            detail="无法连接到设备操作服务，请稍后重试"
+        )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"❌ 执行预设失败: {e}")
-        # 如果通过preset_key执行失败，尝试使用旧的映射方式（兼容性）
-        logger.info(f"⚠️  尝试使用旧的预设映射方式...")
-        
-        # 方式2：旧的预设指令映射（向后兼容）
-        preset_map = {
-            # LED预设
-            "led_blink": {
-                "device_type": "led",
-                "preset_type": "blink",
-                "default_params": {"count": 3, "on_time": 500, "off_time": 500}
-            },
-            "led_wave": {
-                "device_type": "led",
-                "preset_type": "wave",
-                "default_params": {"interval_ms": 200, "cycles": 3, "reverse": False}
-            },
-            
-            # 继电器预设
-            "relay_timed": {
-                "device_type": "relay",
-                "preset_type": "timed_switch",
-                "default_params": {"duration_ms": 5000}
-            },
-            
-            # 舵机预设
-            "servo_rotate": {
-                "device_type": "servo",
-                "preset_type": "rotate",
-                "default_params": {"start_angle": 0, "end_angle": 180, "duration_ms": 2000}
-            },
-            "servo_swing": {
-                "device_type": "servo",
-                "preset_type": "swing",
-                "default_params": {"center_angle": 90, "swing_range": 30, "speed": 100, "cycles": 5}
-            },
-            
-            # PWM预设
-            "pwm_fade": {
-                "device_type": "pwm",
-                "preset_type": "fade",
-                "default_params": {"start_duty": 0, "end_duty": 100, "duration_ms": 2000, "frequency": 5000}
-            },
-            "pwm_breathe": {
-                "device_type": "pwm",
-                "preset_type": "breathe",
-                "default_params": {"min_duty": 0, "max_duty": 100, "period_ms": 2000, "cycles": 3, "frequency": 5000}
-            },
-            "pwm_pulse": {
-                "device_type": "pwm",
-                "preset_type": "pulse",
-                "default_params": {"duty_high": 100, "duty_low": 0, "high_time_ms": 100, "low_time_ms": 100, "cycles": 5, "frequency": 5000}
-            },
-        }
-        
-        if request.preset_name not in preset_map:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"不支持的预设指令: {request.preset_name}"
-            )
-        
-        preset_config = preset_map[request.preset_name]
-        
-        # 合并默认参数和用户参数
-        parameters = preset_config["default_params"].copy()
-        if request.parameters:
-            parameters.update(request.parameters)
-        
-        # 提取device_id（如果用户提供）
-        device_id = parameters.pop("led_id", None) or \
-                   parameters.pop("servo_id", None) or \
-                   parameters.pop("pwm_id", None) or \
-                   parameters.pop("relay_id", None) or 1
-        
-        # 构造预设命令
-        preset_cmd = {
-            "cmd": "preset",
-            "device_type": preset_config["device_type"],
-            "device_id": device_id,
-            "preset_type": preset_config["preset_type"],
-            "parameters": parameters
-        }
-        
-        # 调用后端API发送预设命令（使用内部API密钥）
-        headers = get_internal_headers()
-        async with httpx.AsyncClient(timeout=30.0) as client:  # 预设可能需要更长时间
-            response = await client.post(
-                f"{BACKEND_URL}/api/devices/{request.device_uuid}/control",
-                json=preset_cmd,
-                headers=headers
-            )
-            
-            if response.status_code == 401 or response.status_code == 403:
-                logger.error(f"❌ 后端API认证失败: {response.status_code}")
-                raise HTTPException(
-                    status_code=500, 
-                    detail="后端API认证失败，请检查BACKEND_API_KEY配置"
-                )
-            
-            if response.status_code != 200:
-                error_detail = response.json() if response.text else "预设执行失败"
-                raise HTTPException(status_code=500, detail=error_detail)
-            
-            logger.info(f"✅ 预设执行成功: {request.preset_name}")
-            
-            # 精简返回：只返回结果
-            return StandardResponse(
-                code=200,
-                msg="成功",
-                data={"result": "success"}
-            )
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== 启动配置 ====================
