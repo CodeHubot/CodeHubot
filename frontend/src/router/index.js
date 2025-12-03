@@ -170,6 +170,19 @@ const routes = [
         component: () => import('../views/Plugins.vue'),
         meta: { requiresAuth: true }
       },
+      // 工作流管理
+      {
+        path: 'workflows',
+        name: 'Workflows',
+        component: () => import('../views/Workflows.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'workflows/editor/:uuid?',
+        name: 'WorkflowEditor',
+        component: () => import('../views/WorkflowEditor.vue'),
+        meta: { requiresAuth: true }
+      },
       {
         path: 'plugins/:uuid/view',
         name: 'PluginViewer',

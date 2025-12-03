@@ -15,6 +15,8 @@ from .device_group import DeviceGroup, DeviceGroupMember
 from .device_binding_history import DeviceBindingHistory
 # from .interaction_log import InteractionLog, InteractionStatsHourly, InteractionStatsDaily  # 已删除日志表
 from .prompt_template import PromptTemplate
+from .workflow import Workflow
+from .workflow_execution import WorkflowExecution
 
 # 确保所有模型都被导入，以便 SQLAlchemy 能够正确创建表结构和关系
 __all__ = [
@@ -25,5 +27,6 @@ __all__ = [
     "KBRetrievalLog", "KBAnalytics",
     "DeviceGroup", "DeviceGroupMember", "DeviceBindingHistory",
     # "InteractionLog", "InteractionStatsHourly", "InteractionStatsDaily",  # 已删除日志表
-    "PromptTemplate"
+    "PromptTemplate",
+    "Workflow", "WorkflowExecution"
 ]

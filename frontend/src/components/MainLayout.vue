@@ -96,6 +96,21 @@
                 </div>
                 <div class="item-indicator"></div>
               </div>
+
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/workflows' || $route.path.startsWith('/workflows/') }"
+                @click="handleNavItemClick({route: '/workflows'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><Share /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">工作流管理</span>
+                  <span class="item-desc">可视化工作流编排</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
             </div>
           </div>
 
@@ -459,7 +474,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   House, Monitor, User, ArrowRight, ArrowDown, Setting, SwitchButton,
   Fold, Expand, Menu, TrendCharts, UserFilled, Plus, List, Box, Collection,
-  InfoFilled, ChatDotRound, Connection, OfficeBuilding, Postcard
+  InfoFilled, ChatDotRound, Connection, OfficeBuilding, Postcard, Share
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -490,6 +505,8 @@ const pageConfig = {
   '/plugins': { title: '插件管理', icon: 'Connection', color: '#409EFF' },
   '/plugin': { title: '插件详情', icon: 'Connection', color: '#409EFF' },
   '/llm-models': { title: '模型配置', icon: 'TrendCharts', color: '#409EFF' },
+  '/workflows': { title: '工作流管理', icon: 'Share', color: '#409EFF' },
+  '/workflows/editor': { title: '工作流编辑器', icon: 'Share', color: '#409EFF' },
   '/agents/.*/chat': { title: '智能体对话', icon: 'ChatDotSquare', color: '#67C23A' },
 
   // 用户管理模块（按业务流程顺序：教师→学生→课程→设备）

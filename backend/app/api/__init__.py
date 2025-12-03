@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.api import (
     auth, devices, users, products, dashboard, firmware, agents, 
     plugins, llm_models, chat, prompt_templates, schools, user_management, courses, device_groups,
-    knowledge_bases, kb_documents, kb_search
+    knowledge_bases, kb_documents, kb_search, workflows
 )
 
 api_router = APIRouter()
@@ -25,3 +25,4 @@ api_router.include_router(device_groups.router, tags=["设备分组管理"])
 api_router.include_router(knowledge_bases.router, prefix="/knowledge-bases", tags=["知识库管理"])
 api_router.include_router(kb_documents.router, prefix="/kb-documents", tags=["知识库文档管理"])
 api_router.include_router(kb_search.router, prefix="/knowledge-bases", tags=["知识库检索"])
+api_router.include_router(workflows.router, prefix="/workflows", tags=["工作流管理"])

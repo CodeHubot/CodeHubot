@@ -787,6 +787,53 @@ CREATE TABLE `aiot_prompt_templates` (
 -- --------------------------------------------------------
 
 --
+-- 表的结构 `aiot_workflows`
+--
+
+CREATE TABLE `aiot_workflows` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '工作流ID',
+  `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '工作流名称',
+  `description` text COLLATE utf8mb4_unicode_ci COMMENT '工作流描述',
+  `user_id` int(11) NOT NULL COMMENT '创建用户ID',
+  `nodes` json NOT NULL COMMENT '节点列表（JSON数组）',
+  `edges` json NOT NULL COMMENT '边列表（JSON数组）',
+  `config` json DEFAULT NULL COMMENT '工作流配置（超时、重试等）',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否激活（1=激活，0=禁用）',
+  `is_public` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否公开（1=公开，0=私有）',
+  `execution_count` int(11) NOT NULL DEFAULT '0' COMMENT '执行次数',
+  `success_count` int(11) NOT NULL DEFAULT '0' COMMENT '成功次数',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=1 COMMENT='工作流表';
+
+--
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `aiot_workflow_executions`
+--
+
+CREATE TABLE `aiot_workflow_executions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '执行记录ID',
+  `execution_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '执行唯一标识UUID',
+  `workflow_id` int(11) NOT NULL COMMENT '工作流ID',
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT '执行状态（pending/running/completed/failed）',
+  `input` json DEFAULT NULL COMMENT '工作流输入参数（JSON对象）',
+  `output` json DEFAULT NULL COMMENT '工作流输出结果（JSON对象）',
+  `error_message` text COLLATE utf8mb4_unicode_ci COMMENT '错误信息（执行失败时）',
+  `node_executions` json DEFAULT NULL COMMENT '节点执行记录（JSON数组）',
+  `started_at` datetime DEFAULT NULL COMMENT '开始执行时间',
+  `completed_at` datetime DEFAULT NULL COMMENT '完成执行时间',
+  `execution_time` int(11) DEFAULT NULL COMMENT '执行时间（毫秒）',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=1 COMMENT='工作流执行记录表';
+
+--
+-- --------------------------------------------------------
+
+--
 -- 表的结构 `aiot_schools`
 --
 
@@ -1097,6 +1144,26 @@ ALTER TABLE `aiot_prompt_templates`
   ADD KEY `idx_sort_order` (`sort_order`);
 
 --
+-- 表的索引 `aiot_workflows`
+--
+ALTER TABLE `aiot_workflows`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `idx_uuid` (`uuid`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_is_active` (`is_active`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
+-- 表的索引 `aiot_workflow_executions`
+--
+ALTER TABLE `aiot_workflow_executions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `idx_execution_id` (`execution_id`),
+  ADD KEY `idx_workflow_id` (`workflow_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
 -- 表的索引 `aiot_schools`
 --
 ALTER TABLE `aiot_schools`
@@ -1278,5 +1345,18 @@ ALTER TABLE `aiot_knowledge_bases`
 --
 ALTER TABLE `aiot_plugins`
   ADD CONSTRAINT `aiot_plugins_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `aiot_core_users` (`id`);
+
+--
+-- 表 `aiot_workflows` 的外键约束
+--
+ALTER TABLE `aiot_workflows`
+  ADD CONSTRAINT `fk_workflow_user` FOREIGN KEY (`user_id`) REFERENCES `aiot_core_users` (`id`) ON DELETE CASCADE;
+
+--
+-- 表 `aiot_workflow_executions` 的外键约束
+--
+ALTER TABLE `aiot_workflow_executions`
+  ADD CONSTRAINT `fk_execution_workflow` FOREIGN KEY (`workflow_id`) REFERENCES `aiot_workflows` (`id`) ON DELETE CASCADE;
+
 COMMIT;
 
