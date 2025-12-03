@@ -47,7 +47,6 @@
               :key="nodeType.type"
               :draggable="!((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type))"
               @dragstart="onDragStart($event, nodeType)"
-              @click="addNodeToCenter(nodeType)"
               :class="['node-add-btn', { 'disabled': (nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type) }]"
             >
               <div class="btn-content" :style="{ borderLeftColor: nodeType.color }">
@@ -133,7 +132,7 @@
       <!-- 操作提示 -->
       <div class="operation-tips">
         <el-icon><InfoFilled /></el-icon>
-        <span>💡 拖拽节点到画布 | 拖动圆点连线 | 单击节点配置 | 悬停显示删除 ✕</span>
+        <span>💡 拖拽节点到画布添加 | 拖动节点间圆点连线 | 单击节点配置 | 悬停显示删除 ✕</span>
       </div>
     </div>
 
@@ -754,32 +753,6 @@ const addNodeAtPosition = (nodeType, x, y) => {
   })
   
   ElMessage.success(`已添加${nodeType.label}节点`)
-}
-
-// 添加节点到视口中心（点击按钮时使用）
-const addNodeToCenter = (nodeType) => {
-  // 计算当前视口中心位置
-  let centerX = 400
-  let centerY = 300
-  
-  try {
-    // 获取画布容器尺寸
-    const flowElement = vueFlowRef.value?.$el
-    if (flowElement) {
-      const rect = flowElement.getBoundingClientRect()
-      const screenCenterX = rect.width / 2
-      const screenCenterY = rect.height / 2
-      
-      // 将屏幕坐标转换为画布坐标
-      const canvasPosition = project({ x: screenCenterX, y: screenCenterY })
-      centerX = canvasPosition.x - 90 // 节点宽度180px的一半
-      centerY = canvasPosition.y - 24 // 节点高度48px的一半
-    }
-  } catch (error) {
-    console.warn('无法获取视口中心，使用默认位置', error)
-  }
-
-  addNodeAtPosition(nodeType, centerX, centerY)
 }
 
 // 删除节点
