@@ -11,6 +11,10 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@vue-flow/core": "^1.30.0",
+    "@vue-flow/background": "^1.2.0",
+    "@vue-flow/controls": "^1.2.0",
+    "@vue-flow/minimap": "^1.2.0",
     "@vueuse/core": "^10.7.0",
     "axios": "^1.6.2",
     "echarts": "^6.0.0",
