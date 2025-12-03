@@ -1157,9 +1157,9 @@ ALTER TABLE `aiot_prompt_templates`
 
 --
 -- 表的索引 `aiot_workflows`
+-- 注意：PRIMARY KEY 已在 CREATE TABLE 中定义，此处只添加其他索引
 --
 ALTER TABLE `aiot_workflows`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `idx_uuid` (`uuid`),
   ADD KEY `idx_user_id` (`user_id`),
   ADD KEY `idx_is_active` (`is_active`),
@@ -1167,9 +1167,9 @@ ALTER TABLE `aiot_workflows`
 
 --
 -- 表的索引 `aiot_workflow_executions`
+-- 注意：PRIMARY KEY 已在 CREATE TABLE 中定义，此处只添加其他索引
 --
 ALTER TABLE `aiot_workflow_executions`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `idx_execution_id` (`execution_id`),
   ADD KEY `idx_workflow_id` (`workflow_id`),
   ADD KEY `idx_status` (`status`),
