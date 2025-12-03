@@ -786,48 +786,91 @@ const autoLayout = () => {
   }
 
   const startNodes = nodes.value.filter(n => n.data.nodeType === 'start')
+  const endNodes = nodes.value.filter(n => n.data.nodeType === 'end')
+  
   if (startNodes.length === 0) {
     ElMessage.warning('请先添加开始节点')
     return
   }
 
-  const layers = []
-  const visited = new Set()
   const nodeMap = new Map(nodes.value.map(n => [n.id, n]))
-  const edgeMap = new Map()
+  const edgeMap = new Map() // source -> targets
+  const reverseEdgeMap = new Map() // target -> sources
 
+  // 构建边的映射
   edges.value.forEach(e => {
     if (!edgeMap.has(e.source)) edgeMap.set(e.source, [])
     edgeMap.get(e.source).push(e.target)
+    
+    if (!reverseEdgeMap.has(e.target)) reverseEdgeMap.set(e.target, [])
+    reverseEdgeMap.get(e.target).push(e.source)
   })
 
-  let queue = startNodes.map(n => n.id)
-  let layer = 0
+  // 计算每个节点的层级（从开始节点开始）
+  const nodeLayer = new Map()
+  const visited = new Set()
+  
+  // 第一层：开始节点（固定在最左边）
+  startNodes.forEach(n => {
+    nodeLayer.set(n.id, 0)
+    visited.add(n.id)
+  })
 
+  // BFS 计算其他节点的层级
+  let queue = startNodes.map(n => n.id)
+  
   while (queue.length > 0) {
-    layers[layer] = []
-    const nextQueue = []
-    queue.forEach(nodeId => {
-      if (!visited.has(nodeId)) {
-        visited.add(nodeId)
-        layers[layer].push(nodeId)
-        const neighbors = edgeMap.get(nodeId) || []
-        neighbors.forEach(neighbor => {
-          if (!visited.has(neighbor)) nextQueue.push(neighbor)
-        })
+    const nodeId = queue.shift()
+    const currentLayer = nodeLayer.get(nodeId)
+    const neighbors = edgeMap.get(nodeId) || []
+    
+    neighbors.forEach(neighborId => {
+      const newLayer = currentLayer + 1
+      // 更新层级（取最大值，确保节点在所有前驱节点之后）
+      if (!nodeLayer.has(neighborId) || nodeLayer.get(neighborId) < newLayer) {
+        nodeLayer.set(neighborId, newLayer)
+      }
+      
+      if (!visited.has(neighborId)) {
+        visited.add(neighborId)
+        queue.push(neighborId)
       }
     })
-    queue = [...new Set(nextQueue)]
-    layer++
   }
 
+  // 如果有结束节点，确保它们在最右边（最后一层）
+  if (endNodes.length > 0) {
+    const maxLayer = Math.max(...Array.from(nodeLayer.values()))
+    endNodes.forEach(n => {
+      if (nodeLayer.has(n.id)) {
+        nodeLayer.set(n.id, maxLayer)
+      }
+    })
+  }
+
+  // 按层级分组节点
+  const layers = []
+  nodeLayer.forEach((layer, nodeId) => {
+    if (!layers[layer]) layers[layer] = []
+    layers[layer].push(nodeId)
+  })
+
+  // 布局节点
+  const layerWidth = 250 // 层间距
+  const nodeHeight = 100 // 节点间距
+  const startX = 100 // 起始X坐标
+  const startY = 150 // 起始Y坐标
+
   layers.forEach((layerNodes, layerIndex) => {
+    // 计算这一层的起始Y坐标，使节点垂直居中
+    const layerStartY = startY + (layerNodes.length - 1) * nodeHeight / 2
+    
     layerNodes.forEach((nodeId, nodeIndex) => {
       const node = nodeMap.get(nodeId)
       if (node) {
         node.position = {
-          x: layerIndex * 250 + 100,
-          y: nodeIndex * 100 + 150
+          x: startX + layerIndex * layerWidth,
+          y: layerStartY + nodeIndex * nodeHeight
         }
       }
     })
