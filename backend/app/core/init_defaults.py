@@ -102,8 +102,8 @@ def init_default_product(db: Session) -> bool:
         bool: 是否成功创建或已存在
     """
     # 从环境变量读取配置
-    product_code = os.getenv("DEFAULT_PRODUCT_CODE", "ESP-32-S3-02")
-    product_name = os.getenv("DEFAULT_PRODUCT_NAME", "智能垃圾桶")
+    product_code = os.getenv("DEFAULT_PRODUCT_CODE", "ESP-32-S3-01")
+    product_name = os.getenv("DEFAULT_PRODUCT_NAME", "标准开发板")
     
     # 默认传感器配置
     sensor_types_json = os.getenv("DEFAULT_PRODUCT_SENSORS")

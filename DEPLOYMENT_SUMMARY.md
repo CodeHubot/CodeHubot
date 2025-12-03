@@ -302,8 +302,8 @@ QWEN_API_KEY=sk-your-qwen-api-key-here
 
 | 环境变量 | 说明 | 默认值 | 是否必需 |
 |---------|------|--------|---------|
-| `DEFAULT_PRODUCT_CODE` | 产品编码 | `ESP-32-S3-02` | 否 |
-| `DEFAULT_PRODUCT_NAME` | 产品名称 | `智能垃圾桶` | 否 |
+| `DEFAULT_PRODUCT_CODE` | 产品编码 | `ESP-32-S3-01` | 否 |
+| `DEFAULT_PRODUCT_NAME` | 产品名称 | `标准开发板` | 否 |
 | `DEFAULT_PRODUCT_SENSORS` | 传感器配置（JSON） | 默认DHT11温湿度传感器 | 否 |
 | `DEFAULT_PRODUCT_CONTROLS` | 控制端口配置（JSON） | 默认4个LED控制端口 | 否 |
 
@@ -313,8 +313,8 @@ QWEN_API_KEY=sk-your-qwen-api-key-here
 
 ```bash
 # 默认产品配置
-DEFAULT_PRODUCT_CODE=ESP-32-S3-02
-DEFAULT_PRODUCT_NAME=智能垃圾桶
+DEFAULT_PRODUCT_CODE=ESP-32-S3-01
+DEFAULT_PRODUCT_NAME=标准开发板
 ```
 
 #### 默认配置说明
