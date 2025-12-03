@@ -84,14 +84,21 @@
         <!-- 操作说明 -->
         <div class="tips-section">
           <el-divider />
-          <div class="tips-title">💡 快捷操作</div>
+          <div class="tips-title">💡 使用说明</div>
           <ul class="tips-list">
-            <li>点击或拖拽节点到画布</li>
-            <li>按住节点边缘拖拽连线</li>
-            <li>点击节点查看配置</li>
-            <li>Delete 键删除节点</li>
-            <li>滚轮缩放画布</li>
-            <li>空格+拖拽移动画布</li>
+            <li><strong>添加节点：</strong>点击或拖拽到画布</li>
+            <li><strong>连接节点：</strong>从节点右侧圆点拖到目标节点</li>
+            <li><strong>配置节点：</strong>点击节点查看右侧配置</li>
+            <li><strong>删除节点：</strong>点击节点标题栏的删除按钮</li>
+            <li><strong>移动节点：</strong>拖拽节点主体</li>
+            <li><strong>缩放画布：</strong>滚轮或工具栏按钮</li>
+          </ul>
+          <el-divider />
+          <div class="tips-title">⚠️ 规则</div>
+          <ul class="tips-list">
+            <li>只能有1个开始节点</li>
+            <li>只能有1个结束节点</li>
+            <li>节点必须连接成流程</li>
           </ul>
         </div>
       </div>
@@ -160,6 +167,20 @@
               :class="{ 'selected': selectedNode?.id === id }"
               :style="{ borderColor: getNodeColor(data.type) }"
             >
+              <!-- 输入连接点 -->
+              <Handle
+                v-if="data.type !== 'start'"
+                type="target"
+                position="left"
+                :style="{ 
+                  left: '-8px',
+                  background: getNodeColor(data.type),
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid #fff'
+                }"
+              />
+              
               <div class="node-header" :style="{ background: getNodeColor(data.type) }">
                 <el-icon><component :is="getNodeIcon(data.type)" /></el-icon>
                 <span class="node-title">{{ data.label }}</span>
@@ -180,6 +201,20 @@
                   <el-tag size="small" type="success">已配置</el-tag>
                 </div>
               </div>
+              
+              <!-- 输出连接点 -->
+              <Handle
+                v-if="data.type !== 'end'"
+                type="source"
+                position="right"
+                :style="{ 
+                  right: '-8px',
+                  background: getNodeColor(data.type),
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid #fff'
+                }"
+              />
             </div>
           </template>
         </VueFlow>
@@ -275,7 +310,7 @@ import {
   Setting,
   SuccessFilled
 } from '@element-plus/icons-vue'
-import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow, Handle } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
@@ -457,6 +492,24 @@ const onDrop = (event) => {
 
   try {
     const nodeType = JSON.parse(nodeTypeData)
+    
+    // 检查是否已存在开始或结束节点
+    if (nodeType.type === 'start') {
+      const hasStart = nodes.value.some(n => n.data.type === 'start')
+      if (hasStart) {
+        ElMessage.warning('工作流只能有一个开始节点')
+        return
+      }
+    }
+    
+    if (nodeType.type === 'end') {
+      const hasEnd = nodes.value.some(n => n.data.type === 'end')
+      if (hasEnd) {
+        ElMessage.warning('工作流只能有一个结束节点')
+        return
+      }
+    }
+    
     const rect = event.currentTarget.getBoundingClientRect()
     const position = project({
       x: event.clientX - rect.left,
@@ -471,6 +524,23 @@ const onDrop = (event) => {
 
 // 添加节点到画布（点击或拖拽）
 const addNodeToCanvas = (nodeType) => {
+  // 检查是否已存在开始或结束节点
+  if (nodeType.type === 'start') {
+    const hasStart = nodes.value.some(n => n.data.type === 'start')
+    if (hasStart) {
+      ElMessage.warning('工作流只能有一个开始节点')
+      return
+    }
+  }
+  
+  if (nodeType.type === 'end') {
+    const hasEnd = nodes.value.some(n => n.data.type === 'end')
+    if (hasEnd) {
+      ElMessage.warning('工作流只能有一个结束节点')
+      return
+    }
+  }
+  
   const position = {
     x: 100 + nodes.value.length * 50,
     y: 100 + (nodes.value.length % 5) * 100
@@ -1322,5 +1392,45 @@ onUnmounted(() => {
 
 :deep(.vue-flow__controls) {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 连接点样式 */
+:deep(.vue-flow__handle) {
+  cursor: crosshair;
+  transition: all 0.3s;
+}
+
+:deep(.vue-flow__handle:hover) {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.3);
+}
+
+:deep(.vue-flow__handle-connecting) {
+  background: #409eff !important;
+  transform: scale(1.5);
+  box-shadow: 0 0 0 6px rgba(64, 158, 255, 0.4);
+}
+
+/* 连接线样式优化 */
+:deep(.vue-flow__edge) {
+  cursor: pointer;
+}
+
+:deep(.vue-flow__edge:hover .vue-flow__edge-path) {
+  stroke: #409eff;
+  stroke-width: 3;
+}
+
+:deep(.vue-flow__connection-path) {
+  stroke: #409eff;
+  stroke-width: 3;
+  stroke-dasharray: 5, 5;
+  animation: dash 0.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
 }
 </style>
