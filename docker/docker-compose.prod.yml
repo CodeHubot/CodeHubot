@@ -104,6 +104,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # 文件存储路径（与共享卷挂载路径一致）
       KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
+      # 管理员账号配置（可选，用于自动创建管理员账号）
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     # 不暴露端口到外部，仅通过nginx反向代理访问（安全考虑）
     # ports:
     #   - "${BACKEND_PORT:-8000}:8000"

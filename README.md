@@ -101,7 +101,12 @@ cd CodeHubot
 # 2. 配置环境变量（使用新架构配置）
 cd docker
 cp .env.example .env
-nano .env  # 设置 MYSQL_PASSWORD, SECRET_KEY 等
+nano .env  # 设置 MYSQL_PASSWORD, SECRET_KEY, ADMIN_PASSWORD 等
+
+# 重要：首次部署时，建议设置管理员账号：
+# ADMIN_USERNAME=admin          # 管理员用户名（默认：admin）
+# ADMIN_PASSWORD=your_password  # 管理员密码（必须设置才会自动创建）
+# ADMIN_EMAIL=admin@example.com # 管理员邮箱（可选）
 
 # 3. 一键部署（包含新的 plugin-backend-service）
 docker-compose -f docker-compose.plugin.yml up -d
