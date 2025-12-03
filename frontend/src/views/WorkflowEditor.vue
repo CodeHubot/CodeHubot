@@ -16,6 +16,14 @@
         </div>
         
         <div class="toolbar-right">
+          <el-select v-model="edgeType" placeholder="连线样式" style="width: 140px;" @change="changeEdgeType">
+            <el-option label="🎯 平滑直角" value="smoothstep" />
+            <el-option label="📐 直角折线" value="step" />
+            <el-option label="〰️ 贝塞尔曲线" value="default" />
+            <el-option label="➖ 直线" value="straight" />
+            <el-option label="🌊 简单曲线" value="simplebezier" />
+          </el-select>
+          
           <el-button-group>
             <el-button @click="autoLayout" icon="MagicStick">自动排列</el-button>
             <el-button @click="fitView" icon="FullScreen">居中显示</el-button>
@@ -608,6 +616,9 @@ const showConfigDrawer = ref(false)
 const nodes = ref([])
 const edges = ref([])
 
+// 连线类型
+const edgeType = ref('smoothstep')
+
 let nodeIdCounter = 1
 
 // 节点类型定义
@@ -769,13 +780,34 @@ const onConnect = (connection) => {
     id: `edge-${connection.source}-${connection.target}`,
     source: connection.source,
     target: connection.target,
-    type: 'smoothstep',
+    type: edgeType.value,
     animated: true,
     style: { stroke: '#409eff', strokeWidth: 2 }
   }
 
   edges.value.push(newEdge)
   ElMessage.success('连接创建成功')
+}
+
+// 切换连线样式
+const changeEdgeType = () => {
+  // 更新所有现有连线的类型
+  edges.value.forEach(edge => {
+    edge.type = edgeType.value
+  })
+  ElMessage.success(`已切换到${getEdgeTypeName(edgeType.value)}样式`)
+}
+
+// 获取连线类型名称
+const getEdgeTypeName = (type) => {
+  const names = {
+    'smoothstep': '平滑直角',
+    'step': '直角折线',
+    'default': '贝塞尔曲线',
+    'straight': '直线',
+    'simplebezier': '简单曲线'
+  }
+  return names[type] || type
 }
 
 // 自动布局
@@ -786,48 +818,91 @@ const autoLayout = () => {
   }
 
   const startNodes = nodes.value.filter(n => n.data.nodeType === 'start')
+  const endNodes = nodes.value.filter(n => n.data.nodeType === 'end')
+  
   if (startNodes.length === 0) {
     ElMessage.warning('请先添加开始节点')
     return
   }
 
-  const layers = []
-  const visited = new Set()
   const nodeMap = new Map(nodes.value.map(n => [n.id, n]))
-  const edgeMap = new Map()
+  const edgeMap = new Map() // source -> targets
+  const reverseEdgeMap = new Map() // target -> sources
 
+  // 构建边的映射
   edges.value.forEach(e => {
     if (!edgeMap.has(e.source)) edgeMap.set(e.source, [])
     edgeMap.get(e.source).push(e.target)
+    
+    if (!reverseEdgeMap.has(e.target)) reverseEdgeMap.set(e.target, [])
+    reverseEdgeMap.get(e.target).push(e.source)
   })
 
-  let queue = startNodes.map(n => n.id)
-  let layer = 0
+  // 计算每个节点的层级（从开始节点开始）
+  const nodeLayer = new Map()
+  const visited = new Set()
+  
+  // 第一层：开始节点（固定在最左边）
+  startNodes.forEach(n => {
+    nodeLayer.set(n.id, 0)
+    visited.add(n.id)
+  })
 
+  // BFS 计算其他节点的层级
+  let queue = startNodes.map(n => n.id)
+  
   while (queue.length > 0) {
-    layers[layer] = []
-    const nextQueue = []
-    queue.forEach(nodeId => {
-      if (!visited.has(nodeId)) {
-        visited.add(nodeId)
-        layers[layer].push(nodeId)
-        const neighbors = edgeMap.get(nodeId) || []
-        neighbors.forEach(neighbor => {
-          if (!visited.has(neighbor)) nextQueue.push(neighbor)
-        })
+    const nodeId = queue.shift()
+    const currentLayer = nodeLayer.get(nodeId)
+    const neighbors = edgeMap.get(nodeId) || []
+    
+    neighbors.forEach(neighborId => {
+      const newLayer = currentLayer + 1
+      // 更新层级（取最大值，确保节点在所有前驱节点之后）
+      if (!nodeLayer.has(neighborId) || nodeLayer.get(neighborId) < newLayer) {
+        nodeLayer.set(neighborId, newLayer)
+      }
+      
+      if (!visited.has(neighborId)) {
+        visited.add(neighborId)
+        queue.push(neighborId)
       }
     })
-    queue = [...new Set(nextQueue)]
-    layer++
   }
 
+  // 如果有结束节点，确保它们在最右边（最后一层）
+  if (endNodes.length > 0) {
+    const maxLayer = Math.max(...Array.from(nodeLayer.values()))
+    endNodes.forEach(n => {
+      if (nodeLayer.has(n.id)) {
+        nodeLayer.set(n.id, maxLayer)
+      }
+    })
+  }
+
+  // 按层级分组节点
+  const layers = []
+  nodeLayer.forEach((layer, nodeId) => {
+    if (!layers[layer]) layers[layer] = []
+    layers[layer].push(nodeId)
+  })
+
+  // 布局节点
+  const layerWidth = 250 // 层间距
+  const nodeHeight = 100 // 节点间距
+  const startX = 100 // 起始X坐标
+  const startY = 150 // 起始Y坐标
+
   layers.forEach((layerNodes, layerIndex) => {
+    // 计算这一层的起始Y坐标，使节点垂直居中
+    const layerStartY = startY + (layerNodes.length - 1) * nodeHeight / 2
+    
     layerNodes.forEach((nodeId, nodeIndex) => {
       const node = nodeMap.get(nodeId)
       if (node) {
         node.position = {
-          x: layerIndex * 250 + 100,
-          y: nodeIndex * 100 + 150
+          x: startX + layerIndex * layerWidth,
+          y: layerStartY + nodeIndex * nodeHeight
         }
       }
     })
