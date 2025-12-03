@@ -669,26 +669,43 @@ const onDragOver = (event) => {
 // 放置到画布
 const onDrop = (event) => {
   event.preventDefault()
+  event.stopPropagation()
   
-  if (!draggedNodeType) return
+  if (!draggedNodeType) {
+    console.warn('没有拖拽的节点类型')
+    return
+  }
   
-  // 获取画布容器和鼠标位置
-  const flowElement = vueFlowRef.value?.$el
-  if (!flowElement) return
-  
-  const rect = flowElement.getBoundingClientRect()
-  
-  // 计算相对于画布的坐标
-  const x = event.clientX - rect.left
-  const y = event.clientY - rect.top
-  
-  // 转换为画布坐标（考虑缩放和平移）
-  const canvasPosition = project({ x, y })
-  
-  // 创建节点
-  addNodeAtPosition(draggedNodeType, canvasPosition.x - 90, canvasPosition.y - 24)
-  
-  draggedNodeType = null
+  try {
+    // 获取 VueFlow 实例
+    const { project: projectFn, viewport: viewportData } = useVueFlow()
+    
+    // 获取画布容器
+    const container = event.currentTarget
+    const rect = container.getBoundingClientRect()
+    
+    // 计算鼠标在画布中的位置
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+    
+    // 转换为画布坐标（考虑缩放和平移）
+    const position = projectFn({ x, y })
+    
+    console.log('Drop position:', { x, y, canvasPosition: position })
+    
+    // 创建节点（减去节点尺寸的一半，使节点中心对准鼠标）
+    addNodeAtPosition(
+      draggedNodeType, 
+      position.x - 90,  // 节点宽度180的一半
+      position.y - 24   // 节点高度48的一半
+    )
+  } catch (error) {
+    console.error('拖放节点失败:', error)
+    // 降级方案：使用固定位置
+    addNodeAtPosition(draggedNodeType, 300, 200)
+  } finally {
+    draggedNodeType = null
+  }
 }
 
 // 在指定位置添加节点
@@ -698,10 +715,12 @@ const addNodeAtPosition = (nodeType, x, y) => {
     return
   }
 
+  console.log('添加节点:', nodeType.label, '位置:', { x, y })
+
   const newNode = {
     id: `${nodeType.type}-${nodeIdCounter++}`,
     type: 'custom',
-    position: { x, y },
+    position: { x: Math.round(x), y: Math.round(y) },
     data: {
       nodeType: nodeType.type,
       label: nodeType.label,
@@ -746,10 +765,14 @@ const addNodeAtPosition = (nodeType, x, y) => {
 
   nodes.value.push(newNode)
   
+  console.log('节点已添加到数组，当前节点总数:', nodes.value.length)
+  console.log('新节点:', newNode)
+  
   // 自动选中新添加的节点
   nextTick(() => {
     selectedNodeId.value = newNode.id
     showConfigDrawer.value = true
+    console.log('节点已选中，配置抽屉已打开')
   })
   
   ElMessage.success(`已添加${nodeType.label}节点`)
