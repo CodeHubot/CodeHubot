@@ -637,8 +637,8 @@ const addNodeToCenter = (nodeType) => {
     id: `${nodeType.type}-${nodeIdCounter++}`,
     type: 'custom',
     position: {
-      x: 200 + nodes.value.length * 60,
-      y: 150 + (nodes.value.length % 3) * 180
+      x: 150 + nodes.value.length * 80,
+      y: 200 + (nodes.value.length % 4) * 120
     },
       data: {
         nodeType: nodeType.type,
@@ -793,8 +793,8 @@ const autoLayout = () => {
       const node = nodeMap.get(nodeId)
       if (node) {
         node.position = {
-          x: layerIndex * 300 + 150,
-          y: nodeIndex * 150 + 100
+          x: layerIndex * 250 + 100,
+          y: nodeIndex * 100 + 150
         }
       }
     })
@@ -1051,72 +1051,82 @@ if (workflowUuid.value) {
 }
 
 .workflow-node {
-  width: 200px;
-  max-width: 200px;
+  width: 160px;
+  height: 50px;
   background: #fff;
   border: 2px solid #e4e7ed;
-  border-radius: 10px;
-  overflow: hidden;
+  border-radius: 8px;
+  overflow: visible;
   transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .workflow-node:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
 }
 
 .workflow-node.selected {
   border-color: #409eff;
-  border-width: 3px;
-  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+}
+
+.node-content {
+  width: 100%;
+  height: 100%;
 }
 
 .node-header {
-  padding: 12px;
+  height: 100%;
+  padding: 0 12px;
   color: #fff;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 500;
+  border-radius: 6px;
 }
 
 .node-title {
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.delete-btn {
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.workflow-node:hover .delete-btn {
-  opacity: 1;
-}
-
-.node-body {
-  padding: 12px;
-  text-align: center;
+.status-tag {
+  border: none;
+  font-weight: bold;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
 }
 
 .node-handle {
-  width: 14px;
-  height: 14px;
-  border: 3px solid #fff;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
   background: #409eff;
   transition: all 0.3s;
+  border-radius: 50%;
 }
 
 .node-handle:hover {
-  transform: scale(1.5);
-  box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.3);
+  width: 16px;
+  height: 16px;
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.3);
 }
 
 .config-content {
   padding-bottom: 20px;
 }
 
+/* 连接线样式 */
 :deep(.vue-flow__edge-path) {
+  stroke: #409eff;
   stroke-width: 2;
 }
 
@@ -1125,17 +1135,33 @@ if (workflowUuid.value) {
   stroke-width: 3;
 }
 
+:deep(.vue-flow__edge:hover .vue-flow__edge-path) {
+  stroke: #66b1ff;
+  stroke-width: 3;
+}
+
 :deep(.vue-flow__connection-path) {
   stroke: #409eff;
-  stroke-width: 3;
-  stroke-dasharray: 5, 5;
-  animation: dash 0.5s linear infinite;
+  stroke-width: 2;
+  stroke-dasharray: 8, 4;
+  animation: dash 0.8s linear infinite;
 }
 
 @keyframes dash {
   to {
-    stroke-dashoffset: -10;
+    stroke-dashoffset: -12;
   }
+}
+
+/* 边的文本 */
+:deep(.vue-flow__edge-text) {
+  font-size: 12px;
+  fill: #606266;
+}
+
+/* 边的删除按钮 */
+:deep(.vue-flow__edge-textbg) {
+  fill: #fff;
 }
 
 :deep(.el-drawer__body) {
