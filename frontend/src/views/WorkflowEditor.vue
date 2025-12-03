@@ -16,6 +16,14 @@
         </div>
         
         <div class="toolbar-right">
+          <el-select v-model="edgeType" placeholder="连线样式" style="width: 140px;" @change="changeEdgeType">
+            <el-option label="🎯 平滑直角" value="smoothstep" />
+            <el-option label="📐 直角折线" value="step" />
+            <el-option label="〰️ 贝塞尔曲线" value="default" />
+            <el-option label="➖ 直线" value="straight" />
+            <el-option label="🌊 简单曲线" value="simplebezier" />
+          </el-select>
+          
           <el-button-group>
             <el-button @click="autoLayout" icon="MagicStick">自动排列</el-button>
             <el-button @click="fitView" icon="FullScreen">居中显示</el-button>
@@ -608,6 +616,9 @@ const showConfigDrawer = ref(false)
 const nodes = ref([])
 const edges = ref([])
 
+// 连线类型
+const edgeType = ref('smoothstep')
+
 let nodeIdCounter = 1
 
 // 节点类型定义
@@ -769,13 +780,34 @@ const onConnect = (connection) => {
     id: `edge-${connection.source}-${connection.target}`,
     source: connection.source,
     target: connection.target,
-    type: 'smoothstep',
+    type: edgeType.value,
     animated: true,
     style: { stroke: '#409eff', strokeWidth: 2 }
   }
 
   edges.value.push(newEdge)
   ElMessage.success('连接创建成功')
+}
+
+// 切换连线样式
+const changeEdgeType = () => {
+  // 更新所有现有连线的类型
+  edges.value.forEach(edge => {
+    edge.type = edgeType.value
+  })
+  ElMessage.success(`已切换到${getEdgeTypeName(edgeType.value)}样式`)
+}
+
+// 获取连线类型名称
+const getEdgeTypeName = (type) => {
+  const names = {
+    'smoothstep': '平滑直角',
+    'step': '直角折线',
+    'default': '贝塞尔曲线',
+    'straight': '直线',
+    'simplebezier': '简单曲线'
+  }
+  return names[type] || type
 }
 
 // 自动布局
