@@ -595,7 +595,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const { fitView: vueFlowFitView } = useVueFlow()
+const { fitView: vueFlowFitView, project, viewport, vueFlowRef } = useVueFlow()
 
 // 基础数据
 const workflowName = ref('')
@@ -638,12 +638,33 @@ const addNodeToCenter = (nodeType) => {
     return
   }
 
+  // 计算当前视口中心位置
+  let centerX = 400
+  let centerY = 300
+  
+  try {
+    // 获取画布容器尺寸
+    const flowElement = vueFlowRef.value?.$el
+    if (flowElement) {
+      const rect = flowElement.getBoundingClientRect()
+      const screenCenterX = rect.width / 2
+      const screenCenterY = rect.height / 2
+      
+      // 将屏幕坐标转换为画布坐标
+      const canvasPosition = project({ x: screenCenterX, y: screenCenterY })
+      centerX = canvasPosition.x - 80 // 节点宽度160px的一半
+      centerY = canvasPosition.y - 25 // 节点高度50px的一半
+    }
+  } catch (error) {
+    console.warn('无法获取视口中心，使用默认位置', error)
+  }
+
   const newNode = {
     id: `${nodeType.type}-${nodeIdCounter++}`,
     type: 'custom',
     position: {
-      x: 150 + nodes.value.length * 80,
-      y: 200 + (nodes.value.length % 4) * 120
+      x: centerX,
+      y: centerY
     },
       data: {
         nodeType: nodeType.type,
@@ -688,6 +709,13 @@ const addNodeToCenter = (nodeType) => {
   }
 
   nodes.value.push(newNode)
+  
+  // 自动选中新添加的节点
+  nextTick(() => {
+    selectedNodeId.value = newNode.id
+    showConfigDrawer.value = true
+  })
+  
   ElMessage.success(`已添加${nodeType.label}节点`)
 }
 
