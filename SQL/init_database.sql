@@ -34,7 +34,7 @@
 --
 
 CREATE TABLE `aiot_agents` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '智能体名称',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '智能体描述',
@@ -56,7 +56,7 @@ CREATE TABLE `aiot_agents` (
 --
 
 CREATE TABLE `aiot_agent_knowledge_bases` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '关联ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '关联ID',
   `agent_id` int(11) NOT NULL COMMENT '智能体ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '知识库ID',
   `priority` int(11) DEFAULT '0' COMMENT '优先级（数字越大优先级越高）',
@@ -76,7 +76,7 @@ CREATE TABLE `aiot_agent_knowledge_bases` (
 --
 
 CREATE TABLE `aiot_classes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '班级ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '班级ID',
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `school_id` int(11) NOT NULL COMMENT '所属学校ID',
   `class_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '班级名称',
@@ -101,7 +101,7 @@ CREATE TABLE `aiot_classes` (
 --
 
 CREATE TABLE `aiot_class_teachers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '关联ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '关联ID',
   `class_id` int(11) NOT NULL COMMENT '班级ID',
   `teacher_id` int(11) NOT NULL COMMENT '教师ID',
   `created_at` datetime DEFAULT NULL COMMENT '创建时间',
@@ -115,7 +115,7 @@ CREATE TABLE `aiot_class_teachers` (
 --
 
 CREATE TABLE `aiot_core_devices` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备UUID',
   `device_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备ID',
   `product_id` int(11) DEFAULT NULL COMMENT '产品ID',
@@ -168,7 +168,7 @@ CREATE TABLE `aiot_core_devices` (
 --
 
 CREATE TABLE `aiot_core_firmware_versions` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `product_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '产品编码',
   `version` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '版本号',
   `firmware_url` varchar(512) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '固件下载地址',
@@ -189,7 +189,7 @@ CREATE TABLE `aiot_core_firmware_versions` (
 --
 
 CREATE TABLE `aiot_core_products` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `product_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '产品代码',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '产品名称',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '产品描述',
@@ -222,7 +222,7 @@ CREATE TABLE `aiot_core_products` (
 --
 
 CREATE TABLE `aiot_core_users` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '邮箱（学生非必填）',
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '电话（学生非必填）',
   `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '用户名',
@@ -256,7 +256,7 @@ CREATE TABLE `aiot_core_users` (
 --
 
 CREATE TABLE `aiot_courses` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '班级ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '班级ID',
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `school_id` int(11) NOT NULL COMMENT '所属学校ID',
   `course_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '课程名称',
@@ -285,7 +285,7 @@ CREATE TABLE `aiot_courses` (
 --
 
 CREATE TABLE `aiot_course_device_authorizations` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '授权ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '授权ID',
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID',
   `course_id` int(11) NOT NULL COMMENT '课程ID',
   `device_group_id` int(11) NOT NULL COMMENT '设备组ID',
@@ -305,7 +305,7 @@ CREATE TABLE `aiot_course_device_authorizations` (
 --
 
 CREATE TABLE `aiot_course_groups` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '小组ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '小组ID',
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `course_id` int(11) NOT NULL COMMENT '所属课程ID',
   `school_id` int(11) NOT NULL COMMENT '所属学校ID（冗余，便于查询）',
@@ -328,7 +328,7 @@ CREATE TABLE `aiot_course_groups` (
 --
 
 CREATE TABLE `aiot_course_students` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
   `course_id` int(11) NOT NULL COMMENT '课程ID',
   `student_id` int(11) NOT NULL COMMENT '学生ID',
   `enrolled_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '选课时间',
@@ -345,7 +345,7 @@ CREATE TABLE `aiot_course_students` (
 --
 
 CREATE TABLE `aiot_course_teachers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '关联ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '关联ID',
   `course_id` int(11) NOT NULL COMMENT '课程ID',
   `teacher_id` int(11) NOT NULL COMMENT '教师ID',
   `subject` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '教师在该班级教授的科目',
@@ -361,7 +361,7 @@ CREATE TABLE `aiot_course_teachers` (
 --
 
 CREATE TABLE `aiot_device_binding_history` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `mac_address` varchar(17) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备MAC地址',
   `device_uuid` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '设备UUID',
   `device_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '设备ID',
@@ -386,7 +386,7 @@ CREATE TABLE `aiot_device_binding_history` (
 --
 
 CREATE TABLE `aiot_device_groups` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '分组ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '分组ID',
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `school_id` int(11) NOT NULL COMMENT '所属学校ID',
   `group_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备组名称',
@@ -408,7 +408,7 @@ CREATE TABLE `aiot_device_groups` (
 --
 
 CREATE TABLE `aiot_device_group_members` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
   `group_id` int(11) NOT NULL COMMENT '设备组ID',
   `device_id` int(11) NOT NULL COMMENT '设备ID',
   `joined_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
@@ -466,7 +466,7 @@ DELIMITER ;
 --
 
 CREATE TABLE `aiot_documents` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '文档ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '文档ID',
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '所属知识库ID',
   `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '文档标题',
@@ -501,7 +501,7 @@ CREATE TABLE `aiot_documents` (
 --
 
 CREATE TABLE `aiot_document_chunks` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '文本块ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '文本块ID',
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `document_id` int(11) NOT NULL COMMENT '所属文档ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '所属知识库ID（冗余，便于查询）',
@@ -525,7 +525,7 @@ CREATE TABLE `aiot_document_chunks` (
 --
 
 CREATE TABLE `aiot_groups` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '小组ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '小组ID',
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `class_id` int(11) NOT NULL COMMENT '所属班级ID',
   `school_id` int(11) NOT NULL COMMENT '所属学校ID',
@@ -548,7 +548,7 @@ CREATE TABLE `aiot_groups` (
 --
 
 CREATE TABLE `aiot_group_members` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
   `group_id` int(11) NOT NULL COMMENT '小组ID',
   `course_id` int(11) NOT NULL COMMENT '课程ID',
   `school_id` int(11) NOT NULL COMMENT '学校ID（冗余，便于查询）',
@@ -569,7 +569,7 @@ CREATE TABLE `aiot_group_members` (
 --
 
 CREATE TABLE `aiot_kb_analytics` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '统计ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '统计ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '知识库ID',
   `date` date NOT NULL COMMENT '统计日期',
   `query_count` int(11) DEFAULT '0' COMMENT '查询次数',
@@ -592,7 +592,7 @@ CREATE TABLE `aiot_kb_analytics` (
 --
 
 CREATE TABLE `aiot_kb_permissions` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '权限ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '权限ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '知识库ID',
   `user_id` int(11) DEFAULT NULL COMMENT '用户ID',
   `role` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '角色（platform_admin/school_admin/teacher/student）',
@@ -609,7 +609,7 @@ CREATE TABLE `aiot_kb_permissions` (
 --
 
 CREATE TABLE `aiot_kb_retrieval_logs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID',
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `query` text COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '查询文本',
   `agent_id` int(11) DEFAULT NULL COMMENT '智能体ID',
@@ -632,7 +632,7 @@ CREATE TABLE `aiot_kb_retrieval_logs` (
 --
 
 CREATE TABLE `aiot_kb_sharing` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '共享ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '共享ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '知识库ID',
   `school_id` int(11) DEFAULT NULL COMMENT '共享给学校ID',
   `course_id` int(11) DEFAULT NULL COMMENT '共享给课程ID',
@@ -652,7 +652,7 @@ CREATE TABLE `aiot_kb_sharing` (
 --
 
 CREATE TABLE `aiot_knowledge_bases` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '知识库ID',
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '知识库ID',
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '知识库名称',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '知识库描述',
@@ -687,7 +687,7 @@ CREATE TABLE `aiot_knowledge_bases` (
 --
 
 CREATE TABLE `aiot_llm_models` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模型名称',
   `display_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '显示名称',
@@ -720,7 +720,7 @@ CREATE TABLE `aiot_llm_models` (
 --
 
 CREATE TABLE `aiot_llm_providers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '提供商代码',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '提供商名称',
@@ -747,7 +747,7 @@ CREATE TABLE `aiot_llm_providers` (
 --
 
 CREATE TABLE `aiot_plugins` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '唯一标识UUID',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '插件名称',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '插件描述',
@@ -767,7 +767,7 @@ CREATE TABLE `aiot_plugins` (
 --
 
 CREATE TABLE `aiot_prompt_templates` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模板名称',
   `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '模板描述',
   `content` text COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '提示词内容',
@@ -791,7 +791,7 @@ CREATE TABLE `aiot_prompt_templates` (
 --
 
 CREATE TABLE `aiot_schools` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `school_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '学校代码（如 BJ-YCZX）',
   `school_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '学校名称',
@@ -817,17 +817,14 @@ CREATE TABLE `aiot_schools` (
 -- 表的索引 `aiot_agents`
 --
 ALTER TABLE `aiot_agents`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD KEY `user_id` (`user_id`),
-  ADD KEY `ix_aiot_agents_id` (`id`),
   ADD KEY `idx_llm_model_id` (`llm_model_id`);
 
 --
 -- 表的索引 `aiot_agent_knowledge_bases`
 --
 ALTER TABLE `aiot_agent_knowledge_bases`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_agent_kb` (`agent_id`,`knowledge_base_id`),
   ADD KEY `idx_agent` (`agent_id`),
   ADD KEY `idx_kb` (`knowledge_base_id`);
@@ -836,28 +833,23 @@ ALTER TABLE `aiot_agent_knowledge_bases`
 -- 表的索引 `aiot_classes`
 --
 ALTER TABLE `aiot_classes`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ix_aiot_classes_uuid` (`uuid`),
   ADD KEY `ix_aiot_classes_teacher_id` (`teacher_id`),
   ADD KEY `ix_aiot_classes_academic_year` (`academic_year`),
   ADD KEY `ix_aiot_classes_is_active` (`is_active`),
-  ADD KEY `ix_aiot_classes_school_id` (`school_id`),
-  ADD KEY `ix_aiot_classes_id` (`id`);
+  ADD KEY `ix_aiot_classes_school_id` (`school_id`);
 
 --
 -- 表的索引 `aiot_class_teachers`
 --
 ALTER TABLE `aiot_class_teachers`
-  ADD PRIMARY KEY (`id`),
   ADD KEY `ix_aiot_class_teachers_teacher_id` (`teacher_id`),
-  ADD KEY `ix_aiot_class_teachers_class_id` (`class_id`),
-  ADD KEY `ix_aiot_class_teachers_id` (`id`);
+  ADD KEY `ix_aiot_class_teachers_class_id` (`class_id`);
 
 --
 -- 表的索引 `aiot_core_devices`
 --
 ALTER TABLE `aiot_core_devices`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uuid` (`uuid`),
   ADD UNIQUE KEY `device_id` (`device_id`),
   ADD KEY `idx_product_id` (`product_id`),
@@ -871,7 +863,6 @@ ALTER TABLE `aiot_core_devices`
 -- 表的索引 `aiot_core_firmware_versions`
 --
 ALTER TABLE `aiot_core_firmware_versions`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `version` (`version`),
   ADD KEY `idx_product_code` (`product_code`),
   ADD KEY `idx_is_active` (`is_active`);
@@ -880,7 +871,6 @@ ALTER TABLE `aiot_core_firmware_versions`
 -- 表的索引 `aiot_core_products`
 --
 ALTER TABLE `aiot_core_products`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `product_code` (`product_code`),
   ADD UNIQUE KEY `idx_product_code` (`product_code`),
   ADD KEY `idx_name` (`name`),
@@ -891,7 +881,6 @@ ALTER TABLE `aiot_core_products`
 -- 表的索引 `aiot_core_users`
 --
 ALTER TABLE `aiot_core_users`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `email` (`email`),
   ADD UNIQUE KEY `uk_school_teacher_number` (`school_id`,`teacher_number`),
@@ -911,7 +900,6 @@ ALTER TABLE `aiot_core_users`
 -- 表的索引 `aiot_courses`
 --
 ALTER TABLE `aiot_courses`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `idx_uuid` (`uuid`),
   ADD UNIQUE KEY `uk_school_class` (`school_id`,`course_name`,`deleted_at`),
   ADD KEY `idx_school_id` (`school_id`),
@@ -923,7 +911,6 @@ ALTER TABLE `aiot_courses`
 -- 表的索引 `aiot_course_device_authorizations`
 --
 ALTER TABLE `aiot_course_device_authorizations`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uuid` (`uuid`),
   ADD UNIQUE KEY `uk_course_group` (`course_id`,`device_group_id`,`expires_at`),
   ADD KEY `idx_course_id` (`course_id`),
@@ -937,7 +924,6 @@ ALTER TABLE `aiot_course_device_authorizations`
 -- 表的索引 `aiot_course_groups`
 --
 ALTER TABLE `aiot_course_groups`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `idx_uuid` (`uuid`),
   ADD UNIQUE KEY `uk_class_group` (`course_id`,`group_name`,`deleted_at`),
   ADD KEY `idx_class_id` (`course_id`),
@@ -949,7 +935,6 @@ ALTER TABLE `aiot_course_groups`
 -- 表的索引 `aiot_course_students`
 --
 ALTER TABLE `aiot_course_students`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_course_student` (`course_id`,`student_id`),
   ADD KEY `idx_course_id` (`course_id`),
   ADD KEY `idx_student_id` (`student_id`),
@@ -959,10 +944,8 @@ ALTER TABLE `aiot_course_students`
 -- 表的索引 `aiot_course_teachers`
 --
 ALTER TABLE `aiot_course_teachers`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_class_teacher` (`course_id`,`teacher_id`),
   ADD KEY `ix_aiot_class_teachers_class_id` (`course_id`),
-  ADD KEY `ix_aiot_class_teachers_id` (`id`),
   ADD KEY `ix_aiot_class_teachers_teacher_id` (`teacher_id`),
   ADD KEY `ix_aiot_class_teachers_is_primary` (`is_primary`);
 
@@ -970,7 +953,6 @@ ALTER TABLE `aiot_course_teachers`
 -- 表的索引 `aiot_device_binding_history`
 --
 ALTER TABLE `aiot_device_binding_history`
-  ADD PRIMARY KEY (`id`),
   ADD KEY `product_id` (`product_id`),
   ADD KEY `ix_device_binding_history_device_uuid` (`device_uuid`),
   ADD KEY `ix_device_binding_history_action_time` (`action_time`),
@@ -981,7 +963,6 @@ ALTER TABLE `aiot_device_binding_history`
 -- 表的索引 `aiot_device_groups`
 --
 ALTER TABLE `aiot_device_groups`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uuid` (`uuid`),
   ADD KEY `idx_school_id` (`school_id`),
   ADD KEY `idx_uuid` (`uuid`),
@@ -993,7 +974,6 @@ ALTER TABLE `aiot_device_groups`
 -- 表的索引 `aiot_device_group_members`
 --
 ALTER TABLE `aiot_device_group_members`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_group_device` (`group_id`,`device_id`,`left_at`),
   ADD KEY `idx_group_id` (`group_id`),
   ADD KEY `idx_device_id` (`device_id`),
@@ -1003,7 +983,6 @@ ALTER TABLE `aiot_device_group_members`
 -- 表的索引 `aiot_documents`
 --
 ALTER TABLE `aiot_documents`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD KEY `idx_kb` (`knowledge_base_id`),
   ADD KEY `idx_status` (`embedding_status`),
@@ -1016,7 +995,6 @@ ALTER TABLE `aiot_documents`
 -- 表的索引 `aiot_document_chunks`
 --
 ALTER TABLE `aiot_document_chunks`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD KEY `idx_document` (`document_id`,`chunk_index`),
   ADD KEY `idx_kb` (`knowledge_base_id`),
@@ -1026,11 +1004,9 @@ ALTER TABLE `aiot_document_chunks`
 -- 表的索引 `aiot_groups`
 --
 ALTER TABLE `aiot_groups`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ix_aiot_groups_uuid` (`uuid`),
   ADD KEY `ix_aiot_groups_is_active` (`is_active`),
   ADD KEY `ix_aiot_groups_leader_id` (`leader_id`),
-  ADD KEY `ix_aiot_groups_id` (`id`),
   ADD KEY `ix_aiot_groups_class_id` (`class_id`),
   ADD KEY `ix_aiot_groups_school_id` (`school_id`);
 
@@ -1038,7 +1014,6 @@ ALTER TABLE `aiot_groups`
 -- 表的索引 `aiot_group_members`
 --
 ALTER TABLE `aiot_group_members`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_group_student` (`group_id`,`student_id`,`left_at`),
   ADD KEY `idx_group_id` (`group_id`),
   ADD KEY `idx_class_id` (`course_id`),
@@ -1050,7 +1025,6 @@ ALTER TABLE `aiot_group_members`
 -- 表的索引 `aiot_kb_analytics`
 --
 ALTER TABLE `aiot_kb_analytics`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_kb_date` (`knowledge_base_id`,`date`),
   ADD KEY `idx_date` (`date`);
 
@@ -1058,7 +1032,6 @@ ALTER TABLE `aiot_kb_analytics`
 -- 表的索引 `aiot_kb_permissions`
 --
 ALTER TABLE `aiot_kb_permissions`
-  ADD PRIMARY KEY (`id`),
   ADD KEY `idx_kb` (`knowledge_base_id`),
   ADD KEY `idx_user` (`user_id`),
   ADD KEY `idx_role` (`role`),
@@ -1069,7 +1042,6 @@ ALTER TABLE `aiot_kb_permissions`
 -- 表的索引 `aiot_kb_retrieval_logs`
 --
 ALTER TABLE `aiot_kb_retrieval_logs`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD KEY `idx_agent` (`agent_id`),
   ADD KEY `idx_user` (`user_id`),
@@ -1079,7 +1051,6 @@ ALTER TABLE `aiot_kb_retrieval_logs`
 -- 表的索引 `aiot_kb_sharing`
 --
 ALTER TABLE `aiot_kb_sharing`
-  ADD PRIMARY KEY (`id`),
   ADD KEY `idx_kb` (`knowledge_base_id`),
   ADD KEY `idx_school` (`school_id`),
   ADD KEY `idx_course` (`course_id`),
@@ -1090,7 +1061,6 @@ ALTER TABLE `aiot_kb_sharing`
 -- 表的索引 `aiot_knowledge_bases`
 --
 ALTER TABLE `aiot_knowledge_bases`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD KEY `idx_scope` (`scope_type`,`scope_id`),
   ADD KEY `idx_owner` (`owner_id`),
@@ -1102,33 +1072,26 @@ ALTER TABLE `aiot_knowledge_bases`
 -- 表的索引 `aiot_llm_models`
 --
 ALTER TABLE `aiot_llm_models`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uk_uuid` (`uuid`),
-  ADD KEY `ix_aiot_llm_models_id` (`id`);
+  ADD UNIQUE KEY `uk_uuid` (`uuid`);
 
 --
 -- 表的索引 `aiot_llm_providers`
 --
 ALTER TABLE `aiot_llm_providers`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `code` (`code`),
-  ADD UNIQUE KEY `uk_uuid` (`uuid`),
-  ADD KEY `ix_aiot_llm_providers_id` (`id`);
+  ADD UNIQUE KEY `uk_uuid` (`uuid`);
 
 --
 -- 表的索引 `aiot_plugins`
 --
 ALTER TABLE `aiot_plugins`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `ix_aiot_plugins_id` (`id`);
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- 表的索引 `aiot_prompt_templates`
 --
 ALTER TABLE `aiot_prompt_templates`
-  ADD PRIMARY KEY (`id`),
   ADD KEY `idx_category` (`category`),
   ADD KEY `idx_is_active` (`is_active`),
   ADD KEY `idx_sort_order` (`sort_order`);
@@ -1137,10 +1100,8 @@ ALTER TABLE `aiot_prompt_templates`
 -- 表的索引 `aiot_schools`
 --
 ALTER TABLE `aiot_schools`
-  ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ix_aiot_schools_school_code` (`school_code`),
-  ADD UNIQUE KEY `idx_uuid` (`uuid`),
-  ADD KEY `ix_aiot_schools_id` (`id`);
+  ADD UNIQUE KEY `idx_uuid` (`uuid`);
 
 
 --
