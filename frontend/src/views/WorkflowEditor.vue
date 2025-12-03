@@ -176,22 +176,50 @@
 
           <!-- LLM节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'llm'">
-            <el-form-item label="选择智能体">
-              <el-select v-model="selectedNode.data.agentUuid" placeholder="请选择智能体" filterable>
-                <el-option label="智能体1" value="agent-1" />
-                <el-option label="智能体2" value="agent-2" />
+            <el-form-item label="选择模型">
+              <el-select v-model="selectedNode.data.llmModel" placeholder="请选择LLM模型" filterable>
+                <el-option-group label="OpenAI">
+                  <el-option label="GPT-4" value="gpt-4" />
+                  <el-option label="GPT-3.5 Turbo" value="gpt-3.5-turbo" />
+                </el-option-group>
+                <el-option-group label="通义千问">
+                  <el-option label="Qwen-Max" value="qwen-max" />
+                  <el-option label="Qwen-Plus" value="qwen-plus" />
+                  <el-option label="Qwen-Turbo" value="qwen-turbo" />
+                </el-option-group>
+                <el-option-group label="智谱AI">
+                  <el-option label="GLM-4" value="glm-4" />
+                  <el-option label="GLM-3-Turbo" value="glm-3-turbo" />
+                </el-option-group>
               </el-select>
             </el-form-item>
 
-            <el-form-item label="提示词模板">
+            <el-form-item label="系统提示词">
               <el-input
-                v-model="selectedNode.data.prompt"
+                v-model="selectedNode.data.systemPrompt"
+                type="textarea"
+                :rows="4"
+                placeholder='定义AI的角色和行为:
+你是一个专业的客服助手，需要：
+1. 态度友好，回答准确
+2. 遇到不清楚的问题要诚实说明'
+              />
+            </el-form-item>
+
+            <el-form-item label="用户提示词">
+              <el-input
+                v-model="selectedNode.data.userPrompt"
                 type="textarea"
                 :rows="6"
                 placeholder='输入提示词，支持变量引用:
 用户问题: {input.query}
 上一节点结果: {node-id.response}
-知识库内容: {kb-node.results}'
+知识库内容: {kb-node.results}
+
+示例：
+根据以下信息回答用户问题：
+问题：{input.query}
+参考资料：{kb-node.results}'
               />
             </el-form-item>
 
@@ -199,28 +227,48 @@
               <el-col :span="12">
                 <el-form-item label="温度参数">
                   <el-slider v-model="selectedNode.data.temperature" :min="0" :max="2" :step="0.1" show-input />
+                  <el-text size="small" type="info">值越高，输出越随机创新</el-text>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="最大Token数">
-                  <el-input-number v-model="selectedNode.data.maxTokens" :min="100" :max="8000" :step="100" />
+                  <el-input-number v-model="selectedNode.data.maxTokens" :min="100" :max="8000" :step="100" style="width: 100%" />
+                  <el-text size="small" type="info">控制回复长度</el-text>
                 </el-form-item>
               </el-col>
             </el-row>
 
-            <el-form-item label="系统提示词">
-              <el-input
-                v-model="selectedNode.data.systemPrompt"
-                type="textarea"
-                :rows="3"
-                placeholder="可选：覆盖智能体的系统提示词"
-              />
+            <el-form-item label="Top P">
+              <el-slider v-model="selectedNode.data.topP" :min="0" :max="1" :step="0.05" show-input />
+              <el-text size="small" type="info">核采样参数，控制输出多样性</el-text>
+            </el-form-item>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="频率惩罚">
+                  <el-slider v-model="selectedNode.data.frequencyPenalty" :min="0" :max="2" :step="0.1" show-input />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="存在惩罚">
+                  <el-slider v-model="selectedNode.data.presencePenalty" :min="0" :max="2" :step="0.1" show-input />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-form-item>
+              <el-checkbox v-model="selectedNode.data.streamMode">流式输出（逐字返回）</el-checkbox>
             </el-form-item>
 
             <el-form-item>
-              <el-checkbox v-model="selectedNode.data.streamMode">流式输出</el-checkbox>
-              <el-checkbox v-model="selectedNode.data.saveHistory">保存对话历史</el-checkbox>
+              <el-checkbox v-model="selectedNode.data.jsonMode">JSON模式（返回结构化数据）</el-checkbox>
             </el-form-item>
+
+            <el-alert type="info" :closable="false" show-icon style="margin-top: 12px;">
+              <template #title>
+                变量引用格式：{node-id.字段名} 或 {input.参数名}
+              </template>
+            </el-alert>
           </template>
 
           <!-- HTTP节点配置 -->
@@ -365,10 +413,12 @@
               </el-radio-group>
             </el-form-item>
 
-            <el-form-item v-if="selectedNode.data.recognitionMode === 'llm'" label="使用智能体">
-              <el-select v-model="selectedNode.data.agentUuid" placeholder="选择智能体">
-                <el-option label="智能体1" value="agent-1" />
-                <el-option label="智能体2" value="agent-2" />
+            <el-form-item v-if="selectedNode.data.recognitionMode === 'llm'" label="使用模型">
+              <el-select v-model="selectedNode.data.llmModel" placeholder="选择LLM模型">
+                <el-option label="GPT-4" value="gpt-4" />
+                <el-option label="GPT-3.5" value="gpt-3.5-turbo" />
+                <el-option label="Qwen-Max" value="qwen-max" />
+                <el-option label="Qwen-Plus" value="qwen-plus" />
               </el-select>
             </el-form-item>
 
@@ -590,35 +640,46 @@ const addNodeToCenter = (nodeType) => {
       x: 200 + nodes.value.length * 60,
       y: 150 + (nodes.value.length % 3) * 180
     },
-    data: {
-      nodeType: nodeType.type,
-      label: nodeType.label,
-      icon: nodeType.icon,
-      color: nodeType.color,
-      configured: false,
-      // 默认配置
-      description: '',
-      temperature: 0.7,
-      maxTokens: 2000,
-      method: 'POST',
-      timeout: 30,
-      retryCount: 0,
-      topK: 5,
-      similarityThreshold: 0.7,
-      searchMode: 'vector',
-      recognitionMode: 'llm',
-      confidenceThreshold: 0.6,
-      operation: 'concat',
-      separator: '',
-      replaceAll: true,
-      caseSensitive: false,
-      startIndex: 0,
-      validateSSL: true,
-      followRedirect: true,
-      streamMode: false,
-      saveHistory: false,
-      intentCategories: []
-    }
+      data: {
+        nodeType: nodeType.type,
+        label: nodeType.label,
+        icon: nodeType.icon,
+        color: nodeType.color,
+        configured: false,
+        // 默认配置
+        description: '',
+        // LLM配置
+        llmModel: '',
+        systemPrompt: '',
+        userPrompt: '',
+        temperature: 0.7,
+        maxTokens: 2000,
+        topP: 0.9,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+        streamMode: false,
+        jsonMode: false,
+        // HTTP配置
+        method: 'POST',
+        timeout: 30,
+        retryCount: 0,
+        validateSSL: true,
+        followRedirect: true,
+        // 知识库配置
+        topK: 5,
+        similarityThreshold: 0.7,
+        searchMode: 'vector',
+        // 意图识别配置
+        recognitionMode: 'llm',
+        confidenceThreshold: 0.6,
+        intentCategories: [],
+        // 字符串处理配置
+        operation: 'concat',
+        separator: '',
+        replaceAll: true,
+        caseSensitive: false,
+        startIndex: 0
+      }
   }
 
   nodes.value.push(newNode)
