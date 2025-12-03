@@ -64,6 +64,14 @@ async def lifespan(app: FastAPI):
     # 应用启动时
     logger.info("🚀 启动物联网设备服务系统")
     
+    # 初始化管理员账号
+    from app.core.init_admin import init_admin_on_startup
+    init_admin_on_startup()
+    
+    # 初始化默认配置（大模型和产品）
+    from app.core.init_defaults import init_defaults_on_startup
+    init_defaults_on_startup()
+    
     # MQTT服务已独立部署，不再在backend启动
     # mqtt_service.start()
     

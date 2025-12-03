@@ -104,8 +104,24 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # 文件存储路径（与共享卷挂载路径一致）
       KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      # 管理员账号配置（可选，用于自动创建管理员账号）
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # 默认大模型配置（通义千问）
+      QWEN_API_KEY: ${QWEN_API_KEY:-${DASHSCOPE_API_KEY:-}}
+      QWEN_API_BASE: ${QWEN_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL_NAME: ${QWEN_MODEL_NAME:-qwen-turbo}
+      QWEN_DISPLAY_NAME: ${QWEN_DISPLAY_NAME:-通义千问-Turbo}
+      QWEN_MAX_TOKENS: ${QWEN_MAX_TOKENS:-8192}
+      QWEN_TEMPERATURE: ${QWEN_TEMPERATURE:-0.20}
+      QWEN_TOP_P: ${QWEN_TOP_P:-0.90}
+      # 默认产品配置（ESP32-S3开发板）
+      DEFAULT_PRODUCT_CODE: ${DEFAULT_PRODUCT_CODE:-ESP-32-S3-01}
+      DEFAULT_PRODUCT_NAME: ${DEFAULT_PRODUCT_NAME:-标准开发板}
+    # 不暴露端口到外部，仅通过nginx反向代理访问（安全考虑）
+    # ports:
+    #   - "${BACKEND_PORT:-8000}:8000"
     networks:
       - aiot-network
     depends_on:
