@@ -100,7 +100,7 @@ cd CodeHubot
 
 # 2. 配置环境变量（使用新架构配置）
 cd docker
-cp env.plugin.example .env
+cp .env.example .env
 nano .env  # 设置 MYSQL_PASSWORD, SECRET_KEY 等
 
 # 3. 一键部署（包含新的 plugin-backend-service）
