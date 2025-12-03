@@ -149,6 +149,152 @@ cd ..
 5. **资源要求**: 建议至少 4GB RAM
 6. **服务依赖**: plugin-backend-service 依赖 MySQL 和 MQTT，确保这两个服务先启动
 
+## 🗑️ 删除持久化数据
+
+### ⚠️ 警告
+
+**删除持久化数据是不可逆的操作！** 删除后，所有数据将永久丢失，包括：
+- 数据库中的所有数据（用户、设备、知识库等）
+- Redis 缓存数据
+- MQTT 消息数据
+- 知识库文档文件
+
+请确保在删除前已做好数据备份！
+
+### 数据卷说明
+
+系统使用以下 Docker 数据卷存储持久化数据：
+
+| 数据卷名称 | 存储内容 | 说明 |
+|-----------|---------|------|
+| `mysql_data` | MySQL 数据库数据 | 所有业务数据 |
+| `redis_data` | Redis 缓存数据 | 会话、缓存等 |
+| `mqtt_data` | MQTT 消息数据 | MQTT broker 数据 |
+| `mqtt_logs` | MQTT 日志 | MQTT 服务日志 |
+| `knowledge_bases_data` | 知识库文档 | 上传的文档文件 |
+
+### 删除方法
+
+#### 方法一：删除所有持久化数据（完全清理）
+
+```bash
+# 1. 停止所有服务
+./deploy.sh stop
+
+# 或者使用 docker-compose
+cd docker
+docker-compose -f docker-compose.prod.yml down
+
+# 2. 删除所有数据卷（包括数据）
+docker-compose -f docker-compose.prod.yml down -v
+
+# 3. 验证数据卷已删除
+docker volume ls | grep codehubot
+```
+
+#### 方法二：删除特定数据卷
+
+```bash
+# 1. 停止所有服务
+./deploy.sh stop
+
+# 2. 删除特定数据卷
+docker volume rm codehubot-mysql-data      # 删除 MySQL 数据
+docker volume rm codehubot-redis-data      # 删除 Redis 数据
+docker volume rm codehubot-mqtt-data       # 删除 MQTT 数据
+docker volume rm codehubot-mqtt-logs       # 删除 MQTT 日志
+docker volume rm codehubot-knowledge-bases # 删除知识库文档（如果存在）
+
+# 注意：数据卷名称可能因配置而异，请先查看实际名称
+docker volume ls
+```
+
+#### 方法三：仅删除数据，保留数据卷定义
+
+```bash
+# 1. 停止所有服务
+./deploy.sh stop
+
+# 2. 进入 MySQL 容器删除数据（示例）
+docker run --rm -v codehubot-mysql-data:/data alpine sh -c "rm -rf /data/*"
+
+# 3. 进入 Redis 容器删除数据（示例）
+docker run --rm -v codehubot-redis-data:/data alpine sh -c "rm -rf /data/*"
+
+# 4. 重新启动服务（数据卷将重新初始化）
+./deploy.sh start
+```
+
+### 查看数据卷信息
+
+```bash
+# 查看所有数据卷
+docker volume ls
+
+# 查看数据卷详细信息
+docker volume inspect codehubot-mysql-data
+
+# 查看数据卷使用情况
+docker system df -v
+```
+
+### 数据备份（删除前建议操作）
+
+```bash
+# 1. 备份 MySQL 数据
+docker exec codehubot-mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} --all-databases > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# 2. 备份知识库文档（如果数据卷已挂载）
+docker run --rm -v codehubot-knowledge-bases:/data -v $(pwd):/backup alpine tar czf /backup/knowledge_bases_backup_$(date +%Y%m%d_%H%M%S).tar.gz /data
+
+# 3. 备份 Redis 数据（可选）
+docker exec codehubot-redis redis-cli --rdb /data/dump.rdb
+docker cp codehubot-redis:/data/dump.rdb ./redis_backup_$(date +%Y%m%d_%H%M%S).rdb
+```
+
+### 重新初始化数据
+
+删除数据后，重新部署时会自动初始化：
+
+```bash
+# 重新部署（会自动初始化数据库）
+./deploy.sh deploy
+```
+
+### 常见场景
+
+#### 场景 1：开发环境重置
+
+```bash
+# 完全清理并重新部署
+./deploy.sh stop
+cd docker && docker-compose -f docker-compose.prod.yml down -v
+cd .. && ./deploy.sh deploy
+```
+
+#### 场景 2：仅重置数据库
+
+```bash
+# 停止服务
+./deploy.sh stop
+
+# 删除 MySQL 数据卷
+docker volume rm codehubot-mysql-data
+
+# 重新启动（数据库会自动初始化）
+./deploy.sh start
+```
+
+#### 场景 3：清理未使用的数据卷
+
+```bash
+# 清理所有未使用的数据卷（谨慎使用！）
+docker volume prune
+
+# 查看将被删除的数据卷（不实际删除）
+docker volume ls -f dangling=true
+```
+
 ## 🆘 获取帮助
 
 如遇问题，请：
@@ -159,4 +305,5 @@ cd ..
 ---
 
 **创建时间**: 2025-11-24
-**版本**: 1.0.0
+**最后更新**: 2025-12-03
+**版本**: 1.1.0
