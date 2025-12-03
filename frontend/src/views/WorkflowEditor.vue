@@ -42,12 +42,13 @@
             节点工具箱:
           </span>
           <div class="node-buttons">
-            <el-button
+            <div
               v-for="nodeType in nodeTypes"
               :key="nodeType.type"
+              :draggable="!((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type))"
+              @dragstart="onDragStart($event, nodeType)"
               @click="addNodeToCenter(nodeType)"
-              :disabled="(nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type)"
-              class="node-add-btn"
+              :class="['node-add-btn', { 'disabled': (nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type) }]"
             >
               <div class="btn-content" :style="{ borderLeftColor: nodeType.color }">
                 <el-icon :size="18" :color="nodeType.color">
@@ -55,14 +56,18 @@
                 </el-icon>
                 <span>{{ nodeType.label }}</span>
               </div>
-            </el-button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 画布区域 -->
-    <div class="canvas-container">
+    <div 
+      class="canvas-container"
+      @drop="onDrop"
+      @dragover="onDragOver"
+    >
       <VueFlow
         v-model:nodes="nodes"
         v-model:edges="edges"
@@ -128,7 +133,7 @@
       <!-- 操作提示 -->
       <div class="operation-tips">
         <el-icon><InfoFilled /></el-icon>
-        <span>💡 拖动圆点连线 | 单击节点配置 | 悬停显示删除按钮 | 点击连线可删除</span>
+        <span>💡 拖拽节点到画布 | 拖动圆点连线 | 单击节点配置 | 悬停显示删除 ✕</span>
       </div>
     </div>
 
@@ -642,13 +647,117 @@ const hasNodeType = (type) => {
   return nodes.value.some(n => n.data.nodeType === type)
 }
 
-// 添加节点
-const addNodeToCenter = (nodeType) => {
+// 拖拽相关
+let draggedNodeType = null
+
+// 开始拖拽
+const onDragStart = (event, nodeType) => {
+  if ((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type)) {
+    event.preventDefault()
+    return
+  }
+  draggedNodeType = nodeType
+  event.dataTransfer.effectAllowed = 'copy'
+  event.dataTransfer.setData('application/nodeType', JSON.stringify(nodeType))
+}
+
+// 拖拽经过画布
+const onDragOver = (event) => {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'copy'
+}
+
+// 放置到画布
+const onDrop = (event) => {
+  event.preventDefault()
+  
+  if (!draggedNodeType) return
+  
+  // 获取画布容器和鼠标位置
+  const flowElement = vueFlowRef.value?.$el
+  if (!flowElement) return
+  
+  const rect = flowElement.getBoundingClientRect()
+  
+  // 计算相对于画布的坐标
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  
+  // 转换为画布坐标（考虑缩放和平移）
+  const canvasPosition = project({ x, y })
+  
+  // 创建节点
+  addNodeAtPosition(draggedNodeType, canvasPosition.x - 90, canvasPosition.y - 24)
+  
+  draggedNodeType = null
+}
+
+// 在指定位置添加节点
+const addNodeAtPosition = (nodeType, x, y) => {
   if ((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type)) {
     ElMessage.warning(`${nodeType.label}节点只能有一个`)
     return
   }
 
+  const newNode = {
+    id: `${nodeType.type}-${nodeIdCounter++}`,
+    type: 'custom',
+    position: { x, y },
+    data: {
+      nodeType: nodeType.type,
+      label: nodeType.label,
+      icon: nodeType.icon,
+      color: nodeType.color,
+      configured: false,
+      // 默认配置
+      description: '',
+      // LLM配置
+      llmModel: '',
+      systemPrompt: '',
+      userPrompt: '',
+      temperature: 0.7,
+      maxTokens: 2000,
+      topP: 0.9,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      streamMode: false,
+      jsonMode: false,
+      // HTTP配置
+      method: 'POST',
+      timeout: 30,
+      retryCount: 0,
+      validateSSL: true,
+      followRedirect: true,
+      // 知识库配置
+      topK: 5,
+      similarityThreshold: 0.7,
+      searchMode: 'vector',
+      // 意图识别配置
+      recognitionMode: 'llm',
+      confidenceThreshold: 0.6,
+      intentCategories: [],
+      // 字符串处理配置
+      operation: 'concat',
+      separator: '',
+      replaceAll: true,
+      caseSensitive: false,
+      startIndex: 0
+    }
+  }
+
+  nodes.value.push(newNode)
+  
+  // 自动选中新添加的节点
+  nextTick(() => {
+    selectedNodeId.value = newNode.id
+    showConfigDrawer.value = true
+  })
+  
+  ElMessage.success(`已添加${nodeType.label}节点`)
+}
+
+// 添加节点到视口中心（点击按钮时使用）
+const addNodeToCenter = (nodeType) => {
   // 计算当前视口中心位置
   let centerX = 400
   let centerY = 300
@@ -663,71 +772,14 @@ const addNodeToCenter = (nodeType) => {
       
       // 将屏幕坐标转换为画布坐标
       const canvasPosition = project({ x: screenCenterX, y: screenCenterY })
-      centerX = canvasPosition.x - 80 // 节点宽度160px的一半
-      centerY = canvasPosition.y - 25 // 节点高度50px的一半
+      centerX = canvasPosition.x - 90 // 节点宽度180px的一半
+      centerY = canvasPosition.y - 24 // 节点高度48px的一半
     }
   } catch (error) {
     console.warn('无法获取视口中心，使用默认位置', error)
   }
 
-  const newNode = {
-    id: `${nodeType.type}-${nodeIdCounter++}`,
-    type: 'custom',
-    position: {
-      x: centerX,
-      y: centerY
-    },
-      data: {
-        nodeType: nodeType.type,
-        label: nodeType.label,
-        icon: nodeType.icon,
-        color: nodeType.color,
-        configured: false,
-        // 默认配置
-        description: '',
-        // LLM配置
-        llmModel: '',
-        systemPrompt: '',
-        userPrompt: '',
-        temperature: 0.7,
-        maxTokens: 2000,
-        topP: 0.9,
-        frequencyPenalty: 0,
-        presencePenalty: 0,
-        streamMode: false,
-        jsonMode: false,
-        // HTTP配置
-        method: 'POST',
-        timeout: 30,
-        retryCount: 0,
-        validateSSL: true,
-        followRedirect: true,
-        // 知识库配置
-        topK: 5,
-        similarityThreshold: 0.7,
-        searchMode: 'vector',
-        // 意图识别配置
-        recognitionMode: 'llm',
-        confidenceThreshold: 0.6,
-        intentCategories: [],
-        // 字符串处理配置
-        operation: 'concat',
-        separator: '',
-        replaceAll: true,
-        caseSensitive: false,
-        startIndex: 0
-      }
-  }
-
-  nodes.value.push(newNode)
-  
-  // 自动选中新添加的节点
-  nextTick(() => {
-    selectedNodeId.value = newNode.id
-    showConfigDrawer.value = true
-  })
-  
-  ElMessage.success(`已添加${nodeType.label}节点`)
+  addNodeAtPosition(nodeType, centerX, centerY)
 }
 
 // 删除节点
@@ -1131,6 +1183,7 @@ if (workflowUuid.value) {
   border: none;
   background: transparent;
   transition: all 0.3s;
+  cursor: move;
 }
 
 .node-add-btn .btn-content {
@@ -1143,17 +1196,26 @@ if (workflowUuid.value) {
   border-left-width: 4px;
   border-radius: 6px;
   transition: all 0.3s;
+  user-select: none;
 }
 
-.node-add-btn:hover:not(:disabled) .btn-content {
+.node-add-btn:hover:not(.disabled) .btn-content {
   border-color: #409eff;
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
   transform: translateY(-1px);
 }
 
-.node-add-btn:disabled {
+.node-add-btn:active:not(.disabled) .btn-content {
+  transform: scale(0.98);
+}
+
+.node-add-btn.disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.node-add-btn.disabled .btn-content {
+  background: #f5f7fa;
 }
 
 .node-add-btn .btn-content span {
