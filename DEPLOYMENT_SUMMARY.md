@@ -253,6 +253,92 @@ docker-compose -f docker-compose.prod.yml logs backend | grep -i admin
 ℹ️  管理员账号已存在: admin (ID: 1)
 ```
 
+### 默认大模型配置（首次部署推荐）
+
+系统支持通过环境变量自动创建默认的通义千问大模型配置，首次部署时建议配置：
+
+#### 配置项说明
+
+| 环境变量 | 说明 | 默认值 | 是否必需 |
+|---------|------|--------|---------|
+| `QWEN_API_KEY` | 通义千问API密钥 | 无（可使用`DASHSCOPE_API_KEY`） | **是**（必须设置才会创建） |
+| `QWEN_API_BASE` | API地址 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 否 |
+| `QWEN_MODEL_NAME` | 模型名称 | `qwen-turbo` | 否 |
+| `QWEN_DISPLAY_NAME` | 显示名称 | `通义千问-Turbo` | 否 |
+| `QWEN_MAX_TOKENS` | 最大token数 | `8192` | 否 |
+| `QWEN_TEMPERATURE` | 温度参数 | `0.20` | 否 |
+| `QWEN_TOP_P` | Top-p参数 | `0.90` | 否 |
+
+#### 配置示例
+
+在 `docker/.env` 文件中添加：
+
+```bash
+# 默认大模型配置（通义千问）
+QWEN_API_KEY=sk-your-qwen-api-key-here
+# 或者使用 DASHSCOPE_API_KEY（如果已设置，可以不设置QWEN_API_KEY）
+# DASHSCOPE_API_KEY=sk-your-dashscope-api-key-here
+```
+
+#### 工作原理
+
+1. **自动创建**：系统启动时会自动检查默认大模型是否存在
+2. **条件创建**：只有设置了 `QWEN_API_KEY` 或 `DASHSCOPE_API_KEY` 才会创建默认大模型
+3. **避免重复**：如果默认大模型已存在，不会重复创建
+4. **自动更新**：如果API密钥有变化，会自动更新现有模型的配置
+5. **智能体使用**：如果智能体没有指定大模型，会自动使用默认大模型
+
+#### 注意事项
+
+- ⚠️ **API密钥**：必须设置 `QWEN_API_KEY` 或 `DASHSCOPE_API_KEY`，否则无法创建默认大模型
+- ⚠️ **智能体依赖**：如果未配置默认大模型，智能体必须手动指定大模型才能使用
+- ✅ **获取密钥**：访问 https://dashscope.console.aliyun.com/apiKey 获取API密钥
+
+### 默认产品配置（首次部署推荐）
+
+系统支持通过环境变量自动创建默认的产品配置（ESP32-S3开发板），首次部署时建议配置：
+
+#### 配置项说明
+
+| 环境变量 | 说明 | 默认值 | 是否必需 |
+|---------|------|--------|---------|
+| `DEFAULT_PRODUCT_CODE` | 产品编码 | `ESP-32-S3-02` | 否 |
+| `DEFAULT_PRODUCT_NAME` | 产品名称 | `智能垃圾桶` | 否 |
+| `DEFAULT_PRODUCT_SENSORS` | 传感器配置（JSON） | 默认DHT11温湿度传感器 | 否 |
+| `DEFAULT_PRODUCT_CONTROLS` | 控制端口配置（JSON） | 默认4个LED控制端口 | 否 |
+
+#### 配置示例
+
+在 `docker/.env` 文件中添加（可选）：
+
+```bash
+# 默认产品配置
+DEFAULT_PRODUCT_CODE=ESP-32-S3-02
+DEFAULT_PRODUCT_NAME=智能垃圾桶
+```
+
+#### 默认配置说明
+
+如果不设置环境变量，系统会使用以下默认配置：
+
+**默认传感器**：
+- DHT11温度传感器
+- DHT11湿度传感器
+
+**默认控制端口**：
+- LED1、LED2、LED3、LED4（4个LED控制端口）
+
+#### 工作原理
+
+1. **自动创建**：系统启动时会自动检查默认产品是否存在
+2. **避免重复**：如果产品编码已存在，不会重复创建
+3. **系统内置**：创建的产品标记为系统内置产品（`is_system=1`）
+
+#### 注意事项
+
+- ✅ **可选配置**：如果不设置，系统会使用默认值自动创建
+- ✅ **自定义配置**：可以通过环境变量自定义传感器和控制端口配置（JSON格式）
+
 ## 📚 相关文档
 
 - [Docker 部署详细文档](deploy/docs/docker-deployment.md)

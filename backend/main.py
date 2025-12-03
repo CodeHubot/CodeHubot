@@ -68,6 +68,10 @@ async def lifespan(app: FastAPI):
     from app.core.init_admin import init_admin_on_startup
     init_admin_on_startup()
     
+    # 初始化默认配置（大模型和产品）
+    from app.core.init_defaults import init_defaults_on_startup
+    init_defaults_on_startup()
+    
     # MQTT服务已独立部署，不再在backend启动
     # mqtt_service.start()
     
