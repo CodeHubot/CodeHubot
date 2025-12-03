@@ -119,7 +119,7 @@ class WorkflowExecutor:
             
             return {
                 "output": final_output,
-                "node_executions": [result.dict() for result in self.node_results.values()],
+                "node_executions": [result.model_dump() for result in self.node_results.values()],
                 "execution_time": total_execution_time
             }
             
