@@ -320,9 +320,6 @@ const showTemplateDialog = ref(false)
 const history = ref([])
 const historyIndex = ref(-1)
 
-// 视口状态
-const viewport = ref({ zoom: 1, x: 0, y: 0 })
-
 // 节点ID计数器
 let nodeIdCounter = 1
 
@@ -578,9 +575,9 @@ const closeConfigPanel = () => {
   selectedNode.value = null
 }
 
-// 视口变化
+// 视口变化（viewport 由 useVueFlow 提供，会自动更新）
 const onViewportChange = (newViewport) => {
-  viewport.value = newViewport
+  // viewport 由 Vue Flow 自动管理，无需手动更新
 }
 
 // 获取配置组件
