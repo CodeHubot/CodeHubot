@@ -28,6 +28,8 @@ def is_admin_user(user: User) -> bool:
 # ============================================================================
 
 class LLMModelBase(BaseModel):
+    model_config = {"protected_namespaces": ()}  # 允许使用model_开头的字段
+    
     name: str = Field(..., description="模型名称")
     display_name: str = Field(..., description="显示名称")
     provider: str = Field(..., description="提供商")
@@ -53,6 +55,8 @@ class LLMModelCreate(LLMModelBase):
 
 
 class LLMModelUpdate(BaseModel):
+    model_config = {"protected_namespaces": ()}  # 允许使用model_开头的字段
+    
     name: Optional[str] = None
     display_name: Optional[str] = None
     provider: Optional[str] = None

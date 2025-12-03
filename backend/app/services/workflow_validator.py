@@ -57,10 +57,6 @@ class WorkflowValidator:
             if edge.target not in node_ids:
                 errors.append(f"边 '{edge.id}' 的目标节点 '{edge.target}' 不存在")
         
-        # 如果边无效，继续验证但记录错误
-        if errors:
-            # 继续验证其他项，但最终返回无效
-        
         # 4. 循环依赖检测（DFS）
         cycle_detected = WorkflowValidator._detect_cycle(nodes, edges)
         if cycle_detected:
