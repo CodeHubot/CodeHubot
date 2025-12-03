@@ -1,7 +1,7 @@
 <template>
   <div class="workflow-editor">
     <!-- 顶部工具栏 -->
-    <div class="toolbar">
+    <div class="top-toolbar">
       <div class="toolbar-left">
         <el-button @click="goBack" icon="ArrowLeft">返回</el-button>
         <el-divider direction="vertical" />
@@ -12,210 +12,521 @@
           clearable
         />
       </div>
-      <div class="toolbar-right">
+      
+      <div class="toolbar-center">
         <el-button-group>
-          <el-button @click="autoLayout" icon="MagicStick">自动排列</el-button>
-          <el-button @click="fitView" icon="FullScreen">居中显示</el-button>
+          <el-tooltip content="开始节点">
+            <el-button @click="addNodeToCenter(nodeTypes[0])" :disabled="hasNodeType('start')">
+              <el-icon><VideoPlay /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="LLM调用">
+            <el-button @click="addNodeToCenter(nodeTypes[1])">
+              <el-icon><ChatDotRound /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="HTTP请求">
+            <el-button @click="addNodeToCenter(nodeTypes[2])">
+              <el-icon><Link /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="知识库检索">
+            <el-button @click="addNodeToCenter(nodeTypes[3])">
+              <el-icon><Document /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="意图识别">
+            <el-button @click="addNodeToCenter(nodeTypes[4])">
+              <el-icon><QuestionFilled /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="字符串处理">
+            <el-button @click="addNodeToCenter(nodeTypes[5])">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="结束节点">
+            <el-button @click="addNodeToCenter(nodeTypes[6])" :disabled="hasNodeType('end')">
+              <el-icon><SuccessFilled /></el-icon>
+            </el-button>
+          </el-tooltip>
         </el-button-group>
+        
+        <el-divider direction="vertical" />
+        
+        <el-button-group>
+          <el-tooltip content="自动排列">
+            <el-button @click="autoLayout" icon="MagicStick" />
+          </el-tooltip>
+          <el-tooltip content="居中显示">
+            <el-button @click="fitView" icon="FullScreen" />
+          </el-tooltip>
+        </el-button-group>
+      </div>
+      
+      <div class="toolbar-right">
         <el-button @click="saveWorkflow" type="primary" :loading="saving" icon="Check">
           保存工作流
         </el-button>
       </div>
     </div>
 
-    <!-- 主内容区 -->
-    <div class="editor-main">
-      <!-- 左侧节点面板 -->
-      <div class="nodes-panel">
-        <div class="panel-header">
-          <h3>节点工具箱</h3>
-        </div>
-        
-        <div class="node-categories">
-          <div class="category">
-            <div class="category-title">基础节点</div>
-            <div
-              v-for="node in basicNodes"
-              :key="node.type"
-              class="node-item"
-              @click="addNodeToCenter(node)"
-            >
-              <div class="node-icon" :style="{ backgroundColor: node.color }">
-                <el-icon :size="20">
-                  <component :is="node.icon" />
+    <!-- 画布区域 -->
+    <div class="canvas-container">
+      <VueFlow
+        v-model:nodes="nodes"
+        v-model:edges="edges"
+        :default-viewport="{ zoom: 1 }"
+        :min-zoom="0.3"
+        :max-zoom="2"
+        @node-click="onNodeClick"
+        @edge-click="onEdgeClick"
+        @connect="onConnect"
+        fit-view-on-init
+        class="vue-flow-wrapper"
+      >
+        <Background pattern-color="#e5e7eb" :gap="20" />
+        <Controls position="bottom-right" />
+
+        <!-- 自定义节点 -->
+        <template #node-custom="{ data, id }">
+          <div class="workflow-node" :class="{ selected: selectedNodeId === id }">
+            <Handle
+              v-if="data.nodeType !== 'start'"
+              type="target"
+              :position="Position.Left"
+              class="node-handle"
+            />
+
+            <div class="node-content">
+              <div class="node-header" :style="{ background: data.color }">
+                <el-icon :size="18">
+                  <component :is="data.icon" />
                 </el-icon>
+                <span class="node-title">{{ data.label }}</span>
+                <el-button
+                  type="danger"
+                  icon="Close"
+                  circle
+                  size="small"
+                  class="delete-btn"
+                  @click.stop="deleteNode(id)"
+                />
               </div>
-              <div class="node-info">
-                <div class="node-name">{{ node.label }}</div>
+              <div class="node-body">
+                <el-tag v-if="data.configured" type="success" size="small">✓ 已配置</el-tag>
+                <el-tag v-else type="warning" size="small">待配置</el-tag>
               </div>
             </div>
+
+            <Handle
+              v-if="data.nodeType !== 'end'"
+              type="source"
+              :position="Position.Right"
+              class="node-handle"
+            />
           </div>
+        </template>
+      </VueFlow>
 
-          <div class="category">
-            <div class="category-title">功能节点</div>
-            <div
-              v-for="node in functionNodes"
-              :key="node.type"
-              class="node-item"
-              @click="addNodeToCenter(node)"
-            >
-              <div class="node-icon" :style="{ backgroundColor: node.color }">
-                <el-icon :size="20">
-                  <component :is="node.icon" />
-                </el-icon>
-              </div>
-              <div class="node-info">
-                <div class="node-name">{{ node.label }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <el-divider />
-
-        <div class="help-section">
-          <el-alert
-            title="💡 操作提示"
-            type="info"
-            :closable="false"
-            description="1. 点击节点添加到画布
-2. 从节点圆点拖动连线
-3. 点击节点查看配置
-4. 双击节点快速编辑"
-          />
-        </div>
+      <!-- 空状态 -->
+      <div v-if="nodes.length === 0" class="empty-hint">
+        <el-icon :size="60" color="#909399"><Box /></el-icon>
+        <p>点击顶部工具栏的图标添加节点</p>
       </div>
 
-      <!-- 中间画布区域 -->
-      <div class="canvas-area">
-        <VueFlow
-          v-model:nodes="nodes"
-          v-model:edges="edges"
-          :default-viewport="{ zoom: 1 }"
-          :min-zoom="0.5"
-          :max-zoom="2"
-          @node-click="onNodeClick"
-          @node-double-click="onNodeDoubleClick"
-          @edge-click="onEdgeClick"
-          @connect="onConnect"
-          fit-view-on-init
-          class="vue-flow-wrapper"
-        >
-          <Background pattern-color="#e5e7eb" :gap="20" />
-          <Controls />
+      <!-- 操作提示 -->
+      <div class="operation-tips">
+        <el-icon><InfoFilled /></el-icon>
+        <span>从节点右侧圆点拖动到目标节点建立连接</span>
+      </div>
+    </div>
 
-          <!-- 自定义节点模板 -->
-          <template #node-custom="{ data, id }">
-            <div class="workflow-node" :class="{ selected: selectedNodeId === id }">
-              <!-- 输入连接点 -->
-              <Handle
-                v-if="data.nodeType !== 'start'"
-                type="target"
-                :position="Position.Left"
-                class="node-handle handle-input"
+    <!-- 右侧配置抽屉 -->
+    <el-drawer
+      v-model="showConfigDrawer"
+      :title="`配置: ${selectedNode?.data.label || ''}`"
+      size="500px"
+      direction="rtl"
+    >
+      <div v-if="selectedNode" class="config-content">
+        <el-form :model="selectedNode.data" label-position="top">
+          <!-- 基础信息 -->
+          <el-divider content-position="left">基础信息</el-divider>
+          
+          <el-form-item label="节点名称">
+            <el-input v-model="selectedNode.data.label" placeholder="输入节点名称" />
+          </el-form-item>
+
+          <el-form-item label="节点说明">
+            <el-input
+              v-model="selectedNode.data.description"
+              type="textarea"
+              :rows="2"
+              placeholder="可选：输入节点说明"
+            />
+          </el-form-item>
+
+          <!-- 根据节点类型显示不同配置 -->
+          <el-divider content-position="left">节点配置</el-divider>
+
+          <!-- 开始节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'start'">
+            <el-form-item label="输入参数定义">
+              <el-input
+                v-model="selectedNode.data.inputSchema"
+                type="textarea"
+                :rows="6"
+                placeholder='定义工作流输入参数 (JSON Schema):
+{
+  "query": {
+    "type": "string",
+    "description": "用户问题"
+  },
+  "user_id": {
+    "type": "string",
+    "description": "用户ID"
+  }
+}'
               />
-
-              <div class="node-content">
-                <div class="node-header" :style="{ background: data.color }">
-                  <el-icon :size="18">
-                    <component :is="data.icon" />
-                  </el-icon>
-                  <span class="node-title">{{ data.label }}</span>
-                  <el-button
-                    type="danger"
-                    icon="Close"
-                    circle
-                    size="small"
-                    class="delete-btn"
-                    @click.stop="deleteNode(id)"
-                  />
-                </div>
-                <div class="node-body">
-                  <el-tag v-if="data.configured" type="success" size="small">
-                    ✓ 已配置
-                  </el-tag>
-                  <el-tag v-else type="info" size="small">
-                    待配置
-                  </el-tag>
-                </div>
-              </div>
-
-              <!-- 输出连接点 -->
-              <Handle
-                v-if="data.nodeType !== 'end'"
-                type="source"
-                :position="Position.Right"
-                class="node-handle handle-output"
-              />
-            </div>
+            </el-form-item>
+            <el-alert type="info" :closable="false" show-icon>
+              <template #title>
+                输入参数将在后续节点中通过 {input.参数名} 引用
+              </template>
+            </el-alert>
           </template>
-        </VueFlow>
 
-        <!-- 空状态提示 -->
-        <div v-if="nodes.length === 0" class="empty-state">
-          <el-empty description="画布为空">
-            <template #image>
-              <el-icon :size="80" color="#909399">
-                <Box />
-              </el-icon>
+          <!-- LLM节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'llm'">
+            <el-form-item label="选择智能体">
+              <el-select v-model="selectedNode.data.agentUuid" placeholder="请选择智能体" filterable>
+                <el-option label="智能体1" value="agent-1" />
+                <el-option label="智能体2" value="agent-2" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="提示词模板">
+              <el-input
+                v-model="selectedNode.data.prompt"
+                type="textarea"
+                :rows="6"
+                placeholder='输入提示词，支持变量引用:
+用户问题: {input.query}
+上一节点结果: {node-id.response}
+知识库内容: {kb-node.results}'
+              />
+            </el-form-item>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="温度参数">
+                  <el-slider v-model="selectedNode.data.temperature" :min="0" :max="2" :step="0.1" show-input />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="最大Token数">
+                  <el-input-number v-model="selectedNode.data.maxTokens" :min="100" :max="8000" :step="100" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-form-item label="系统提示词">
+              <el-input
+                v-model="selectedNode.data.systemPrompt"
+                type="textarea"
+                :rows="3"
+                placeholder="可选：覆盖智能体的系统提示词"
+              />
+            </el-form-item>
+
+            <el-form-item>
+              <el-checkbox v-model="selectedNode.data.streamMode">流式输出</el-checkbox>
+              <el-checkbox v-model="selectedNode.data.saveHistory">保存对话历史</el-checkbox>
+            </el-form-item>
+          </template>
+
+          <!-- HTTP节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'http'">
+            <el-form-item label="请求URL">
+              <el-input
+                v-model="selectedNode.data.url"
+                placeholder="https://api.example.com/endpoint"
+              >
+                <template #prepend>
+                  <el-select v-model="selectedNode.data.method" style="width: 100px">
+                    <el-option label="GET" value="GET" />
+                    <el-option label="POST" value="POST" />
+                    <el-option label="PUT" value="PUT" />
+                    <el-option label="DELETE" value="DELETE" />
+                  </el-select>
+                </template>
+              </el-input>
+            </el-form-item>
+
+            <el-form-item label="请求头">
+              <el-input
+                v-model="selectedNode.data.headers"
+                type="textarea"
+                :rows="4"
+                placeholder='JSON格式:
+{
+  "Content-Type": "application/json",
+  "Authorization": "Bearer {input.token}"
+}'
+              />
+            </el-form-item>
+
+            <el-form-item label="请求体">
+              <el-input
+                v-model="selectedNode.data.body"
+                type="textarea"
+                :rows="6"
+                placeholder='JSON格式，支持变量:
+{
+  "query": "{input.query}",
+  "context": "{llm-node.response}"
+}'
+              />
+            </el-form-item>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="超时时间(秒)">
+                  <el-input-number v-model="selectedNode.data.timeout" :min="1" :max="300" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="重试次数">
+                  <el-input-number v-model="selectedNode.data.retryCount" :min="0" :max="5" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-form-item>
+              <el-checkbox v-model="selectedNode.data.validateSSL">验证SSL证书</el-checkbox>
+              <el-checkbox v-model="selectedNode.data.followRedirect">跟随重定向</el-checkbox>
+            </el-form-item>
+          </template>
+
+          <!-- 知识库节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'knowledge'">
+            <el-form-item label="选择知识库">
+              <el-select v-model="selectedNode.data.kbUuid" placeholder="请选择知识库" filterable>
+                <el-option label="产品知识库" value="kb-1" />
+                <el-option label="技术文档库" value="kb-2" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="查询文本">
+              <el-input
+                v-model="selectedNode.data.query"
+                type="textarea"
+                :rows="3"
+                placeholder="支持变量: {input.query}"
+              />
+            </el-form-item>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="返回数量">
+                  <el-input-number v-model="selectedNode.data.topK" :min="1" :max="20" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="相似度阈值">
+                  <el-slider v-model="selectedNode.data.similarityThreshold" :min="0" :max="1" :step="0.05" show-input />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-form-item label="检索模式">
+              <el-radio-group v-model="selectedNode.data.searchMode">
+                <el-radio label="vector">向量检索</el-radio>
+                <el-radio label="hybrid">混合检索</el-radio>
+                <el-radio label="keyword">关键词检索</el-radio>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item label="文档过滤">
+              <el-input
+                v-model="selectedNode.data.filters"
+                placeholder='可选，JSON格式: {"category": "产品", "status": "published"}'
+              />
+            </el-form-item>
+          </template>
+
+          <!-- 意图识别节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'intent'">
+            <el-form-item label="输入文本">
+              <el-input
+                v-model="selectedNode.data.inputText"
+                placeholder="支持变量: {input.query}"
+              />
+            </el-form-item>
+
+            <el-form-item label="意图类别">
+              <el-select
+                v-model="selectedNode.data.intentCategories"
+                multiple
+                filterable
+                allow-create
+                placeholder="输入意图类别后回车添加"
+                style="width: 100%"
+              >
+                <el-option label="问答" value="qa" />
+                <el-option label="闲聊" value="chat" />
+                <el-option label="查询" value="query" />
+                <el-option label="命令" value="command" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="识别方式">
+              <el-radio-group v-model="selectedNode.data.recognitionMode">
+                <el-radio label="llm">LLM识别</el-radio>
+                <el-radio label="keyword">关键词匹配</el-radio>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item v-if="selectedNode.data.recognitionMode === 'llm'" label="使用智能体">
+              <el-select v-model="selectedNode.data.agentUuid" placeholder="选择智能体">
+                <el-option label="智能体1" value="agent-1" />
+                <el-option label="智能体2" value="agent-2" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item v-if="selectedNode.data.recognitionMode === 'keyword'" label="关键词映射">
+              <el-input
+                v-model="selectedNode.data.keywordMapping"
+                type="textarea"
+                :rows="6"
+                placeholder='JSON格式:
+{
+  "问答": ["问题", "怎么", "如何"],
+  "闲聊": ["你好", "天气", "聊天"],
+  "查询": ["查询", "查看", "搜索"]
+}'
+              />
+            </el-form-item>
+
+            <el-form-item label="置信度阈值">
+              <el-slider v-model="selectedNode.data.confidenceThreshold" :min="0" :max="1" :step="0.05" show-input />
+            </el-form-item>
+          </template>
+
+          <!-- 字符串处理节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'string'">
+            <el-form-item label="操作类型">
+              <el-select v-model="selectedNode.data.operation" placeholder="选择操作">
+                <el-option label="拼接字符串" value="concat" />
+                <el-option label="替换文本" value="replace" />
+                <el-option label="截取字符串" value="substring" />
+                <el-option label="格式化" value="format" />
+                <el-option label="去除空格" value="trim" />
+                <el-option label="转大写" value="upper" />
+                <el-option label="转小写" value="lower" />
+                <el-option label="分割字符串" value="split" />
+                <el-option label="提取正则" value="regex" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="输入字符串">
+              <el-input
+                v-model="selectedNode.data.inputString"
+                placeholder="支持变量: {input.text} 或 {node-id.result}"
+              />
+            </el-form-item>
+
+            <!-- 拼接 -->
+            <template v-if="selectedNode.data.operation === 'concat'">
+              <el-form-item label="拼接字符串列表">
+                <el-input
+                  v-model="selectedNode.data.concatStrings"
+                  type="textarea"
+                  :rows="4"
+                  placeholder='每行一个字符串:
+{input.text}
+{llm-node.response}
+固定文本'
+                />
+              </el-form-item>
+              <el-form-item label="分隔符">
+                <el-input v-model="selectedNode.data.separator" placeholder="如: 空格、逗号、换行等" />
+              </el-form-item>
             </template>
-            <el-text type="info" size="large">
-              👈 点击左侧节点开始创建工作流
-            </el-text>
-          </el-empty>
-        </div>
 
-        <!-- 连线提示浮层 -->
-        <div v-if="showConnectTip" class="connect-tip">
-          <el-icon color="#409eff" :size="24">
-            <Position />
-          </el-icon>
-          <span>拖动圆点到目标节点建立连接</span>
-        </div>
-      </div>
+            <!-- 替换 -->
+            <template v-if="selectedNode.data.operation === 'replace'">
+              <el-form-item label="查找文本">
+                <el-input v-model="selectedNode.data.findText" placeholder="要替换的文本" />
+              </el-form-item>
+              <el-form-item label="替换为">
+                <el-input v-model="selectedNode.data.replaceText" placeholder="新文本" />
+              </el-form-item>
+              <el-form-item>
+                <el-checkbox v-model="selectedNode.data.replaceAll">替换所有</el-checkbox>
+                <el-checkbox v-model="selectedNode.data.caseSensitive">区分大小写</el-checkbox>
+              </el-form-item>
+            </template>
 
-      <!-- 右侧配置面板 -->
-      <transition name="slide-left">
-        <div class="config-panel" v-if="selectedNode">
-          <div class="panel-header">
-            <h3>节点配置</h3>
-            <el-button icon="Close" circle size="small" @click="closeConfig" />
-          </div>
+            <!-- 截取 -->
+            <template v-if="selectedNode.data.operation === 'substring'">
+              <el-row :gutter="16">
+                <el-col :span="12">
+                  <el-form-item label="开始位置">
+                    <el-input-number v-model="selectedNode.data.startIndex" :min="0" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="结束位置">
+                    <el-input-number v-model="selectedNode.data.endIndex" :min="0" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </template>
+
+            <!-- 正则提取 -->
+            <template v-if="selectedNode.data.operation === 'regex'">
+              <el-form-item label="正则表达式">
+                <el-input v-model="selectedNode.data.regexPattern" placeholder="如: \d+, [a-z]+" />
+              </el-form-item>
+              <el-form-item label="提取组">
+                <el-input-number v-model="selectedNode.data.regexGroup" :min="0" />
+              </el-form-item>
+            </template>
+          </template>
+
+          <!-- 结束节点配置 -->
+          <template v-if="selectedNode.data.nodeType === 'end'">
+            <el-form-item label="输出配置">
+              <el-input
+                v-model="selectedNode.data.outputMapping"
+                type="textarea"
+                :rows="8"
+                placeholder='定义工作流输出 (JSON):
+{
+  "answer": "{llm-node.response}",
+  "sources": "{kb-node.results}",
+  "intent": "{intent-node.intent}",
+  "timestamp": "{system.timestamp}"
+}'
+              />
+            </el-form-item>
+            <el-alert type="info" :closable="false" show-icon>
+              <template #title>
+                可以引用任何节点的输出结果组装最终返回
+              </template>
+            </el-alert>
+          </template>
 
           <el-divider />
 
-          <el-form label-position="top">
-            <el-form-item label="节点名称">
-              <el-input v-model="selectedNode.data.label" placeholder="输入节点名称" />
-            </el-form-item>
-
-            <el-form-item label="节点类型">
-              <el-tag :type="getNodeTypeColor(selectedNode.data.nodeType)">
-                {{ selectedNode.data.nodeType }}
-              </el-tag>
-            </el-form-item>
-
-            <el-divider>节点配置</el-divider>
-
-            <!-- 动态配置组件 -->
-            <component
-              :is="getConfigComponent(selectedNode.data.nodeType)"
-              v-if="selectedNode"
-              :node="selectedNode"
-              @update="updateNodeConfig"
-            />
-
-            <el-button
-              type="primary"
-              style="width: 100%; margin-top: 20px;"
-              @click="saveNodeConfig"
-            >
-              保存配置
-            </el-button>
-          </el-form>
-        </div>
-      </transition>
-    </div>
+          <el-button type="primary" @click="saveNodeConfig" style="width: 100%">
+            保存配置
+          </el-button>
+        </el-form>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -237,7 +548,7 @@ import {
   MagicStick,
   FullScreen,
   Box,
-  Position as PositionIcon
+  InfoFilled
 } from '@element-plus/icons-vue'
 import { VueFlow, useVueFlow, Handle, Position } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
@@ -249,80 +560,33 @@ import {
   createWorkflow,
   updateWorkflow
 } from '@/api/workflow'
-import StartNodeConfig from '@/components/workflow/node-configs/StartNodeConfig.vue'
-import LLMNodeConfig from '@/components/workflow/node-configs/LLMNodeConfig.vue'
-import HTTPNodeConfig from '@/components/workflow/node-configs/HTTPNodeConfig.vue'
-import KnowledgeNodeConfig from '@/components/workflow/node-configs/KnowledgeNodeConfig.vue'
-import IntentNodeConfig from '@/components/workflow/node-configs/IntentNodeConfig.vue'
-import StringNodeConfig from '@/components/workflow/node-configs/StringNodeConfig.vue'
-import EndNodeConfig from '@/components/workflow/node-configs/EndNodeConfig.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { fitView: vueFlowFitView, project, viewport } = useVueFlow()
+const { fitView: vueFlowFitView } = useVueFlow()
 
 // 基础数据
 const workflowName = ref('')
 const workflowUuid = ref(route.params.uuid)
 const saving = ref(false)
 const selectedNodeId = ref(null)
-const showConnectTip = ref(true)
+const showConfigDrawer = ref(false)
 
 // 节点和边
 const nodes = ref([])
 const edges = ref([])
 
-// 节点计数器
 let nodeIdCounter = 1
 
-// 基础节点
-const basicNodes = [
-  {
-    type: 'start',
-    label: '开始',
-    icon: 'VideoPlay',
-    color: '#67c23a'
-  },
-  {
-    type: 'end',
-    label: '结束',
-    icon: 'SuccessFilled',
-    color: '#f56c6c'
-  }
-]
-
-// 功能节点
-const functionNodes = [
-  {
-    type: 'llm',
-    label: 'LLM调用',
-    icon: 'ChatDotRound',
-    color: '#409eff'
-  },
-  {
-    type: 'http',
-    label: 'HTTP请求',
-    icon: 'Link',
-    color: '#e6a23c'
-  },
-  {
-    type: 'knowledge',
-    label: '知识库检索',
-    icon: 'Document',
-    color: '#909399'
-  },
-  {
-    type: 'intent',
-    label: '意图识别',
-    icon: 'QuestionFilled',
-    color: '#9c27b0'
-  },
-  {
-    type: 'string',
-    label: '字符串处理',
-    icon: 'Setting',
-    color: '#00bcd4'
-  }
+// 节点类型定义
+const nodeTypes = [
+  { type: 'start', label: '开始', icon: 'VideoPlay', color: '#67c23a' },
+  { type: 'llm', label: 'LLM调用', icon: 'ChatDotRound', color: '#409eff' },
+  { type: 'http', label: 'HTTP请求', icon: 'Link', color: '#e6a23c' },
+  { type: 'knowledge', label: '知识库检索', icon: 'Document', color: '#909399' },
+  { type: 'intent', label: '意图识别', icon: 'QuestionFilled', color: '#9c27b0' },
+  { type: 'string', label: '字符串处理', icon: 'Setting', color: '#00bcd4' },
+  { type: 'end', label: '结束', icon: 'SuccessFilled', color: '#f56c6c' }
 ]
 
 // 选中的节点
@@ -330,41 +594,57 @@ const selectedNode = computed(() => {
   return nodes.value.find(n => n.id === selectedNodeId.value)
 })
 
-// 添加节点到画布中心
+// 检查是否已有某类型节点
+const hasNodeType = (type) => {
+  return nodes.value.some(n => n.data.nodeType === type)
+}
+
+// 添加节点
 const addNodeToCenter = (nodeType) => {
-  // 检查开始和结束节点
-  if (nodeType.type === 'start' || nodeType.type === 'end') {
-    const exists = nodes.value.some(n => n.data.nodeType === nodeType.type)
-    if (exists) {
-      ElMessage.warning(`${nodeType.label}节点只能有一个`)
-      return
-    }
+  if ((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type)) {
+    ElMessage.warning(`${nodeType.label}节点只能有一个`)
+    return
   }
 
   const newNode = {
     id: `${nodeType.type}-${nodeIdCounter++}`,
     type: 'custom',
     position: {
-      x: 200 + nodes.value.length * 50,
-      y: 100 + (nodes.value.length % 3) * 150
+      x: 200 + nodes.value.length * 60,
+      y: 150 + (nodes.value.length % 3) * 180
     },
     data: {
       nodeType: nodeType.type,
       label: nodeType.label,
       icon: nodeType.icon,
       color: nodeType.color,
-      configured: false
+      configured: false,
+      // 默认配置
+      description: '',
+      temperature: 0.7,
+      maxTokens: 2000,
+      method: 'POST',
+      timeout: 30,
+      retryCount: 0,
+      topK: 5,
+      similarityThreshold: 0.7,
+      searchMode: 'vector',
+      recognitionMode: 'llm',
+      confidenceThreshold: 0.6,
+      operation: 'concat',
+      separator: '',
+      replaceAll: true,
+      caseSensitive: false,
+      startIndex: 0,
+      validateSSL: true,
+      followRedirect: true,
+      streamMode: false,
+      saveHistory: false,
+      intentCategories: []
     }
   }
 
   nodes.value.push(newNode)
-  selectedNodeId.value = newNode.id
-  
-  // 隐藏提示
-  if (nodes.value.length > 0) {
-    showConnectTip.value = false
-  }
-  
   ElMessage.success(`已添加${nodeType.label}节点`)
 }
 
@@ -377,11 +657,10 @@ const deleteNode = (nodeId) => {
   }).then(() => {
     nodes.value = nodes.value.filter(n => n.id !== nodeId)
     edges.value = edges.value.filter(e => e.source !== nodeId && e.target !== nodeId)
-    
     if (selectedNodeId.value === nodeId) {
       selectedNodeId.value = null
+      showConfigDrawer.value = false
     }
-    
     ElMessage.success('节点已删除')
   }).catch(() => {})
 }
@@ -389,12 +668,7 @@ const deleteNode = (nodeId) => {
 // 节点点击
 const onNodeClick = ({ node }) => {
   selectedNodeId.value = node.id
-}
-
-// 节点双击
-const onNodeDoubleClick = ({ node }) => {
-  selectedNodeId.value = node.id
-  ElMessage.info('在右侧面板配置节点')
+  showConfigDrawer.value = true
 }
 
 // 边点击
@@ -411,7 +685,6 @@ const onEdgeClick = ({ edge }) => {
 
 // 创建连接
 const onConnect = (connection) => {
-  // 检查是否已存在相同连接
   const exists = edges.value.some(
     e => e.source === connection.source && e.target === connection.target
   )
@@ -441,23 +714,19 @@ const autoLayout = () => {
     return
   }
 
-  // 简单的分层布局
   const startNodes = nodes.value.filter(n => n.data.nodeType === 'start')
   if (startNodes.length === 0) {
     ElMessage.warning('请先添加开始节点')
     return
   }
 
-  // 使用BFS进行分层
   const layers = []
   const visited = new Set()
   const nodeMap = new Map(nodes.value.map(n => [n.id, n]))
   const edgeMap = new Map()
 
   edges.value.forEach(e => {
-    if (!edgeMap.has(e.source)) {
-      edgeMap.set(e.source, [])
-    }
+    if (!edgeMap.has(e.source)) edgeMap.set(e.source, [])
     edgeMap.get(e.source).push(e.target)
   })
 
@@ -467,45 +736,33 @@ const autoLayout = () => {
   while (queue.length > 0) {
     layers[layer] = []
     const nextQueue = []
-
     queue.forEach(nodeId => {
       if (!visited.has(nodeId)) {
         visited.add(nodeId)
         layers[layer].push(nodeId)
-
         const neighbors = edgeMap.get(nodeId) || []
         neighbors.forEach(neighbor => {
-          if (!visited.has(neighbor)) {
-            nextQueue.push(neighbor)
-          }
+          if (!visited.has(neighbor)) nextQueue.push(neighbor)
         })
       }
     })
-
     queue = [...new Set(nextQueue)]
     layer++
   }
-
-  // 应用布局
-  const layerGap = 250
-  const nodeGap = 120
 
   layers.forEach((layerNodes, layerIndex) => {
     layerNodes.forEach((nodeId, nodeIndex) => {
       const node = nodeMap.get(nodeId)
       if (node) {
         node.position = {
-          x: layerIndex * layerGap + 100,
-          y: nodeIndex * nodeGap + 100
+          x: layerIndex * 300 + 150,
+          y: nodeIndex * 150 + 100
         }
       }
     })
   })
 
-  nextTick(() => {
-    fitView()
-  })
-
+  nextTick(() => fitView())
   ElMessage.success('自动排列完成')
 }
 
@@ -514,102 +771,11 @@ const fitView = () => {
   vueFlowFitView({ duration: 300, padding: 0.2 })
 }
 
-// 获取配置组件
-const getConfigComponent = (nodeType) => {
-  const components = {
-    start: 'StartNodeConfig',
-    llm: 'LLMNodeConfig',
-    http: 'HTTPNodeConfig',
-    knowledge: 'KnowledgeNodeConfig',
-    intent: 'IntentNodeConfig',
-    string: 'StringNodeConfig',
-    end: 'EndNodeConfig'
-  }
-  return components[nodeType] || null
-}
-
-// 获取节点类型颜色
-const getNodeTypeColor = (type) => {
-  const colors = {
-    start: 'success',
-    end: 'danger',
-    llm: 'primary',
-    http: 'warning',
-    knowledge: 'info',
-    intent: '',
-    string: ''
-  }
-  return colors[type] || 'info'
-}
-
-// 更新节点配置
-const updateNodeConfig = (data) => {
-  if (selectedNode.value) {
-    selectedNode.value.data = { ...selectedNode.value.data, ...data }
-  }
-}
-
 // 保存节点配置
 const saveNodeConfig = () => {
   if (selectedNode.value) {
     selectedNode.value.data.configured = true
     ElMessage.success('配置已保存')
-  }
-}
-
-// 关闭配置面板
-const closeConfig = () => {
-  selectedNodeId.value = null
-}
-
-// 加载工作流
-const loadWorkflow = async () => {
-  if (!workflowUuid.value) return
-
-  try {
-    const response = await getWorkflow(workflowUuid.value)
-    const workflow = response.data
-
-    workflowName.value = workflow.name
-
-    // 转换节点
-    nodes.value = (workflow.nodes || []).map(node => {
-      const allNodes = [...basicNodes, ...functionNodes]
-      const nodeType = allNodes.find(n => n.type === node.type)
-      return {
-        ...node,
-        type: 'custom',
-        data: {
-          ...node.data,
-          nodeType: node.type,
-          icon: nodeType?.icon || 'Setting',
-          color: nodeType?.color || '#409eff',
-          configured: !!node.data && Object.keys(node.data).length > 0
-        }
-      }
-    })
-
-    edges.value = (workflow.edges || []).map(edge => ({
-      ...edge,
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#409eff', strokeWidth: 2 }
-    }))
-
-    // 更新计数器
-    const maxId = Math.max(...nodes.value.map(n => {
-      const match = n.id.match(/-(\d+)$/)
-      return match ? parseInt(match[1]) : 0
-    }), 0)
-    nodeIdCounter = maxId + 1
-
-    await nextTick()
-    fitView()
-
-    ElMessage.success('工作流加载成功')
-  } catch (error) {
-    ElMessage.error('加载工作流失败')
-    console.error(error)
   }
 }
 
@@ -628,13 +794,8 @@ const saveWorkflow = async () => {
   const hasStart = nodes.value.some(n => n.data.nodeType === 'start')
   const hasEnd = nodes.value.some(n => n.data.nodeType === 'end')
 
-  if (!hasStart) {
-    ElMessage.warning('工作流必须有开始节点')
-    return
-  }
-
-  if (!hasEnd) {
-    ElMessage.warning('工作流必须有结束节点')
+  if (!hasStart || !hasEnd) {
+    ElMessage.warning('工作流必须有开始和结束节点')
     return
   }
 
@@ -685,15 +846,51 @@ const goBack = () => {
       confirmButtonText: '离开',
       cancelButtonText: '取消',
       type: 'warning'
-    }).then(() => {
-      router.push('/workflows')
-    }).catch(() => {})
+    }).then(() => router.push('/workflows')).catch(() => {})
   } else {
     router.push('/workflows')
   }
 }
 
-// 初始化
+// 加载工作流
+const loadWorkflow = async () => {
+  if (!workflowUuid.value) return
+  try {
+    const response = await getWorkflow(workflowUuid.value)
+    const workflow = response.data
+    workflowName.value = workflow.name
+    nodes.value = (workflow.nodes || []).map(node => {
+      const nodeType = nodeTypes.find(n => n.type === node.type)
+      return {
+        ...node,
+        type: 'custom',
+        data: {
+          ...node.data,
+          nodeType: node.type,
+          icon: nodeType?.icon || 'Setting',
+          color: nodeType?.color || '#409eff'
+        }
+      }
+    })
+    edges.value = (workflow.edges || []).map(edge => ({
+      ...edge,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#409eff', strokeWidth: 2 }
+    }))
+    const maxId = Math.max(...nodes.value.map(n => {
+      const match = n.id.match(/-(\d+)$/)
+      return match ? parseInt(match[1]) : 0
+    }), 0)
+    nodeIdCounter = maxId + 1
+    await nextTick()
+    fitView()
+    ElMessage.success('工作流加载成功')
+  } catch (error) {
+    ElMessage.error('加载工作流失败')
+  }
+}
+
 if (workflowUuid.value) {
   loadWorkflow()
 }
@@ -707,117 +904,29 @@ if (workflowUuid.value) {
   background: #f5f7fa;
 }
 
-/* 工具栏 */
-.toolbar {
-  height: 60px;
+.top-toolbar {
+  height: 56px;
   background: #fff;
   border-bottom: 1px solid #e4e7ed;
   padding: 0 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  z-index: 100;
 }
 
 .toolbar-left,
+.toolbar-center,
 .toolbar-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-/* 主内容 */
-.editor-main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-/* 左侧节点面板 */
-.nodes-panel {
-  width: 260px;
-  background: #fff;
-  border-right: 1px solid #e4e7ed;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-header {
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.node-categories {
-  flex: 1;
-  padding: 16px;
-}
-
-.category {
-  margin-bottom: 20px;
-}
-
-.category-title {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 12px;
-  font-weight: 500;
-}
-
-.node-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  margin-bottom: 8px;
-  background: #f8f9fa;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.node-item:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
-  transform: translateX(2px);
-}
-
-.node-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-
-.node-info {
-  flex: 1;
-}
-
-.node-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.help-section {
-  padding: 16px;
-}
-
-/* 画布区域 */
-.canvas-area {
+.canvas-container {
   flex: 1;
   position: relative;
-  background: #fafafa;
 }
 
 .vue-flow-wrapper {
@@ -825,31 +934,39 @@ if (workflowUuid.value) {
   height: 100%;
 }
 
-.empty-state {
+.empty-hint {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10;
+  text-align: center;
+  z-index: 5;
   pointer-events: none;
 }
 
-.connect-tip {
+.empty-hint p {
+  margin-top: 16px;
+  color: #909399;
+  font-size: 14px;
+}
+
+.operation-tips {
   position: absolute;
-  bottom: 30px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: #fff;
-  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 20px;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  font-size: 13px;
+  color: #606266;
   z-index: 10;
 }
 
-/* 自定义节点 */
 .workflow-node {
   min-width: 180px;
   background: #fff;
@@ -868,10 +985,6 @@ if (workflowUuid.value) {
   border-color: #409eff;
   border-width: 3px;
   box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
-}
-
-.node-content {
-  position: relative;
 }
 
 .node-header {
@@ -902,7 +1015,6 @@ if (workflowUuid.value) {
   text-align: center;
 }
 
-/* 连接点 */
 .node-handle {
   width: 14px;
   height: 14px;
@@ -912,57 +1024,14 @@ if (workflowUuid.value) {
 }
 
 .node-handle:hover {
-  transform: scale(1.4);
+  transform: scale(1.5);
   box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.3);
 }
 
-.handle-input {
-  left: -7px;
+.config-content {
+  padding-bottom: 20px;
 }
 
-.handle-output {
-  right: -7px;
-}
-
-/* 配置面板 */
-.config-panel {
-  width: 350px;
-  background: #fff;
-  border-left: 1px solid #e4e7ed;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.config-panel .panel-header {
-  padding: 0;
-  border: none;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.config-panel .panel-header h3 {
-  margin: 0;
-}
-
-/* 动画 */
-.slide-left-enter-active,
-.slide-left-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-left-enter-from {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-.slide-left-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-/* Vue Flow 样式 */
 :deep(.vue-flow__edge-path) {
   stroke-width: 2;
 }
@@ -984,5 +1053,8 @@ if (workflowUuid.value) {
     stroke-dashoffset: -10;
   }
 }
-</style>
 
+:deep(.el-drawer__body) {
+  padding: 20px;
+}
+</style>
