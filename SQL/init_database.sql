@@ -804,7 +804,13 @@ CREATE TABLE `aiot_workflows` (
   `execution_count` int(11) NOT NULL DEFAULT '0' COMMENT '执行次数',
   `success_count` int(11) NOT NULL DEFAULT '0' COMMENT '成功次数',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_uuid` (`uuid`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `fk_workflow_user` FOREIGN KEY (`user_id`) REFERENCES `aiot_core_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=1 COMMENT='工作流表';
 
 --
@@ -827,7 +833,13 @@ CREATE TABLE `aiot_workflow_executions` (
   `completed_at` datetime DEFAULT NULL COMMENT '完成执行时间',
   `execution_time` int(11) DEFAULT NULL COMMENT '执行时间（毫秒）',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_execution_id` (`execution_id`),
+  KEY `idx_workflow_id` (`workflow_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `fk_execution_workflow` FOREIGN KEY (`workflow_id`) REFERENCES `aiot_workflows` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=1 COMMENT='工作流执行记录表';
 
 --
