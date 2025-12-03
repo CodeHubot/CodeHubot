@@ -2,49 +2,54 @@
   <div class="workflow-editor">
     <!-- 顶部工具栏 -->
     <div class="top-toolbar">
-      <div class="toolbar-left">
-        <el-button @click="goBack" icon="ArrowLeft">返回</el-button>
-        <el-divider direction="vertical" />
-        <el-input
-          v-model="workflowName"
-          placeholder="请输入工作流名称"
-          style="width: 300px;"
-          clearable
-        />
+      <!-- 第一行：基本操作 -->
+      <div class="toolbar-row toolbar-main">
+        <div class="toolbar-left">
+          <el-button @click="goBack" icon="ArrowLeft">返回</el-button>
+          <el-divider direction="vertical" />
+          <el-input
+            v-model="workflowName"
+            placeholder="请输入工作流名称"
+            style="width: 400px;"
+            clearable
+          />
+        </div>
+        
+        <div class="toolbar-right">
+          <el-button-group>
+            <el-button @click="autoLayout" icon="MagicStick">自动排列</el-button>
+            <el-button @click="fitView" icon="FullScreen">居中显示</el-button>
+          </el-button-group>
+          <el-button @click="saveWorkflow" type="primary" :loading="saving" icon="Check">
+            保存工作流
+          </el-button>
+        </div>
       </div>
-      
-      <div class="toolbar-center">
-        <div class="node-selector">
-          <span class="selector-label">添加节点:</span>
+
+      <!-- 第二行：节点工具栏 -->
+      <div class="toolbar-row toolbar-nodes">
+        <div class="node-toolbar">
+          <span class="toolbar-label">
+            <el-icon><Box /></el-icon>
+            节点工具箱:
+          </span>
           <div class="node-buttons">
             <el-button
               v-for="nodeType in nodeTypes"
               :key="nodeType.type"
               @click="addNodeToCenter(nodeType)"
               :disabled="(nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type)"
-              :style="{ borderColor: nodeType.color }"
               class="node-add-btn"
             >
-              <el-icon :size="18" :color="nodeType.color">
-                <component :is="nodeType.icon" />
-              </el-icon>
-              <span>{{ nodeType.label }}</span>
+              <div class="btn-content" :style="{ borderLeftColor: nodeType.color }">
+                <el-icon :size="18" :color="nodeType.color">
+                  <component :is="nodeType.icon" />
+                </el-icon>
+                <span>{{ nodeType.label }}</span>
+              </div>
             </el-button>
           </div>
         </div>
-        
-        <el-divider direction="vertical" />
-        
-        <el-button-group>
-          <el-button @click="autoLayout" icon="MagicStick">自动排列</el-button>
-          <el-button @click="fitView" icon="FullScreen">居中显示</el-button>
-        </el-button-group>
-      </div>
-      
-      <div class="toolbar-right">
-        <el-button @click="saveWorkflow" type="primary" :loading="saving" icon="Check">
-          保存工作流
-        </el-button>
       </div>
     </div>
 
@@ -943,68 +948,95 @@ if (workflowUuid.value) {
 }
 
 .top-toolbar {
-  height: 56px;
   background: #fff;
   border-bottom: 1px solid #e4e7ed;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   z-index: 100;
 }
 
+.toolbar-row {
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar-main {
+  height: 56px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.toolbar-nodes {
+  height: 52px;
+  background: #fafafa;
+}
+
 .toolbar-left,
-.toolbar-center,
 .toolbar-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.node-selector {
+.node-toolbar {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  gap: 16px;
 }
 
-.selector-label {
-  font-size: 14px;
+.toolbar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
   color: #606266;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .node-buttons {
+  flex: 1;
   display: flex;
   gap: 8px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .node-add-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-width: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
   transition: all 0.3s;
 }
 
-.node-add-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.node-add-btn .btn-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1.5px solid #e4e7ed;
+  border-left-width: 4px;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.node-add-btn:hover:not(:disabled) .btn-content {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .node-add-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.node-add-btn span {
+.node-add-btn .btn-content span {
   font-size: 13px;
   font-weight: 500;
+  color: #303133;
 }
 
 .canvas-container {
