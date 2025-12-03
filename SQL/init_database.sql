@@ -1157,23 +1157,13 @@ ALTER TABLE `aiot_prompt_templates`
 
 --
 -- 表的索引 `aiot_workflows`
--- 注意：PRIMARY KEY 已在 CREATE TABLE 中定义，此处只添加其他索引
+-- 注意：所有索引已在 CREATE TABLE 中定义，无需额外的 ALTER TABLE
 --
-ALTER TABLE `aiot_workflows`
-  ADD UNIQUE KEY `idx_uuid` (`uuid`),
-  ADD KEY `idx_user_id` (`user_id`),
-  ADD KEY `idx_is_active` (`is_active`),
-  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- 表的索引 `aiot_workflow_executions`
--- 注意：PRIMARY KEY 已在 CREATE TABLE 中定义，此处只添加其他索引
+-- 注意：所有索引已在 CREATE TABLE 中定义，无需额外的 ALTER TABLE
 --
-ALTER TABLE `aiot_workflow_executions`
-  ADD UNIQUE KEY `idx_execution_id` (`execution_id`),
-  ADD KEY `idx_workflow_id` (`workflow_id`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- 表的索引 `aiot_schools`
@@ -1360,15 +1350,13 @@ ALTER TABLE `aiot_plugins`
 
 --
 -- 表 `aiot_workflows` 的外键约束
+-- 注意：外键约束已在 CREATE TABLE 中定义，无需额外的 ALTER TABLE
 --
-ALTER TABLE `aiot_workflows`
-  ADD CONSTRAINT `fk_workflow_user` FOREIGN KEY (`user_id`) REFERENCES `aiot_core_users` (`id`) ON DELETE CASCADE;
 
 --
 -- 表 `aiot_workflow_executions` 的外键约束
+-- 注意：外键约束已在 CREATE TABLE 中定义，无需额外的 ALTER TABLE
 --
-ALTER TABLE `aiot_workflow_executions`
-  ADD CONSTRAINT `fk_execution_workflow` FOREIGN KEY (`workflow_id`) REFERENCES `aiot_workflows` (`id`) ON DELETE CASCADE;
 
 COMMIT;
 
