@@ -267,13 +267,13 @@ import {
   ZoomOut,
   Operation,
   Close,
-  Play,
-  Connection,
+  VideoPlay,
+  Link,
   Document,
   ChatDotRound,
   QuestionFilled,
   Setting,
-  Finished
+  SuccessFilled
 } from '@element-plus/icons-vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
@@ -329,7 +329,7 @@ const nodeTypes = [
     type: 'start',
     label: '开始',
     description: '工作流入口',
-    icon: 'Play',
+    icon: 'VideoPlay',
     color: '#67c23a'
   },
   {
@@ -343,7 +343,7 @@ const nodeTypes = [
     type: 'http',
     label: 'HTTP请求',
     description: '调用外部API',
-    icon: 'Connection',
+    icon: 'Link',
     color: '#e6a23c'
   },
   {
@@ -371,7 +371,7 @@ const nodeTypes = [
     type: 'end',
     label: '结束',
     description: '工作流出口',
-    icon: 'Finished',
+    icon: 'SuccessFilled',
     color: '#f56c6c'
   }
 ]
