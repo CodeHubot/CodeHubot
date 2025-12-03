@@ -114,8 +114,8 @@ cd ..
 
 部署完成后访问：
 - **前端**: http://localhost:80
-- **后端 API**: http://localhost:8000
-- **API 文档**: http://localhost:8000/docs
+- **后端 API**: http://localhost/api (通过nginx反向代理，8000端口不对外暴露)
+- **API 文档**: http://localhost/api/docs (通过nginx访问)
 - **Plugin Service**: http://localhost:9000 (插件对外接口)
 - **Plugin Backend**: http://localhost:9002 (插件内部服务) 
 
