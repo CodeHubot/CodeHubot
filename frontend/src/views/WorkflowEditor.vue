@@ -13,6 +13,10 @@
         />
       </div>
       <div class="toolbar-right">
+        <el-button-group>
+          <el-button @click="autoLayout" icon="MagicStick">自动排列</el-button>
+          <el-button @click="fitView" icon="FullScreen">居中显示</el-button>
+        </el-button-group>
         <el-button @click="saveWorkflow" type="primary" :loading="saving" icon="Check">
           保存工作流
         </el-button>
@@ -24,163 +28,203 @@
       <!-- 左侧节点面板 -->
       <div class="nodes-panel">
         <div class="panel-header">
-          <h3>添加节点</h3>
-          <el-text type="info" size="small">点击节点添加到流程</el-text>
+          <h3>节点工具箱</h3>
         </div>
         
-        <div class="node-list">
-          <div
-            v-for="node in availableNodes"
-            :key="node.type"
-            class="node-item"
-            @click="addNode(node)"
-            :class="{ disabled: !canAddNode(node) }"
-          >
-            <div class="node-icon" :style="{ backgroundColor: node.color }">
-              <el-icon :size="24">
-                <component :is="node.icon" />
-              </el-icon>
+        <div class="node-categories">
+          <div class="category">
+            <div class="category-title">基础节点</div>
+            <div
+              v-for="node in basicNodes"
+              :key="node.type"
+              class="node-item"
+              @click="addNodeToCenter(node)"
+            >
+              <div class="node-icon" :style="{ backgroundColor: node.color }">
+                <el-icon :size="20">
+                  <component :is="node.icon" />
+                </el-icon>
+              </div>
+              <div class="node-info">
+                <div class="node-name">{{ node.label }}</div>
+              </div>
             </div>
-            <div class="node-info">
-              <div class="node-name">{{ node.label }}</div>
-              <div class="node-desc">{{ node.description }}</div>
+          </div>
+
+          <div class="category">
+            <div class="category-title">功能节点</div>
+            <div
+              v-for="node in functionNodes"
+              :key="node.type"
+              class="node-item"
+              @click="addNodeToCenter(node)"
+            >
+              <div class="node-icon" :style="{ backgroundColor: node.color }">
+                <el-icon :size="20">
+                  <component :is="node.icon" />
+                </el-icon>
+              </div>
+              <div class="node-info">
+                <div class="node-name">{{ node.label }}</div>
+              </div>
             </div>
           </div>
         </div>
 
         <el-divider />
 
-        <div class="usage-tips">
-          <h4>📖 使用说明</h4>
-          <ol>
-            <li>点击左侧节点添加到流程</li>
-            <li>节点会自动按顺序连接</li>
-            <li>点击节点进行配置</li>
-            <li>必须有开始和结束节点</li>
-            <li>点击保存按钮保存工作流</li>
-          </ol>
+        <div class="help-section">
+          <el-alert
+            title="💡 操作提示"
+            type="info"
+            :closable="false"
+            description="1. 点击节点添加到画布
+2. 从节点圆点拖动连线
+3. 点击节点查看配置
+4. 双击节点快速编辑"
+          />
         </div>
       </div>
 
-      <!-- 中间流程区域 -->
-      <div class="flow-panel">
-        <div class="flow-header">
-          <h3>工作流程</h3>
-          <el-button
-            @click="clearFlow"
-            type="danger"
-            text
-            size="small"
-            v-if="flowNodes.length > 0"
-          >
-            清空流程
-          </el-button>
+      <!-- 中间画布区域 -->
+      <div class="canvas-area">
+        <VueFlow
+          v-model:nodes="nodes"
+          v-model:edges="edges"
+          :default-viewport="{ zoom: 1 }"
+          :min-zoom="0.5"
+          :max-zoom="2"
+          @node-click="onNodeClick"
+          @node-double-click="onNodeDoubleClick"
+          @edge-click="onEdgeClick"
+          @connect="onConnect"
+          fit-view-on-init
+          class="vue-flow-wrapper"
+        >
+          <Background pattern-color="#e5e7eb" :gap="20" />
+          <Controls />
+
+          <!-- 自定义节点模板 -->
+          <template #node-custom="{ data, id }">
+            <div class="workflow-node" :class="{ selected: selectedNodeId === id }">
+              <!-- 输入连接点 -->
+              <Handle
+                v-if="data.nodeType !== 'start'"
+                type="target"
+                :position="Position.Left"
+                class="node-handle handle-input"
+              />
+
+              <div class="node-content">
+                <div class="node-header" :style="{ background: data.color }">
+                  <el-icon :size="18">
+                    <component :is="data.icon" />
+                  </el-icon>
+                  <span class="node-title">{{ data.label }}</span>
+                  <el-button
+                    type="danger"
+                    icon="Close"
+                    circle
+                    size="small"
+                    class="delete-btn"
+                    @click.stop="deleteNode(id)"
+                  />
+                </div>
+                <div class="node-body">
+                  <el-tag v-if="data.configured" type="success" size="small">
+                    ✓ 已配置
+                  </el-tag>
+                  <el-tag v-else type="info" size="small">
+                    待配置
+                  </el-tag>
+                </div>
+              </div>
+
+              <!-- 输出连接点 -->
+              <Handle
+                v-if="data.nodeType !== 'end'"
+                type="source"
+                :position="Position.Right"
+                class="node-handle handle-output"
+              />
+            </div>
+          </template>
+        </VueFlow>
+
+        <!-- 空状态提示 -->
+        <div v-if="nodes.length === 0" class="empty-state">
+          <el-empty description="画布为空">
+            <template #image>
+              <el-icon :size="80" color="#909399">
+                <Box />
+              </el-icon>
+            </template>
+            <el-text type="info" size="large">
+              👈 点击左侧节点开始创建工作流
+            </el-text>
+          </el-empty>
         </div>
 
-        <!-- 空状态 -->
-        <el-empty
-          v-if="flowNodes.length === 0"
-          description="还没有添加节点"
-          class="flow-empty"
-        >
-          <el-text type="info">
-            👈 点击左侧节点开始创建工作流
-          </el-text>
-        </el-empty>
-
-        <!-- 流程节点列表 -->
-        <div v-else class="flow-nodes">
-          <div
-            v-for="(node, index) in flowNodes"
-            :key="node.id"
-            class="flow-node-wrapper"
-          >
-            <!-- 节点 -->
-            <div
-              class="flow-node"
-              :class="{ active: selectedNodeId === node.id, configured: node.configured }"
-              @click="selectNode(node)"
-            >
-              <div class="node-header" :style="{ backgroundColor: node.color }">
-                <el-icon :size="20">
-                  <component :is="node.icon" />
-                </el-icon>
-                <span class="node-title">{{ node.label }}</span>
-                <el-button
-                  type="danger"
-                  icon="Close"
-                  circle
-                  size="small"
-                  @click.stop="removeNode(index)"
-                />
-              </div>
-              <div class="node-body">
-                <el-tag v-if="node.configured" type="success" size="small">已配置</el-tag>
-                <el-tag v-else type="warning" size="small">待配置</el-tag>
-                <el-text size="small" type="info" style="margin-top: 8px;">
-                  {{ node.description }}
-                </el-text>
-              </div>
-            </div>
-
-            <!-- 连接箭头 -->
-            <div v-if="index < flowNodes.length - 1" class="flow-arrow">
-              <el-icon :size="24" color="#409eff">
-                <ArrowDown />
-              </el-icon>
-            </div>
-          </div>
+        <!-- 连线提示浮层 -->
+        <div v-if="showConnectTip" class="connect-tip">
+          <el-icon color="#409eff" :size="24">
+            <Position />
+          </el-icon>
+          <span>拖动圆点到目标节点建立连接</span>
         </div>
       </div>
 
       <!-- 右侧配置面板 -->
-      <div class="config-panel" v-if="selectedNode">
-        <div class="panel-header">
-          <h3>节点配置</h3>
-          <el-button icon="Close" circle size="small" @click="selectedNodeId = null" />
+      <transition name="slide-left">
+        <div class="config-panel" v-if="selectedNode">
+          <div class="panel-header">
+            <h3>节点配置</h3>
+            <el-button icon="Close" circle size="small" @click="closeConfig" />
+          </div>
+
+          <el-divider />
+
+          <el-form label-position="top">
+            <el-form-item label="节点名称">
+              <el-input v-model="selectedNode.data.label" placeholder="输入节点名称" />
+            </el-form-item>
+
+            <el-form-item label="节点类型">
+              <el-tag :type="getNodeTypeColor(selectedNode.data.nodeType)">
+                {{ selectedNode.data.nodeType }}
+              </el-tag>
+            </el-form-item>
+
+            <el-divider>节点配置</el-divider>
+
+            <!-- 动态配置组件 -->
+            <component
+              :is="getConfigComponent(selectedNode.data.nodeType)"
+              v-if="selectedNode"
+              :node="selectedNode"
+              @update="updateNodeConfig"
+            />
+
+            <el-button
+              type="primary"
+              style="width: 100%; margin-top: 20px;"
+              @click="saveNodeConfig"
+            >
+              保存配置
+            </el-button>
+          </el-form>
         </div>
-
-        <el-divider />
-
-        <el-form label-position="top">
-          <el-form-item label="节点名称">
-            <el-input v-model="selectedNode.label" />
-          </el-form-item>
-
-          <el-form-item label="节点ID">
-            <el-input v-model="selectedNode.id" disabled />
-          </el-form-item>
-
-          <el-divider>详细配置</el-divider>
-
-          <!-- 动态加载配置组件 -->
-          <component
-            :is="getConfigComponent(selectedNode.type)"
-            v-if="selectedNode"
-            :node="selectedNode"
-            @update="updateNodeConfig"
-          />
-
-          <el-button
-            type="primary"
-            style="width: 100%; margin-top: 20px;"
-            @click="saveNodeConfig"
-          >
-            保存配置
-          </el-button>
-        </el-form>
-      </div>
+      </transition>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft,
-  ArrowDown,
   Check,
   Close,
   VideoPlay,
@@ -189,8 +233,17 @@ import {
   Document,
   QuestionFilled,
   Setting,
-  SuccessFilled
+  SuccessFilled,
+  MagicStick,
+  FullScreen,
+  Box,
+  Position as PositionIcon
 } from '@element-plus/icons-vue'
+import { VueFlow, useVueFlow, Handle, Position } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
 import {
   getWorkflow,
   createWorkflow,
@@ -206,148 +259,126 @@ import EndNodeConfig from '@/components/workflow/node-configs/EndNodeConfig.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { fitView: vueFlowFitView, project, viewport } = useVueFlow()
 
 // 基础数据
 const workflowName = ref('')
 const workflowUuid = ref(route.params.uuid)
 const saving = ref(false)
-
-// 流程节点
-const flowNodes = ref([])
 const selectedNodeId = ref(null)
+const showConnectTip = ref(true)
 
-// 节点ID计数器
+// 节点和边
+const nodes = ref([])
+const edges = ref([])
+
+// 节点计数器
 let nodeIdCounter = 1
 
-// 可用节点类型
-const availableNodes = [
+// 基础节点
+const basicNodes = [
   {
     type: 'start',
     label: '开始',
-    description: '工作流入口',
     icon: 'VideoPlay',
     color: '#67c23a'
   },
   {
+    type: 'end',
+    label: '结束',
+    icon: 'SuccessFilled',
+    color: '#f56c6c'
+  }
+]
+
+// 功能节点
+const functionNodes = [
+  {
     type: 'llm',
     label: 'LLM调用',
-    description: '调用大语言模型',
     icon: 'ChatDotRound',
     color: '#409eff'
   },
   {
     type: 'http',
     label: 'HTTP请求',
-    description: '调用外部API',
     icon: 'Link',
     color: '#e6a23c'
   },
   {
     type: 'knowledge',
     label: '知识库检索',
-    description: '搜索知识库内容',
     icon: 'Document',
     color: '#909399'
   },
   {
     type: 'intent',
     label: '意图识别',
-    description: '识别用户意图',
     icon: 'QuestionFilled',
     color: '#9c27b0'
   },
   {
     type: 'string',
     label: '字符串处理',
-    description: '处理文本数据',
     icon: 'Setting',
     color: '#00bcd4'
-  },
-  {
-    type: 'end',
-    label: '结束',
-    description: '工作流出口',
-    icon: 'SuccessFilled',
-    color: '#f56c6c'
   }
 ]
 
 // 选中的节点
 const selectedNode = computed(() => {
-  return flowNodes.value.find(n => n.id === selectedNodeId.value)
+  return nodes.value.find(n => n.id === selectedNodeId.value)
 })
 
-// 判断是否可以添加节点
-const canAddNode = (nodeType) => {
-  // 开始节点只能有一个且必须在第一位
-  if (nodeType.type === 'start') {
-    return flowNodes.value.length === 0
-  }
-  
-  // 结束节点只能有一个且必须在最后
-  if (nodeType.type === 'end') {
-    const hasEnd = flowNodes.value.some(n => n.type === 'end')
-    return !hasEnd && flowNodes.value.length > 0
-  }
-  
-  // 其他节点必须在有开始节点后才能添加
-  const hasStart = flowNodes.value.some(n => n.type === 'start')
-  return hasStart
-}
-
-// 添加节点
-const addNode = (nodeType) => {
-  if (!canAddNode(nodeType)) {
-    if (nodeType.type === 'start') {
-      ElMessage.warning('开始节点必须是第一个节点')
-    } else if (nodeType.type === 'end') {
-      if (flowNodes.value.length === 0) {
-        ElMessage.warning('请先添加开始节点')
-      } else {
-        ElMessage.warning('已有结束节点')
-      }
-    } else {
-      ElMessage.warning('请先添加开始节点')
-    }
-    return
-  }
-
-  // 如果要添加结束节点，检查是否已经有结束节点
-  if (nodeType.type === 'end') {
-    const lastNode = flowNodes.value[flowNodes.value.length - 1]
-    if (lastNode && lastNode.type === 'end') {
-      ElMessage.warning('已有结束节点')
+// 添加节点到画布中心
+const addNodeToCenter = (nodeType) => {
+  // 检查开始和结束节点
+  if (nodeType.type === 'start' || nodeType.type === 'end') {
+    const exists = nodes.value.some(n => n.data.nodeType === nodeType.type)
+    if (exists) {
+      ElMessage.warning(`${nodeType.label}节点只能有一个`)
       return
     }
   }
 
   const newNode = {
     id: `${nodeType.type}-${nodeIdCounter++}`,
-    type: nodeType.type,
-    label: nodeType.label,
-    description: nodeType.description,
-    icon: nodeType.icon,
-    color: nodeType.color,
-    configured: false,
-    data: {}
+    type: 'custom',
+    position: {
+      x: 200 + nodes.value.length * 50,
+      y: 100 + (nodes.value.length % 3) * 150
+    },
+    data: {
+      nodeType: nodeType.type,
+      label: nodeType.label,
+      icon: nodeType.icon,
+      color: nodeType.color,
+      configured: false
+    }
   }
 
-  flowNodes.value.push(newNode)
+  nodes.value.push(newNode)
   selectedNodeId.value = newNode.id
-  ElMessage.success(`已添加 ${nodeType.label}`)
+  
+  // 隐藏提示
+  if (nodes.value.length > 0) {
+    showConnectTip.value = false
+  }
+  
+  ElMessage.success(`已添加${nodeType.label}节点`)
 }
 
-// 移除节点
-const removeNode = (index) => {
-  ElMessageBox.confirm('确定要删除这个节点吗？', '提示', {
+// 删除节点
+const deleteNode = (nodeId) => {
+  ElMessageBox.confirm('确定删除这个节点吗？', '提示', {
     confirmButtonText: '删除',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    const node = flowNodes.value[index]
-    flowNodes.value.splice(index, 1)
+    nodes.value = nodes.value.filter(n => n.id !== nodeId)
+    edges.value = edges.value.filter(e => e.source !== nodeId && e.target !== nodeId)
     
-    if (selectedNodeId.value === node.id) {
+    if (selectedNodeId.value === nodeId) {
       selectedNodeId.value = null
     }
     
@@ -355,22 +386,132 @@ const removeNode = (index) => {
   }).catch(() => {})
 }
 
-// 选中节点
-const selectNode = (node) => {
+// 节点点击
+const onNodeClick = ({ node }) => {
   selectedNodeId.value = node.id
 }
 
-// 清空流程
-const clearFlow = () => {
-  ElMessageBox.confirm('确定要清空整个流程吗？', '提示', {
-    confirmButtonText: '清空',
+// 节点双击
+const onNodeDoubleClick = ({ node }) => {
+  selectedNodeId.value = node.id
+  ElMessage.info('在右侧面板配置节点')
+}
+
+// 边点击
+const onEdgeClick = ({ edge }) => {
+  ElMessageBox.confirm('确定删除这条连线吗？', '提示', {
+    confirmButtonText: '删除',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    flowNodes.value = []
-    selectedNodeId.value = null
-    ElMessage.success('流程已清空')
+    edges.value = edges.value.filter(e => e.id !== edge.id)
+    ElMessage.success('连线已删除')
   }).catch(() => {})
+}
+
+// 创建连接
+const onConnect = (connection) => {
+  // 检查是否已存在相同连接
+  const exists = edges.value.some(
+    e => e.source === connection.source && e.target === connection.target
+  )
+  
+  if (exists) {
+    ElMessage.warning('连接已存在')
+    return
+  }
+
+  const newEdge = {
+    id: `edge-${connection.source}-${connection.target}`,
+    source: connection.source,
+    target: connection.target,
+    type: 'smoothstep',
+    animated: true,
+    style: { stroke: '#409eff', strokeWidth: 2 }
+  }
+
+  edges.value.push(newEdge)
+  ElMessage.success('连接创建成功')
+}
+
+// 自动布局
+const autoLayout = () => {
+  if (nodes.value.length === 0) {
+    ElMessage.info('画布为空')
+    return
+  }
+
+  // 简单的分层布局
+  const startNodes = nodes.value.filter(n => n.data.nodeType === 'start')
+  if (startNodes.length === 0) {
+    ElMessage.warning('请先添加开始节点')
+    return
+  }
+
+  // 使用BFS进行分层
+  const layers = []
+  const visited = new Set()
+  const nodeMap = new Map(nodes.value.map(n => [n.id, n]))
+  const edgeMap = new Map()
+
+  edges.value.forEach(e => {
+    if (!edgeMap.has(e.source)) {
+      edgeMap.set(e.source, [])
+    }
+    edgeMap.get(e.source).push(e.target)
+  })
+
+  let queue = startNodes.map(n => n.id)
+  let layer = 0
+
+  while (queue.length > 0) {
+    layers[layer] = []
+    const nextQueue = []
+
+    queue.forEach(nodeId => {
+      if (!visited.has(nodeId)) {
+        visited.add(nodeId)
+        layers[layer].push(nodeId)
+
+        const neighbors = edgeMap.get(nodeId) || []
+        neighbors.forEach(neighbor => {
+          if (!visited.has(neighbor)) {
+            nextQueue.push(neighbor)
+          }
+        })
+      }
+    })
+
+    queue = [...new Set(nextQueue)]
+    layer++
+  }
+
+  // 应用布局
+  const layerGap = 250
+  const nodeGap = 120
+
+  layers.forEach((layerNodes, layerIndex) => {
+    layerNodes.forEach((nodeId, nodeIndex) => {
+      const node = nodeMap.get(nodeId)
+      if (node) {
+        node.position = {
+          x: layerIndex * layerGap + 100,
+          y: nodeIndex * nodeGap + 100
+        }
+      }
+    })
+  })
+
+  nextTick(() => {
+    fitView()
+  })
+
+  ElMessage.success('自动排列完成')
+}
+
+// 居中显示
+const fitView = () => {
+  vueFlowFitView({ duration: 300, padding: 0.2 })
 }
 
 // 获取配置组件
@@ -387,6 +528,20 @@ const getConfigComponent = (nodeType) => {
   return components[nodeType] || null
 }
 
+// 获取节点类型颜色
+const getNodeTypeColor = (type) => {
+  const colors = {
+    start: 'success',
+    end: 'danger',
+    llm: 'primary',
+    http: 'warning',
+    knowledge: 'info',
+    intent: '',
+    string: ''
+  }
+  return colors[type] || 'info'
+}
+
 // 更新节点配置
 const updateNodeConfig = (data) => {
   if (selectedNode.value) {
@@ -397,9 +552,14 @@ const updateNodeConfig = (data) => {
 // 保存节点配置
 const saveNodeConfig = () => {
   if (selectedNode.value) {
-    selectedNode.value.configured = true
+    selectedNode.value.data.configured = true
     ElMessage.success('配置已保存')
   }
+}
+
+// 关闭配置面板
+const closeConfig = () => {
+  selectedNodeId.value = null
 }
 
 // 加载工作流
@@ -409,27 +569,43 @@ const loadWorkflow = async () => {
   try {
     const response = await getWorkflow(workflowUuid.value)
     const workflow = response.data
-    
+
     workflowName.value = workflow.name
-    
-    // 转换节点格式
-    flowNodes.value = (workflow.nodes || []).map(node => {
-      const nodeType = availableNodes.find(n => n.type === node.type)
+
+    // 转换节点
+    nodes.value = (workflow.nodes || []).map(node => {
+      const allNodes = [...basicNodes, ...functionNodes]
+      const nodeType = allNodes.find(n => n.type === node.type)
       return {
         ...node,
-        icon: nodeType?.icon || 'Setting',
-        color: nodeType?.color || '#409eff',
-        configured: !!node.data && Object.keys(node.data).length > 0
+        type: 'custom',
+        data: {
+          ...node.data,
+          nodeType: node.type,
+          icon: nodeType?.icon || 'Setting',
+          color: nodeType?.color || '#409eff',
+          configured: !!node.data && Object.keys(node.data).length > 0
+        }
       }
     })
-    
-    // 更新节点计数器
-    const maxId = Math.max(...flowNodes.value.map(n => {
+
+    edges.value = (workflow.edges || []).map(edge => ({
+      ...edge,
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#409eff', strokeWidth: 2 }
+    }))
+
+    // 更新计数器
+    const maxId = Math.max(...nodes.value.map(n => {
       const match = n.id.match(/-(\d+)$/)
       return match ? parseInt(match[1]) : 0
     }), 0)
     nodeIdCounter = maxId + 1
-    
+
+    await nextTick()
+    fitView()
+
     ElMessage.success('工作流加载成功')
   } catch (error) {
     ElMessage.error('加载工作流失败')
@@ -439,56 +615,50 @@ const loadWorkflow = async () => {
 
 // 保存工作流
 const saveWorkflow = async () => {
-  // 验证
   if (!workflowName.value) {
     ElMessage.warning('请输入工作流名称')
     return
   }
 
-  if (flowNodes.value.length < 2) {
-    ElMessage.warning('工作流至少需要开始和结束节点')
+  if (nodes.value.length < 2) {
+    ElMessage.warning('工作流至少需要2个节点')
     return
   }
 
-  const hasStart = flowNodes.value.some(n => n.type === 'start')
-  const hasEnd = flowNodes.value.some(n => n.type === 'end')
-  
+  const hasStart = nodes.value.some(n => n.data.nodeType === 'start')
+  const hasEnd = nodes.value.some(n => n.data.nodeType === 'end')
+
   if (!hasStart) {
     ElMessage.warning('工作流必须有开始节点')
     return
   }
-  
+
   if (!hasEnd) {
     ElMessage.warning('工作流必须有结束节点')
     return
   }
 
-  // 转换为API格式
   saving.value = true
   try {
-    const nodes = flowNodes.value.map((node, index) => ({
+    const apiNodes = nodes.value.map(node => ({
       id: node.id,
-      type: node.type,
-      label: node.label,
-      position: { x: 250, y: 100 + index * 150 }, // 自动计算位置
+      type: node.data.nodeType,
+      label: node.data.label,
+      position: node.position,
       data: node.data
     }))
 
-    // 自动生成连接
-    const edges = []
-    for (let i = 0; i < nodes.length - 1; i++) {
-      edges.push({
-        id: `edge-${i}`,
-        source: nodes[i].id,
-        target: nodes[i + 1].id
-      })
-    }
+    const apiEdges = edges.value.map(edge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target
+    }))
 
     const data = {
       name: workflowName.value,
       description: '',
-      nodes,
-      edges,
+      nodes: apiNodes,
+      edges: apiEdges,
       config: {}
     }
 
@@ -510,8 +680,8 @@ const saveWorkflow = async () => {
 
 // 返回
 const goBack = () => {
-  if (flowNodes.value.length > 0) {
-    ElMessageBox.confirm('有未保存的更改，确定要离开吗？', '提示', {
+  if (nodes.value.length > 0) {
+    ElMessageBox.confirm('有未保存的更改，确定离开吗？', '提示', {
       confirmButtonText: '离开',
       cancelButtonText: '取消',
       type: 'warning'
@@ -556,7 +726,7 @@ if (workflowUuid.value) {
   gap: 12px;
 }
 
-/* 主内容区 */
+/* 主内容 */
 .editor-main {
   flex: 1;
   display: flex;
@@ -565,7 +735,7 @@ if (workflowUuid.value) {
 
 /* 左侧节点面板 */
 .nodes-panel {
-  width: 280px;
+  width: 260px;
   background: #fff;
   border-right: 1px solid #e4e7ed;
   overflow-y: auto;
@@ -579,44 +749,50 @@ if (workflowUuid.value) {
 }
 
 .panel-header h3 {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: 16px;
   font-weight: 600;
 }
 
-.node-list {
+.node-categories {
   flex: 1;
   padding: 16px;
+}
+
+.category {
+  margin-bottom: 20px;
+}
+
+.category-title {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 12px;
+  font-weight: 500;
 }
 
 .node-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
   background: #f8f9fa;
-  border: 2px solid #e4e7ed;
+  border: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
-.node-item:hover:not(.disabled) {
+.node-item:hover {
   border-color: #409eff;
   background: #ecf5ff;
-  transform: translateX(4px);
-}
-
-.node-item.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  transform: translateX(2px);
 }
 
 .node-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -631,120 +807,124 @@ if (workflowUuid.value) {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
-  margin-bottom: 4px;
 }
 
-.node-desc {
-  font-size: 12px;
-  color: #909399;
-}
-
-.usage-tips {
+.help-section {
   padding: 16px;
-  background: #fafafa;
-  border-top: 1px solid #f0f0f0;
 }
 
-.usage-tips h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #606266;
-}
-
-.usage-tips ol {
-  margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  color: #909399;
-  line-height: 1.8;
-}
-
-/* 中间流程区域 */
-.flow-panel {
+/* 画布区域 */
+.canvas-area {
   flex: 1;
+  position: relative;
   background: #fafafa;
-  overflow-y: auto;
-  padding: 20px;
 }
 
-.flow-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.flow-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.flow-empty {
-  margin-top: 100px;
-}
-
-.flow-nodes {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.flow-node-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.flow-node {
+.vue-flow-wrapper {
   width: 100%;
+  height: 100%;
+}
+
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.connect-tip {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+}
+
+/* 自定义节点 */
+.workflow-node {
+  min-width: 180px;
   background: #fff;
   border: 2px solid #e4e7ed;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.flow-node:hover {
-  border-color: #409eff;
-  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.2);
+.workflow-node:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-.flow-node.active {
+.workflow-node.selected {
   border-color: #409eff;
   border-width: 3px;
   box-shadow: 0 4px 20px rgba(64, 158, 255, 0.3);
 }
 
+.node-content {
+  position: relative;
+}
+
 .node-header {
-  padding: 14px 16px;
+  padding: 12px;
   color: #fff;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 500;
 }
 
 .node-title {
   flex: 1;
-  font-size: 15px;
+  font-size: 14px;
+}
+
+.delete-btn {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.workflow-node:hover .delete-btn {
+  opacity: 1;
 }
 
 .node-body {
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding: 12px;
+  text-align: center;
 }
 
-.flow-arrow {
-  padding: 12px 0;
-  display: flex;
-  justify-content: center;
+/* 连接点 */
+.node-handle {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #fff;
+  background: #409eff;
+  transition: all 0.3s;
 }
 
-/* 右侧配置面板 */
+.node-handle:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.3);
+}
+
+.handle-input {
+  left: -7px;
+}
+
+.handle-output {
+  right: -7px;
+}
+
+/* 配置面板 */
 .config-panel {
   width: 350px;
   background: #fff;
@@ -759,10 +939,50 @@ if (workflowUuid.value) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .config-panel .panel-header h3 {
   margin: 0;
 }
+
+/* 动画 */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.slide-left-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+/* Vue Flow 样式 */
+:deep(.vue-flow__edge-path) {
+  stroke-width: 2;
+}
+
+:deep(.vue-flow__edge.selected .vue-flow__edge-path) {
+  stroke: #f56c6c;
+  stroke-width: 3;
+}
+
+:deep(.vue-flow__connection-path) {
+  stroke: #409eff;
+  stroke-width: 3;
+  stroke-dasharray: 5, 5;
+  animation: dash 0.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
 </style>
+
