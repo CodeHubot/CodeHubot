@@ -140,6 +140,24 @@
       </div>
     </div>
 
+    <!-- 右侧执行面板 -->
+    <el-drawer
+      v-model="showExecutionPanel"
+      title="运行工作流"
+      size="500px"
+      direction="rtl"
+      :with-header="false"
+    >
+      <ExecutionPanel
+        :nodes="nodes"
+        :start-node-params="startNodeParams"
+        :running="running"
+        :run-result="runResult"
+        @close="showExecutionPanel = false"
+        @run="confirmRun"
+      />
+    </el-drawer>
+
     <!-- 右侧配置抽屉 -->
     <el-drawer
       v-model="showConfigDrawer"
@@ -823,6 +841,7 @@ import {
   executeWorkflow
 } from '@/api/workflow'
 import { getActiveLLMModels } from '@/api/llm-model'
+import ExecutionPanel from '@/components/workflow/ExecutionPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -835,6 +854,7 @@ const saving = ref(false)
 const running = ref(false)
 const selectedNodeId = ref(null)
 const showConfigDrawer = ref(false)
+const showExecutionPanel = ref(false)
 
 // 运行相关
 const showRunDialog = ref(false)
@@ -1678,42 +1698,39 @@ const handleRun = async () => {
 
   // 解析参数
   startNodeParams.value = startNode.data.parameters || []
-  runParams.value = {}
+  runResult.value = null // 重置结果
   
-  // 初始化参数默认值
-  startNodeParams.value.forEach(p => {
-    if (p.type === 'boolean') {
-      runParams.value[p.name] = false
-    } else {
-      runParams.value[p.name] = ''
-    }
-  })
-
-  showRunDialog.value = true
+  showExecutionPanel.value = true
 }
 
 // 确认运行
-const confirmRun = async () => {
+const confirmRun = async (params) => {
   // 验证必填参数
   for (const param of startNodeParams.value) {
-    if (param.required && !runParams.value[param.name] && runParams.value[param.name] !== 0 && runParams.value[param.name] !== false) {
+    if (param.required && !params[param.name] && params[param.name] !== 0 && params[param.name] !== false) {
       ElMessage.warning(`请输入 ${param.name}`)
       return
     }
   }
 
-  showRunDialog.value = false
   running.value = true
+  runResult.value = null
   
   try {
     const res = await executeWorkflow(workflowUuid.value, {
-      input: runParams.value
+      input: params
     })
     
     runResult.value = res.data
-    showResultDialog.value = true
     ElMessage.success('执行完成')
   } catch (error) {
+    runResult.value = {
+      status: 'failed',
+      error_message: error.response?.data?.message || error.message,
+      output: null,
+      execution_time: 0,
+      node_executions: []
+    }
     ElMessage.error('执行失败: ' + (error.response?.data?.message || error.message))
   } finally {
     running.value = false
