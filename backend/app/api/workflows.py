@@ -16,7 +16,8 @@ from app.models.workflow_execution import WorkflowExecution
 from app.schemas.workflow import (
     WorkflowCreate, WorkflowUpdate, WorkflowResponse, WorkflowListResponse,
     WorkflowExecutionCreate, WorkflowExecutionResponse, WorkflowExecutionListResponse,
-    ValidationResult, WorkflowExecuteRequest, WorkflowExecuteResponse
+    ValidationResult, WorkflowExecuteRequest, WorkflowExecuteResponse,
+    WorkflowNode, WorkflowEdge
 )
 from app.api.auth import get_current_user
 from app.models.user import User
