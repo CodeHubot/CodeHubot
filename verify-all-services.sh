@@ -43,6 +43,8 @@ echo "=== 5. 验证其他服务 ==="
 # Backend
 if curl -s http://localhost:8000/health > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Backend: http://localhost:8000${NC}"
+elif docker exec codehubot-backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Backend: 运行正常 (仅内部网络访问)${NC}"
 else
     echo -e "${RED}❌ Backend不可访问${NC}"
 fi

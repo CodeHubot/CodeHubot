@@ -300,6 +300,8 @@ check_services() {
     # 检查后端服务
     if curl -f http://localhost:${BACKEND_PORT:-8000}/health &>/dev/null; then
         log_info "后端服务: ✓ 健康"
+    elif docker-compose -f docker-compose.prod.yml exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" >/dev/null 2>&1; then
+        log_info "后端服务: ✓ 健康 (仅内部网络访问)"
     else
         log_warn "后端服务: ✗ 未响应（可能需要等待服务完全启动）"
     fi
