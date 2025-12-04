@@ -788,7 +788,10 @@ const onDrop = (event) => {
     let canvasX = (screenCenterX - currentX) / currentZoom
     let canvasY = (screenCenterY - currentY) / currentZoom
     
-    // 添加较大的随机偏移，确保节点明显错开
+    // 向上偏移150px，使节点放置在中心偏上的位置
+    canvasY -= 150
+    
+    // 添加随机偏移，确保节点明显错开
     const randomOffsetX = (Math.random() - 0.5) * 200  // -100 到 +100 之间
     const randomOffsetY = (Math.random() - 0.5) * 200  // -100 到 +100 之间
     canvasX += randomOffsetX
