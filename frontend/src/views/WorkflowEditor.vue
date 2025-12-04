@@ -167,23 +167,41 @@
 
           <!-- 开始节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'start'">
-            <el-form-item label="输入参数定义">
-              <el-input
-                v-model="selectedNode.data.inputSchema"
-                type="textarea"
-                :rows="6"
-                placeholder='定义工作流输入参数 (JSON Schema):
-{
-  "query": {
-    "type": "string",
-    "description": "用户问题"
-  },
-  "user_id": {
-    "type": "string",
-    "description": "用户ID"
-  }
-}'
-              />
+            <el-form-item label="输入参数配置">
+              <div v-if="!selectedNode.data.parameters || selectedNode.data.parameters.length === 0" class="empty-params">
+                暂无输入参数
+              </div>
+              <div v-for="(param, index) in selectedNode.data.parameters" :key="index" class="param-item">
+                <div class="param-row">
+                  <el-input v-model="param.name" placeholder="参数名 (如 query)" style="width: 140px" />
+                  <el-select v-model="param.type" placeholder="类型" style="width: 90px">
+                    <el-option label="字符串" value="string" />
+                    <el-option label="数字" value="number" />
+                    <el-option label="布尔" value="boolean" />
+                  </el-select>
+                  <el-switch 
+                    v-model="param.required" 
+                    inline-prompt 
+                    active-text="必填" 
+                    inactive-text="选填"
+                  />
+                  <el-button 
+                    type="danger" 
+                    link 
+                    @click="removeStartParameter(index)"
+                    style="margin-left: auto"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <div class="param-row">
+                   <el-input v-model="param.description" placeholder="参数描述 (用于提示用户输入内容)" size="small" />
+                </div>
+              </div>
+              
+              <el-button type="primary" plain style="width: 100%; margin-top: 8px" @click="addStartParameter" icon="Plus">
+                添加输入参数
+              </el-button>
             </el-form-item>
             <el-alert type="info" :closable="false" show-icon>
               <template #title>
@@ -241,46 +259,46 @@
               />
             </el-form-item>
 
-            <el-row :gutter="16">
-              <el-col :span="12">
-                <el-form-item label="温度参数">
-                  <el-slider v-model="selectedNode.data.temperature" :min="0" :max="2" :step="0.1" show-input />
-                  <el-text size="small" type="info">值越高，输出越随机创新</el-text>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="最大Token数">
-                  <el-input-number v-model="selectedNode.data.maxTokens" :min="100" :max="8000" :step="100" style="width: 100%" />
-                  <el-text size="small" type="info">控制回复长度</el-text>
-                </el-form-item>
-              </el-col>
-            </el-row>
+            <el-collapse>
+              <el-collapse-item title="高级参数设置" name="1">
+                <el-row :gutter="16">
+                  <el-col :span="12">
+                    <el-form-item label="温度参数">
+                      <el-slider v-model="selectedNode.data.temperature" :min="0" :max="2" :step="0.1" show-input :show-input-controls="false" />
+                      <el-text size="small" type="info">值越高，输出越随机</el-text>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="最大Token数">
+                      <el-input-number v-model="selectedNode.data.maxTokens" :min="100" :max="8000" :step="100" style="width: 100%" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
 
-            <el-form-item label="Top P">
-              <el-slider v-model="selectedNode.data.topP" :min="0" :max="1" :step="0.05" show-input />
-              <el-text size="small" type="info">核采样参数，控制输出多样性</el-text>
-            </el-form-item>
-
-            <el-row :gutter="16">
-              <el-col :span="12">
-                <el-form-item label="频率惩罚">
-                  <el-slider v-model="selectedNode.data.frequencyPenalty" :min="0" :max="2" :step="0.1" show-input />
+                <el-form-item label="Top P">
+                  <el-slider v-model="selectedNode.data.topP" :min="0" :max="1" :step="0.05" show-input :show-input-controls="false" />
+                  <el-text size="small" type="info">核采样参数，控制输出多样性</el-text>
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="存在惩罚">
-                  <el-slider v-model="selectedNode.data.presencePenalty" :min="0" :max="2" :step="0.1" show-input />
-                </el-form-item>
-              </el-col>
-            </el-row>
 
-            <el-form-item>
-              <el-checkbox v-model="selectedNode.data.streamMode">流式输出（逐字返回）</el-checkbox>
-            </el-form-item>
+                <el-row :gutter="16">
+                  <el-col :span="12">
+                    <el-form-item label="频率惩罚">
+                      <el-slider v-model="selectedNode.data.frequencyPenalty" :min="0" :max="2" :step="0.1" show-input :show-input-controls="false" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="存在惩罚">
+                      <el-slider v-model="selectedNode.data.presencePenalty" :min="0" :max="2" :step="0.1" show-input :show-input-controls="false" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
 
-            <el-form-item>
-              <el-checkbox v-model="selectedNode.data.jsonMode">JSON模式（返回结构化数据）</el-checkbox>
-            </el-form-item>
+                <div style="margin-top: 10px; display: flex; gap: 20px;">
+                  <el-checkbox v-model="selectedNode.data.streamMode">流式输出</el-checkbox>
+                  <el-checkbox v-model="selectedNode.data.jsonMode">JSON模式</el-checkbox>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
 
             <el-alert type="info" :closable="false" show-icon style="margin-top: 12px;">
               <template #title>
@@ -307,17 +325,28 @@
               </el-input>
             </el-form-item>
 
-            <el-form-item label="请求头">
-              <el-input
-                v-model="selectedNode.data.headers"
-                type="textarea"
-                :rows="4"
-                placeholder='JSON格式:
-{
-  "Content-Type": "application/json",
-  "Authorization": "Bearer {input.token}"
-}'
-              />
+            <el-form-item label="请求头配置">
+              <div v-if="!selectedNode.data.headerParams || selectedNode.data.headerParams.length === 0" class="empty-params">
+                暂无请求头
+              </div>
+              <div v-for="(param, index) in selectedNode.data.headerParams" :key="index" class="param-item">
+                <div class="param-row">
+                  <el-input v-model="param.key" placeholder="Header Name" style="width: 40%" />
+                  <el-input v-model="param.value" placeholder="Value" style="width: 50%" />
+                  <el-button 
+                    type="danger" 
+                    link 
+                    @click="removeHeaderParam(index)"
+                    style="margin-left: auto"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+              
+              <el-button type="primary" plain style="width: 100%; margin-top: 8px" @click="addHeaderParam" icon="Plus">
+                添加请求头
+              </el-button>
             </el-form-item>
 
             <el-form-item label="请求体">
@@ -543,19 +572,36 @@
 
           <!-- 结束节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'end'">
-            <el-form-item label="输出配置">
-              <el-input
-                v-model="selectedNode.data.outputMapping"
-                type="textarea"
-                :rows="8"
-                placeholder='定义工作流输出 (JSON):
-{
-  "answer": "{llm-node.response}",
-  "sources": "{kb-node.results}",
-  "intent": "{intent-node.intent}",
-  "timestamp": "{system.timestamp}"
-}'
-              />
+            <el-form-item label="输出结果配置">
+              <div v-if="!selectedNode.data.outputs || selectedNode.data.outputs.length === 0" class="empty-params">
+                暂无输出配置
+              </div>
+              <div v-for="(output, index) in selectedNode.data.outputs" :key="index" class="param-item">
+                <div class="param-row">
+                  <el-input v-model="output.name" placeholder="输出字段名 (如 answer)" style="width: 140px" />
+                  <el-select v-model="output.type" placeholder="类型" style="width: 90px">
+                    <el-option label="字符串" value="string" />
+                    <el-option label="JSON" value="object" />
+                    <el-option label="数字" value="number" />
+                    <el-option label="布尔" value="boolean" />
+                  </el-select>
+                  <el-button 
+                    type="danger" 
+                    link 
+                    @click="removeEndOutput(index)"
+                    style="margin-left: auto"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <div class="param-row">
+                   <el-input v-model="output.value" placeholder="变量值，如 {llm-node.response}" size="small" />
+                </div>
+              </div>
+
+              <el-button type="primary" plain style="width: 100%; margin-top: 8px" @click="addEndOutput" icon="Plus">
+                添加输出字段
+              </el-button>
             </el-form-item>
             <el-alert type="info" :closable="false" show-icon>
               <template #title>
@@ -581,6 +627,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft,
+  Delete,
+  Plus,
   Check,
   Close,
   VideoPlay,
@@ -860,6 +908,75 @@ const deleteNode = (nodeId) => {
 // 节点点击
 const onNodeClick = ({ node }) => {
   selectedNodeId.value = node.id
+  
+  // Start 节点：尝试解析 inputSchema 到 parameters
+  if (node.data.nodeType === 'start') {
+    if (!node.data.parameters && node.data.inputSchema) {
+      try {
+        const schema = JSON.parse(node.data.inputSchema)
+        const params = []
+        if (schema.properties) {
+          for (const [key, value] of Object.entries(schema.properties)) {
+            params.push({
+              name: key,
+              type: value.type || 'string',
+              description: value.description || '',
+              required: (schema.required || []).includes(key)
+            })
+          }
+        }
+        node.data.parameters = params
+      } catch (e) {
+        console.warn('解析 Start 节点 Schema 失败', e)
+        node.data.parameters = []
+      }
+    } else if (!node.data.parameters) {
+      node.data.parameters = []
+    }
+  }
+
+  // End 节点：尝试解析 outputMapping 到 outputs
+  if (node.data.nodeType === 'end') {
+    if (!node.data.outputs && node.data.outputMapping) {
+      try {
+        const mapping = JSON.parse(node.data.outputMapping)
+        const outputs = []
+        for (const [key, value] of Object.entries(mapping)) {
+          outputs.push({
+            name: key,
+            type: 'string', // 默认为 string，因为 JSON mapping 丢失了类型信息
+            value: value
+          })
+        }
+        node.data.outputs = outputs
+      } catch (e) {
+        console.warn('解析 End 节点 Mapping 失败', e)
+        node.data.outputs = []
+      }
+    } else if (!node.data.outputs) {
+      node.data.outputs = []
+    }
+  }
+
+  // HTTP 节点：尝试解析 headers 到 headerParams
+  if (node.data.nodeType === 'http') {
+    if (!node.data.headerParams && node.data.headers) {
+      try {
+        const headers = JSON.parse(node.data.headers)
+        const params = []
+        for (const [key, value] of Object.entries(headers)) {
+          params.push({ key, value: String(value) })
+        }
+        node.data.headerParams = params
+      } catch (e) {
+        console.warn('解析 HTTP Headers 失败', e)
+        node.data.headerParams = []
+      }
+    } else if (!node.data.headerParams) {
+      node.data.headerParams = []
+    }
+  }
+
   showConfigDrawer.value = true
 }
 
@@ -1042,10 +1159,110 @@ const fitView = () => {
 // 保存节点配置
 const saveNodeConfig = () => {
   if (selectedNode.value) {
+    // Start 节点特殊处理：从 parameters 生成 inputSchema
+    if (selectedNode.value.data.nodeType === 'start') {
+      const params = selectedNode.value.data.parameters || []
+      const schema = {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+      
+      params.forEach(p => {
+        if (p.name) {
+          schema.properties[p.name] = {
+            type: p.type,
+            description: p.description
+          }
+          if (p.required) {
+            schema.required.push(p.name)
+          }
+        }
+      })
+      
+      selectedNode.value.data.inputSchema = JSON.stringify(schema, null, 2)
+    }
+
+    // End 节点特殊处理：从 outputs 生成 outputMapping
+    if (selectedNode.value.data.nodeType === 'end') {
+      const outputs = selectedNode.value.data.outputs || []
+      const mapping = {}
+      
+      outputs.forEach(o => {
+        if (o.name) {
+          // 简单处理：直接映射值
+          // 如果需要支持类型转换，这里可能需要更复杂的逻辑，目前后端主要接收 JSON
+          // 我们尽量保持值为字符串（如果是变量引用）
+          mapping[o.name] = o.value
+        }
+      })
+      
+      selectedNode.value.data.outputMapping = JSON.stringify(mapping, null, 2)
+    }
+
+    // HTTP 节点特殊处理：从 headerParams 生成 headers
+    if (selectedNode.value.data.nodeType === 'http') {
+      const headers = {}
+      const params = selectedNode.value.data.headerParams || []
+      params.forEach(p => {
+        if (p.key) headers[p.key] = p.value
+      })
+      selectedNode.value.data.headers = JSON.stringify(headers, null, 2)
+    }
+
     selectedNode.value.data.configured = true
     ElMessage.success('配置已保存')
   }
 }
+
+// 添加开始节点参数
+const addStartParameter = () => {
+  if (!selectedNode.value.data.parameters) {
+    selectedNode.value.data.parameters = []
+  }
+  selectedNode.value.data.parameters.push({
+    name: '',
+    type: 'string',
+    description: '',
+    required: true
+  })
+}
+
+// 删除开始节点参数
+const removeStartParameter = (index) => {
+  selectedNode.value.data.parameters.splice(index, 1)
+}
+
+// 添加结束节点输出
+const addEndOutput = () => {
+  if (!selectedNode.value.data.outputs) {
+    selectedNode.value.data.outputs = []
+  }
+  selectedNode.value.data.outputs.push({
+    name: '',
+    type: 'string',
+    value: ''
+  })
+}
+
+// 删除结束节点输出
+const removeEndOutput = (index) => {
+  selectedNode.value.data.outputs.splice(index, 1)
+}
+
+// 添加HTTP Header
+const addHeaderParam = () => {
+  if (!selectedNode.value.data.headerParams) {
+    selectedNode.value.data.headerParams = []
+  }
+  selectedNode.value.data.headerParams.push({ key: '', value: '' })
+}
+
+// 删除HTTP Header
+const removeHeaderParam = (index) => {
+  selectedNode.value.data.headerParams.splice(index, 1)
+}
+
 
 // 保存工作流
 const saveWorkflow = async () => {
@@ -1443,6 +1660,42 @@ if (workflowUuid.value) {
 
 .config-content {
   padding-bottom: 20px;
+}
+
+.param-item {
+  background: #f5f7fa;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #ebeef5;
+  transition: all 0.3s;
+}
+
+.param-item:hover {
+  border-color: #dcdfe6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.param-row:last-child {
+  margin-bottom: 0;
+}
+
+.empty-params {
+  text-align: center;
+  color: #909399;
+  font-size: 13px;
+  padding: 20px 0;
+  background: #f5f7fa;
+  border-radius: 6px;
+  border: 1px dashed #dcdfe6;
+  margin-bottom: 8px;
 }
 
 /* 连接线样式 */
