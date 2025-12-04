@@ -1368,13 +1368,15 @@ if (workflowUuid.value) {
   width: 22px;
   height: 22px;
   padding: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   border: none;
   opacity: 0;
   transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #f56c6c;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .workflow-node:hover .delete-btn {
@@ -1384,7 +1386,8 @@ if (workflowUuid.value) {
 .delete-btn:hover {
   background: #f56c6c;
   color: #fff;
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(245, 108, 108, 0.4);
 }
 
 .node-handle {
