@@ -649,18 +649,81 @@ const hasNodeType = (type) => {
 // 初始化默认节点（开始 + 结束）
 const initDefaultNodes = () => {
   if (nodes.value.length === 0 && !workflowUuid.value) {
+    console.log('初始化默认节点...')
     // 只在新建工作流时添加默认节点
     const startNodeType = nodeTypes.find(t => t.type === 'start')
     const endNodeType = nodeTypes.find(t => t.type === 'end')
     
     if (startNodeType) {
-      addNodeAtPosition(startNodeType, 150, 200)
+      console.log('添加开始节点')
+      // 直接创建节点，不经过检查（因为是初始化）
+      createNode(startNodeType, 150, 200)
     }
     
     if (endNodeType) {
-      addNodeAtPosition(endNodeType, 600, 200)
+      console.log('添加结束节点')
+      // 直接创建节点，不经过检查（因为是初始化）
+      createNode(endNodeType, 650, 200)
+    }
+    
+    // 添加节点后，居中显示
+    nextTick(() => {
+      console.log('居中显示画布，节点数量:', nodes.value.length)
+      fitView()
+    })
+  }
+}
+
+// 创建节点（不做重复检查）
+const createNode = (nodeType, x, y) => {
+  const newNode = {
+    id: `${nodeType.type}-${nodeIdCounter++}`,
+    type: 'custom',
+    position: { x: Math.round(x), y: Math.round(y) },
+    data: {
+      nodeType: nodeType.type,
+      label: nodeType.label,
+      icon: nodeType.icon,
+      color: nodeType.color,
+      configured: false,
+      // 默认配置
+      description: '',
+      // LLM配置
+      llmModel: '',
+      systemPrompt: '',
+      userPrompt: '',
+      temperature: 0.7,
+      maxTokens: 2000,
+      topP: 0.9,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      streamMode: false,
+      jsonMode: false,
+      // HTTP配置
+      method: 'POST',
+      timeout: 30,
+      retryCount: 0,
+      validateSSL: true,
+      followRedirect: true,
+      // 知识库配置
+      topK: 5,
+      similarityThreshold: 0.7,
+      searchMode: 'vector',
+      // 意图识别配置
+      recognitionMode: 'llm',
+      confidenceThreshold: 0.6,
+      intentCategories: [],
+      // 字符串处理配置
+      operation: 'concat',
+      separator: '',
+      replaceAll: true,
+      caseSensitive: false,
+      startIndex: 0
     }
   }
+
+  nodes.value.push(newNode)
+  console.log('节点已创建:', nodeType.label, '当前总数:', nodes.value.length)
 }
 
 // 组件挂载后初始化
@@ -730,7 +793,7 @@ const onDrop = (event) => {
   }
 }
 
-// 在指定位置添加节点
+// 在指定位置添加节点（拖拽时使用）
 const addNodeAtPosition = (nodeType, x, y) => {
   if ((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type)) {
     ElMessage.warning(`${nodeType.label}节点只能有一个`)
@@ -739,56 +802,11 @@ const addNodeAtPosition = (nodeType, x, y) => {
 
   console.log('添加节点:', nodeType.label, '位置:', { x, y })
 
-  const newNode = {
-    id: `${nodeType.type}-${nodeIdCounter++}`,
-    type: 'custom',
-    position: { x: Math.round(x), y: Math.round(y) },
-    data: {
-      nodeType: nodeType.type,
-      label: nodeType.label,
-      icon: nodeType.icon,
-      color: nodeType.color,
-      configured: false,
-      // 默认配置
-      description: '',
-      // LLM配置
-      llmModel: '',
-      systemPrompt: '',
-      userPrompt: '',
-      temperature: 0.7,
-      maxTokens: 2000,
-      topP: 0.9,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      streamMode: false,
-      jsonMode: false,
-      // HTTP配置
-      method: 'POST',
-      timeout: 30,
-      retryCount: 0,
-      validateSSL: true,
-      followRedirect: true,
-      // 知识库配置
-      topK: 5,
-      similarityThreshold: 0.7,
-      searchMode: 'vector',
-      // 意图识别配置
-      recognitionMode: 'llm',
-      confidenceThreshold: 0.6,
-      intentCategories: [],
-      // 字符串处理配置
-      operation: 'concat',
-      separator: '',
-      replaceAll: true,
-      caseSensitive: false,
-      startIndex: 0
-    }
-  }
-
-  nodes.value.push(newNode)
+  // 创建节点
+  createNode(nodeType, x, y)
   
-  console.log('节点已添加到数组，当前节点总数:', nodes.value.length)
-  console.log('新节点:', newNode)
+  // 获取刚创建的节点
+  const newNode = nodes.value[nodes.value.length - 1]
   
   // 自动选中新添加的节点
   nextTick(() => {
