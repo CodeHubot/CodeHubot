@@ -167,45 +167,68 @@
 
           <!-- 开始节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'start'">
-            <el-form-item label="输入参数配置">
-              <div v-if="!selectedNode.data.parameters || selectedNode.data.parameters.length === 0" class="empty-params">
-                暂无输入参数
-              </div>
-              <div v-for="(param, index) in selectedNode.data.parameters" :key="index" class="param-item">
-                <div class="param-row">
-                  <el-input v-model="param.name" placeholder="参数名 (如 query)" style="width: 140px" />
-                  <el-select v-model="param.type" placeholder="类型" style="width: 90px">
-                    <el-option label="字符串" value="string" />
-                    <el-option label="数字" value="number" />
-                    <el-option label="布尔" value="boolean" />
-                  </el-select>
-                  <el-switch 
-                    v-model="param.required" 
-                    inline-prompt 
-                    active-text="必填" 
-                    inactive-text="选填"
-                  />
-                  <el-button 
-                    type="danger" 
-                    link 
-                    @click="removeStartParameter(index)"
-                    style="margin-left: auto"
-                  >
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
+            <el-form-item label="输入参数配置" class="no-label-margin">
+              <div class="params-container">
+                <!-- 表头 -->
+                <div class="params-header" v-if="selectedNode.data.parameters?.length > 0">
+                  <div class="col-main">参数名 & 描述</div>
+                  <div class="col-type">类型</div>
+                  <div class="col-req">必填</div>
+                  <div class="col-action"></div>
                 </div>
-                <div class="param-row">
-                   <el-input v-model="param.description" placeholder="参数描述 (用于提示用户输入内容)" size="small" />
+
+                <!-- 列表内容 -->
+                <div v-for="(param, index) in selectedNode.data.parameters" :key="index" class="param-row-item">
+                  <div class="col-main">
+                    <el-input 
+                      v-model="param.name" 
+                      placeholder="参数名 (如 query)" 
+                      class="param-name-input"
+                    />
+                    <el-input 
+                      v-model="param.description" 
+                      placeholder="描述 (可选)" 
+                      size="small" 
+                      class="param-desc-input"
+                    />
+                  </div>
+                  <div class="col-type">
+                    <el-select v-model="param.type" placeholder="类型" size="small">
+                      <el-option label="String" value="string" />
+                      <el-option label="Number" value="number" />
+                      <el-option label="Boolean" value="boolean" />
+                    </el-select>
+                  </div>
+                  <div class="col-req">
+                    <el-switch v-model="param.required" size="small" />
+                  </div>
+                  <div class="col-action">
+                    <el-button 
+                      type="danger" 
+                      link 
+                      @click="removeStartParameter(index)"
+                      class="row-delete-btn"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
                 </div>
+
+                <!-- 空状态 -->
+                <div v-if="!selectedNode.data.parameters || selectedNode.data.parameters.length === 0" class="empty-state">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>暂无输入参数，点击下方按钮添加</span>
+                </div>
+
+                <!-- 添加按钮 -->
+                <el-button class="add-param-btn" @click="addStartParameter" plain icon="Plus">
+                  添加参数
+                </el-button>
               </div>
-              
-              <el-button type="primary" plain style="width: 100%; margin-top: 8px" @click="addStartParameter" icon="Plus">
-                添加输入参数
-              </el-button>
             </el-form-item>
-            <el-alert type="info" :closable="false" show-icon>
+            <el-alert type="info" :closable="false" show-icon class="mt-2">
               <template #title>
-                输入参数将在后续节点中通过 {input.参数名} 引用
+                通过 {input.参数名} 引用这些参数
               </template>
             </el-alert>
           </template>
@@ -325,28 +348,42 @@
               </el-input>
             </el-form-item>
 
-            <el-form-item label="请求头配置">
-              <div v-if="!selectedNode.data.headerParams || selectedNode.data.headerParams.length === 0" class="empty-params">
-                暂无请求头
-              </div>
-              <div v-for="(param, index) in selectedNode.data.headerParams" :key="index" class="param-item">
-                <div class="param-row">
-                  <el-input v-model="param.key" placeholder="Header Name" style="width: 40%" />
-                  <el-input v-model="param.value" placeholder="Value" style="width: 50%" />
-                  <el-button 
-                    type="danger" 
-                    link 
-                    @click="removeHeaderParam(index)"
-                    style="margin-left: auto"
-                  >
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
+            <el-form-item label="请求头配置" class="no-label-margin">
+              <div class="params-container">
+                <div class="params-header" v-if="selectedNode.data.headerParams?.length > 0">
+                  <div class="col-main" style="flex: 1">Key</div>
+                  <div class="col-main" style="flex: 1">Value</div>
+                  <div class="col-action"></div>
                 </div>
+
+                <div v-for="(param, index) in selectedNode.data.headerParams" :key="index" class="param-row-item">
+                  <div class="col-main" style="flex: 1; padding-right: 8px;">
+                    <el-input v-model="param.key" placeholder="Key" />
+                  </div>
+                  <div class="col-main" style="flex: 1">
+                    <el-input v-model="param.value" placeholder="Value" />
+                  </div>
+                  <div class="col-action">
+                    <el-button 
+                      type="danger" 
+                      link 
+                      @click="removeHeaderParam(index)"
+                      class="row-delete-btn"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
+                </div>
+                
+                <div v-if="!selectedNode.data.headerParams || selectedNode.data.headerParams.length === 0" class="empty-state">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>暂无请求头，点击下方按钮添加</span>
+                </div>
+
+                <el-button class="add-param-btn" @click="addHeaderParam" plain icon="Plus">
+                  添加请求头
+                </el-button>
               </div>
-              
-              <el-button type="primary" plain style="width: 100%; margin-top: 8px" @click="addHeaderParam" icon="Plus">
-                添加请求头
-              </el-button>
             </el-form-item>
 
             <el-form-item label="请求体">
@@ -572,40 +609,61 @@
 
           <!-- 结束节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'end'">
-            <el-form-item label="输出结果配置">
-              <div v-if="!selectedNode.data.outputs || selectedNode.data.outputs.length === 0" class="empty-params">
-                暂无输出配置
-              </div>
-              <div v-for="(output, index) in selectedNode.data.outputs" :key="index" class="param-item">
-                <div class="param-row">
-                  <el-input v-model="output.name" placeholder="输出字段名 (如 answer)" style="width: 140px" />
-                  <el-select v-model="output.type" placeholder="类型" style="width: 90px">
-                    <el-option label="字符串" value="string" />
-                    <el-option label="JSON" value="object" />
-                    <el-option label="数字" value="number" />
-                    <el-option label="布尔" value="boolean" />
-                  </el-select>
-                  <el-button 
-                    type="danger" 
-                    link 
-                    @click="removeEndOutput(index)"
-                    style="margin-left: auto"
-                  >
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
+            <el-form-item label="输出结果配置" class="no-label-margin">
+              <div class="params-container">
+                <div class="params-header" v-if="selectedNode.data.outputs?.length > 0">
+                  <div class="col-main">字段名 & 变量值</div>
+                  <div class="col-type">类型</div>
+                  <div class="col-action"></div>
                 </div>
-                <div class="param-row">
-                   <el-input v-model="output.value" placeholder="变量值，如 {llm-node.response}" size="small" />
-                </div>
-              </div>
 
-              <el-button type="primary" plain style="width: 100%; margin-top: 8px" @click="addEndOutput" icon="Plus">
-                添加输出字段
-              </el-button>
+                <div v-for="(output, index) in selectedNode.data.outputs" :key="index" class="param-row-item">
+                  <div class="col-main">
+                    <el-input 
+                      v-model="output.name" 
+                      placeholder="输出字段名 (如 answer)" 
+                      class="param-name-input"
+                    />
+                    <el-input 
+                      v-model="output.value" 
+                      placeholder="变量引用 (如 {llm.response})" 
+                      size="small" 
+                      class="param-desc-input"
+                    />
+                  </div>
+                  <div class="col-type">
+                    <el-select v-model="output.type" placeholder="类型" size="small">
+                      <el-option label="String" value="string" />
+                      <el-option label="JSON" value="object" />
+                      <el-option label="Number" value="number" />
+                      <el-option label="Boolean" value="boolean" />
+                    </el-select>
+                  </div>
+                  <div class="col-action">
+                    <el-button 
+                      type="danger" 
+                      link 
+                      @click="removeEndOutput(index)"
+                      class="row-delete-btn"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
+                </div>
+
+                <div v-if="!selectedNode.data.outputs || selectedNode.data.outputs.length === 0" class="empty-state">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>暂无输出字段，点击下方按钮添加</span>
+                </div>
+
+                <el-button class="add-param-btn" @click="addEndOutput" plain icon="Plus">
+                  添加输出字段
+                </el-button>
+              </div>
             </el-form-item>
-            <el-alert type="info" :closable="false" show-icon>
+            <el-alert type="info" :closable="false" show-icon class="mt-2">
               <template #title>
-                可以引用任何节点的输出结果组装最终返回
+                将工作流中间结果映射到最终输出
               </template>
             </el-alert>
           </template>
@@ -1662,40 +1720,146 @@ if (workflowUuid.value) {
   padding-bottom: 20px;
 }
 
-.param-item {
-  background: #f5f7fa;
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 8px;
+/* 参数列表容器 */
+.params-container {
   border: 1px solid #ebeef5;
-  transition: all 0.3s;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.param-item:hover {
-  border-color: #dcdfe6;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-.param-row {
+/* 表头 */
+.params-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  background: #f5f7fa;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #909399;
+  border-bottom: 1px solid #ebeef5;
 }
 
-.param-row:last-child {
-  margin-bottom: 0;
+/* 列表项 */
+.param-row-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  border-bottom: 1px solid #ebeef5;
+  transition: background 0.2s;
+  gap: 12px;
 }
 
-.empty-params {
-  text-align: center;
+.param-row-item:last-child {
+  border-bottom: none;
+}
+
+.param-row-item:hover {
+  background-color: #f9fafc;
+}
+
+/* 列宽控制 */
+.col-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0; /* 防止 input 撑开 */
+}
+
+.col-type {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.col-req {
+  width: 50px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.col-action {
+  width: 30px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 6px;
+}
+
+/* 输入框样式微调 */
+.param-name-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+  border-bottom: 1px solid #dcdfe6;
+  border-radius: 0;
+  padding-left: 0;
+}
+
+.param-name-input :deep(.el-input__wrapper:hover) {
+  border-bottom-color: #409eff;
+}
+
+.param-name-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: none;
+  border-bottom-color: #409eff;
+}
+
+.param-desc-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+  background: transparent;
+  padding-left: 0;
+}
+
+.param-desc-input :deep(.el-input__inner) {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 删除按钮 */
+.row-delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.param-row-item:hover .row-delete-btn {
+  opacity: 1;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 0;
   color: #909399;
   font-size: 13px;
-  padding: 20px 0;
-  background: #f5f7fa;
-  border-radius: 6px;
-  border: 1px dashed #dcdfe6;
-  margin-bottom: 8px;
+  gap: 8px;
+  background: #fff;
+}
+
+/* 添加按钮 */
+.add-param-btn {
+  width: 100%;
+  border: none;
+  border-top: 1px solid #ebeef5;
+  border-radius: 0;
+  height: 40px;
+  color: #409eff;
+}
+
+.add-param-btn:hover {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.no-label-margin :deep(.el-form-item__label) {
+  padding-bottom: 8px;
+}
+
+.mt-2 {
+  margin-top: 12px;
 }
 
 /* 连接线样式 */
