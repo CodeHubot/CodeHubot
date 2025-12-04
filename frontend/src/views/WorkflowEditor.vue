@@ -733,6 +733,7 @@ onMounted(() => {
 
 // 拖拽相关
 let draggedNodeType = null
+let dropNodeCounter = 0  // 拖放节点计数器
 
 // 开始拖拽
 const onDragStart = (event, nodeType) => {
@@ -762,57 +763,34 @@ const onDrop = (event) => {
   }
   
   try {
-    // 获取画布容器
-    const vueFlowElement = vueFlowRef.value?.$el
-    if (!vueFlowElement) {
-      console.error('无法获取 VueFlow 元素')
-      addNodeAtPosition(draggedNodeType, 400, 200)
-      return
-    }
+    // 新思路：使用固定的网格位置，按顺序排列
+    // 每行放4个节点，超过4个就换行
+    const gridCols = 4        // 每行4个
+    const gridWidth = 250     // 横向间距
+    const gridHeight = 150    // 纵向间距
+    const startX = 350        // 起始X坐标
+    const startY = 150        // 起始Y坐标
     
-    const rect = vueFlowElement.getBoundingClientRect()
+    // 计算当前节点的网格位置
+    const col = dropNodeCounter % gridCols
+    const row = Math.floor(dropNodeCounter / gridCols)
     
-    // 获取当前视口状态
-    const currentViewport = viewport.value
-    const currentZoom = currentViewport?.zoom || 1
-    const currentX = currentViewport?.x || 0
-    const currentY = currentViewport?.y || 0
+    const canvasX = startX + col * gridWidth
+    const canvasY = startY + row * gridHeight
     
-    // 计算当前视口中心在画布坐标系中的位置
-    // 视口中心的屏幕坐标
-    const screenCenterX = rect.width / 2
-    const screenCenterY = rect.height / 2
-    
-    // 转换为画布坐标：考虑视口的缩放和平移
-    // 公式：(屏幕坐标 - 视口平移) / 缩放
-    let canvasX = (screenCenterX - currentX) / currentZoom
-    let canvasY = (screenCenterY - currentY) / currentZoom
-    
-    // 向上偏移150px，使节点放置在中心偏上的位置
-    canvasY -= 150
-    
-    // 添加随机偏移，确保节点明显错开
-    const randomOffsetX = (Math.random() - 0.5) * 200  // -100 到 +100 之间
-    const randomOffsetY = (Math.random() - 0.5) * 200  // -100 到 +100 之间
-    canvasX += randomOffsetX
-    canvasY += randomOffsetY
-    
-    console.log('放置节点到当前视野中心（带随机偏移）:', {
-      容器尺寸: { width: rect.width, height: rect.height },
-      屏幕中心: { x: screenCenterX, y: screenCenterY },
-      视口状态: { zoom: currentZoom, x: currentX, y: currentY },
-      随机偏移: { x: Math.round(randomOffsetX), y: Math.round(randomOffsetY) },
-      画布坐标: { x: Math.round(canvasX), y: Math.round(canvasY) }
+    console.log('放置节点到网格位置:', {
+      节点序号: dropNodeCounter,
+      网格位置: { 行: row, 列: col },
+      画布坐标: { x: canvasX, y: canvasY }
     })
     
-    // 创建节点在当前视野中央（带随机偏移）
-    addNodeAtPosition(
-      draggedNodeType, 
-      Math.round(canvasX),
-      Math.round(canvasY)
-    )
+    // 创建节点
+    addNodeAtPosition(draggedNodeType, canvasX, canvasY)
     
-    ElMessage.success('节点已添加到当前视野中央')
+    // 增加计数器
+    dropNodeCounter++
+    
+    ElMessage.success(`节点已添加（第${dropNodeCounter}个）`)
   } catch (error) {
     console.error('拖放节点失败:', error, error.stack)
     // 降级方案：使用固定位置
