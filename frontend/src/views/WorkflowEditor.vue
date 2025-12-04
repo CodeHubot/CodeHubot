@@ -762,45 +762,41 @@ const onDrop = (event) => {
   }
   
   try {
-    // 获取当前视口信息
-    const { viewport: viewportData } = useVueFlow()
-    
-    // 获取当前视口的缩放和偏移
-    const currentZoom = viewportData.value?.zoom || 1
-    const currentX = viewportData.value?.x || 0
-    const currentY = viewportData.value?.y || 0
-    
-    // 获取画布容器尺寸
+    // 获取画布容器
     const vueFlowElement = vueFlowRef.value?.$el
-    const rect = vueFlowElement?.getBoundingClientRect() || { width: 1200, height: 600 }
+    if (!vueFlowElement) {
+      console.error('无法获取 VueFlow 元素')
+      addNodeAtPosition(draggedNodeType, 400, 200)
+      return
+    }
     
-    // 计算视口中心在画布坐标系中的位置
-    // 视口中心的屏幕坐标
-    const viewportCenterX = rect.width / 2
-    const viewportCenterY = rect.height / 2
+    const rect = vueFlowElement.getBoundingClientRect()
     
-    // 转换为画布坐标
-    const canvasX = (viewportCenterX - currentX) / currentZoom
-    const canvasY = (viewportCenterY - currentY) / currentZoom
+    // 计算容器中心的屏幕坐标
+    const screenCenterX = rect.width / 2
+    const screenCenterY = rect.height / 2
     
-    console.log('放置节点到视口中央:', {
-      视口缩放: currentZoom,
-      视口偏移: { x: currentX, y: currentY },
+    console.log('容器信息:', {
+      容器位置: { left: rect.left, top: rect.top },
       容器尺寸: { width: rect.width, height: rect.height },
-      视口中心屏幕坐标: { x: viewportCenterX, y: viewportCenterY },
-      画布坐标: { x: Math.round(canvasX), y: Math.round(canvasY) }
+      屏幕中心点: { x: screenCenterX, y: screenCenterY }
     })
+    
+    // 使用 project 函数将屏幕坐标转换为画布坐标
+    const canvasPosition = project({ x: screenCenterX, y: screenCenterY })
+    
+    console.log('画布坐标:', canvasPosition)
     
     // 创建节点在视口中央
     addNodeAtPosition(
       draggedNodeType, 
-      Math.round(canvasX),
-      Math.round(canvasY)
+      Math.round(canvasPosition.x),
+      Math.round(canvasPosition.y)
     )
     
     ElMessage.success('节点已添加到视口中央')
   } catch (error) {
-    console.error('拖放节点失败:', error)
+    console.error('拖放节点失败:', error, error.stack)
     // 降级方案：使用固定位置
     addNodeAtPosition(draggedNodeType, 400, 200)
   } finally {
