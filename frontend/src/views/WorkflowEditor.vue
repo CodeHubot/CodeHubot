@@ -621,67 +621,25 @@
 
           <!-- 结束节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'end'">
-            <el-form-item label="输出结果配置" class="no-label-margin">
-              <div class="params-container">
-                <div class="params-header" v-if="selectedNode.data.outputs?.length > 0">
-                  <div class="col-main">字段名 & 变量值</div>
-                  <div class="col-type">类型</div>
-                  <div class="col-action"></div>
-                </div>
-
-                <div v-for="(output, index) in selectedNode.data.outputs" :key="index" class="param-row-item">
-                  <div class="col-main">
-                    <el-input 
-                      v-model="output.name" 
-                      placeholder="输出字段名 (如 answer)" 
-                      class="param-name-input"
-                    />
-                    <div class="input-with-var desc-var-input">
-                      <el-input 
-                        v-model="output.value" 
-                        placeholder="输入文本或变量 (如: 结果是 {llm.response})" 
-                        type="textarea"
-                        :rows="2"
-                        class="param-desc-input"
-                      />
-                      <el-button class="cell-var-trigger small" size="small" link @click="openVarSelector(output, 'value')">
-                        {x}
-                      </el-button>
-                    </div>
-                  </div>
-                  <div class="col-type">
-                    <el-select v-model="output.type" placeholder="类型" size="small">
-                      <el-option label="String" value="string" />
-                      <el-option label="JSON" value="object" />
-                      <el-option label="Number" value="number" />
-                      <el-option label="Boolean" value="boolean" />
-                    </el-select>
-                  </div>
-                  <div class="col-action">
-                    <el-button 
-                      type="danger" 
-                      link 
-                      @click="removeEndOutput(index)"
-                      class="row-delete-btn"
-                    >
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
-                  </div>
-                </div>
-
-                <div v-if="!selectedNode.data.outputs || selectedNode.data.outputs.length === 0" class="empty-state">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>暂无输出字段，点击下方按钮添加</span>
-                </div>
-
-                <el-button class="add-param-btn" @click="addEndOutput" plain icon="Plus">
-                  添加输出字段
+            <el-form-item label="最终输出内容" class="no-label-margin">
+              <div class="input-with-var">
+                <el-input
+                  v-model="selectedNode.data.outputContent"
+                  type="textarea"
+                  :rows="10"
+                  placeholder="在此编辑工作流的最终返回内容。
+例如：
+智能助手回复：{llm.response}
+参考文档：{kb.results}"
+                />
+                <el-button class="var-trigger" size="small" @click="openVarSelector(selectedNode.data, 'outputContent')">
+                  {x}
                 </el-button>
               </div>
             </el-form-item>
             <el-alert type="info" :closable="false" show-icon class="mt-2">
               <template #title>
-                将工作流中间结果映射到最终输出
+                这是工作流运行结束后返回给用户的最终结果
               </template>
             </el-alert>
           </template>
@@ -1163,26 +1121,20 @@ const onNodeClick = ({ node }) => {
     }
   }
 
-  // End 节点：尝试解析 outputMapping 到 outputs
+  // End 节点：尝试解析 outputMapping 到 outputContent
   if (node.data.nodeType === 'end') {
-    if (!node.data.outputs && node.data.outputMapping) {
+    if (node.data.outputMapping) {
       try {
         const mapping = JSON.parse(node.data.outputMapping)
-        const outputs = []
-        for (const [key, value] of Object.entries(mapping)) {
-          outputs.push({
-            name: key,
-            type: 'string', // 默认为 string，因为 JSON mapping 丢失了类型信息
-            value: value
-          })
-        }
-        node.data.outputs = outputs
+        // 兼容旧数据：如果有多字段，取第一个，或者取名为 'output' 的字段
+        node.data.outputContent = mapping.output || Object.values(mapping)[0] || ''
       } catch (e) {
+        // 如果解析失败，可能是旧的直接字符串格式？或者直接置空
         console.warn('解析 End 节点 Mapping 失败', e)
-        node.data.outputs = []
+        node.data.outputContent = ''
       }
-    } else if (!node.data.outputs) {
-      node.data.outputs = []
+    } else {
+      node.data.outputContent = ''
     }
   }
 
@@ -1431,41 +1383,20 @@ const saveNodeConfig = () => {
       selectedNode.value.data.inputSchema = JSON.stringify(schema, null, 2)
     }
 
-    // End 节点特殊处理：验证并生成 outputMapping
+    // End 节点特殊处理：直接保存 outputContent 到 outputMapping
+    // 为了兼容后端，我们将内容包装成一个 JSON 对象，或者直接作为 text 返回
+    // 这里我们约定：End 节点的 outputMapping 存储为一个包含 'output' 字段的 JSON，或者直接存字符串
+    // 为了简单且通用，我们将单一内容存入一个固定的字段 "output" 中，方便后端统一取用
     if (selectedNode.value.data.nodeType === 'end') {
-      const outputs = selectedNode.value.data.outputs || []
-      
-      // 验证输出字段
-      for (const o of outputs) {
-        if (!o.name || !o.name.trim()) {
-          ElMessage.warning('输出字段名不能为空')
-          return
-        }
-        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(o.name)) {
-          ElMessage.warning(`输出字段名 "${o.name}" 不合法，只能包含字母、数字和下划线，且不能以数字开头`)
-          return
-        }
-        if (!o.value || !o.value.trim()) {
-          ElMessage.warning(`输出字段 "${o.name}" 的变量引用不能为空`)
-          return
-        }
+      if (!selectedNode.value.data.outputContent) {
+        // 允许为空？通常不建议，给个默认值或允许空
+        selectedNode.value.data.outputContent = ''
       }
-
-      // 检查重复字段名
-      const names = outputs.map(o => o.name)
-      if (new Set(names).size !== names.length) {
-        ElMessage.warning('输出字段名不能重复')
-        return
-      }
-
-      const mapping = {}
       
-      outputs.forEach(o => {
-        if (o.name) {
-          // 简单处理：直接映射值
-          mapping[o.name] = o.value
-        }
-      })
+      // 构造符合后端预期的 JSON 结构
+      const mapping = {
+        output: selectedNode.value.data.outputContent
+      }
       
       selectedNode.value.data.outputMapping = JSON.stringify(mapping, null, 2)
     }
@@ -1501,23 +1432,6 @@ const addStartParameter = () => {
 // 删除开始节点参数
 const removeStartParameter = (index) => {
   selectedNode.value.data.parameters.splice(index, 1)
-}
-
-// 添加结束节点输出
-const addEndOutput = () => {
-  if (!selectedNode.value.data.outputs) {
-    selectedNode.value.data.outputs = []
-  }
-  selectedNode.value.data.outputs.push({
-    name: '',
-    type: 'string',
-    value: ''
-  })
-}
-
-// 删除结束节点输出
-const removeEndOutput = (index) => {
-  selectedNode.value.data.outputs.splice(index, 1)
 }
 
 // 添加HTTP Header
