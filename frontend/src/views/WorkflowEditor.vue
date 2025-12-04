@@ -639,8 +639,9 @@
                     <div class="input-with-var desc-var-input">
                       <el-input 
                         v-model="output.value" 
-                        placeholder="变量引用 (如 {llm.response})" 
-                        size="small" 
+                        placeholder="输入文本或变量 (如: 结果是 {llm.response})" 
+                        type="textarea"
+                        :rows="2"
                         class="param-desc-input"
                       />
                       <el-button class="cell-var-trigger small" size="small" link @click="openVarSelector(output, 'value')">
@@ -2071,6 +2072,18 @@ if (workflowUuid.value) {
   width: 100%;
 }
 
+:deep(.el-form-item__content) {
+  width: 100%; /* 确保表单内容占满宽度 */
+}
+
+.params-container {
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  overflow: hidden;
+  width: 100%; /* 强制占满 */
+  box-sizing: border-box;
+}
+
 .var-trigger {
   position: absolute;
   right: 8px;
@@ -2197,5 +2210,11 @@ if (workflowUuid.value) {
 
 :deep(.el-drawer__body) {
   padding: 20px;
+}
+
+/* 强制表单项占满容器宽度 */
+:deep(.el-form-item) {
+  display: block; /* 确保 label 和 content 上下排列时占满 */
+  margin-bottom: 24px;
 }
 </style>
