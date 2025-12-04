@@ -762,23 +762,30 @@ const onDrop = (event) => {
   }
   
   try {
-    // 获取 VueFlow 实例
-    const { project: projectFn, viewport: viewportData } = useVueFlow()
+    // 获取 VueFlow 的 DOM 元素
+    const vueFlowElement = vueFlowRef.value?.$el
+    if (!vueFlowElement) {
+      console.error('无法获取 VueFlow 元素')
+      addNodeAtPosition(draggedNodeType, 300, 200)
+      return
+    }
     
-    // 获取画布容器
-    const container = event.currentTarget
-    const rect = container.getBoundingClientRect()
+    const rect = vueFlowElement.getBoundingClientRect()
     
-    // 计算鼠标在画布中的位置
+    // 计算鼠标相对于 VueFlow 画布的位置
     const x = event.clientX - rect.left
     const y = event.clientY - rect.top
     
+    console.log('鼠标位置:', { clientX: event.clientX, clientY: event.clientY })
+    console.log('画布位置:', { left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+    console.log('相对位置:', { x, y })
+    
     // 转换为画布坐标（考虑缩放和平移）
-    const position = projectFn({ x, y })
+    const position = project({ x, y })
     
-    console.log('Drop position:', { x, y, canvasPosition: position })
+    console.log('画布坐标:', position)
     
-    // 创建节点，直接使用鼠标位置（不偏移）
+    // 创建节点，直接使用转换后的坐标
     addNodeAtPosition(
       draggedNodeType, 
       position.x,
