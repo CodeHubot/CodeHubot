@@ -129,6 +129,17 @@
         <p>点击顶部工具栏的图标添加节点</p>
       </div>
 
+      <!-- 节点暂存区 -->
+      <div class="node-staging-area">
+        <div class="staging-header">
+          <el-icon><Box /></el-icon>
+          <span>节点暂存区</span>
+        </div>
+        <div class="staging-hint">
+          拖进来的节点会放在这里，<br>再拖到目标位置
+        </div>
+      </div>
+
       <!-- 操作提示 -->
       <div class="operation-tips">
         <el-icon><InfoFilled /></el-icon>
@@ -751,6 +762,9 @@ const onDragOver = (event) => {
   event.dataTransfer.dropEffect = 'copy'
 }
 
+// 追踪暂存区节点数量
+const stagingNodeCount = ref(0)
+
 // 放置到画布
 const onDrop = (event) => {
   event.preventDefault()
@@ -766,7 +780,7 @@ const onDrop = (event) => {
     const vueFlowElement = vueFlowRef.value?.$el
     if (!vueFlowElement) {
       console.error('无法获取 VueFlow 元素')
-      addNodeAtPosition(draggedNodeType, 400, 200)
+      addNodeAtPosition(draggedNodeType, 50, 100)
       return
     }
     
@@ -778,35 +792,38 @@ const onDrop = (event) => {
     const currentX = currentViewport?.x || 0
     const currentY = currentViewport?.y || 0
     
-    // 计算当前视口中心在画布坐标系中的位置
-    // 视口中心的屏幕坐标
-    const screenCenterX = rect.width / 2
-    const screenCenterY = rect.height / 2
+    // 计算暂存区的位置（画布左侧）
+    // 暂存区屏幕坐标：左侧区域
+    const stagingScreenX = 120  // 距离左边120px
+    const stagingScreenY = 150 + stagingNodeCount.value * 120  // 垂直排列，间距120px
     
-    // 转换为画布坐标：考虑视口的缩放和平移
-    // 公式：(屏幕坐标 - 视口平移) / 缩放
-    const canvasX = (screenCenterX - currentX) / currentZoom
-    const canvasY = (screenCenterY - currentY) / currentZoom
+    // 转换为画布坐标
+    const canvasX = (stagingScreenX - currentX) / currentZoom
+    const canvasY = (stagingScreenY - currentY) / currentZoom
     
-    console.log('放置节点到当前视野中心:', {
-      容器尺寸: { width: rect.width, height: rect.height },
-      屏幕中心: { x: screenCenterX, y: screenCenterY },
+    console.log('放置节点到暂存区:', {
+      暂存区序号: stagingNodeCount.value,
+      屏幕坐标: { x: stagingScreenX, y: stagingScreenY },
       视口状态: { zoom: currentZoom, x: currentX, y: currentY },
       画布坐标: { x: Math.round(canvasX), y: Math.round(canvasY) }
     })
     
-    // 创建节点在当前视野中央
+    // 创建节点在暂存区
     addNodeAtPosition(
       draggedNodeType, 
       Math.round(canvasX),
       Math.round(canvasY)
     )
     
-    ElMessage.success('节点已添加到当前视野中央')
+    // 增加暂存区计数
+    stagingNodeCount.value++
+    
+    ElMessage.success('节点已添加到暂存区，可拖动到目标位置')
   } catch (error) {
     console.error('拖放节点失败:', error, error.stack)
     // 降级方案：使用固定位置
-    addNodeAtPosition(draggedNodeType, 400, 200)
+    addNodeAtPosition(draggedNodeType, 50, 100 + stagingNodeCount.value * 120)
+    stagingNodeCount.value++
   } finally {
     draggedNodeType = null
   }
@@ -1308,6 +1325,37 @@ if (workflowUuid.value) {
   margin-top: 16px;
   color: #909399;
   font-size: 14px;
+}
+
+.node-staging-area {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 200px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px dashed #409eff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.2);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.staging-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 12px;
+}
+
+.staging-hint {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .operation-tips {
