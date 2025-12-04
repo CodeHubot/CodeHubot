@@ -762,7 +762,7 @@ const onDrop = (event) => {
   }
   
   try {
-    // 获取 VueFlow 的 DOM 元素
+    // 获取 VueFlow 的 DOM 元素（兼容性处理）
     const vueFlowElement = vueFlowRef.value?.$el
     if (!vueFlowElement) {
       console.error('无法获取 VueFlow 元素')
@@ -770,29 +770,55 @@ const onDrop = (event) => {
       return
     }
     
+    // 使用标准 API 获取元素位置（所有现代浏览器都支持）
     const rect = vueFlowElement.getBoundingClientRect()
     
-    // 计算鼠标相对于 VueFlow 画布的位置
-    const x = event.clientX - rect.left
-    const y = event.clientY - rect.top
+    // 获取鼠标位置（考虑滚动偏移，兼容旧版浏览器）
+    const clientX = event.clientX || event.pageX || 0
+    const clientY = event.clientY || event.pageY || 0
     
-    console.log('鼠标位置:', { clientX: event.clientX, clientY: event.clientY })
-    console.log('画布位置:', { left: rect.left, top: rect.top, width: rect.width, height: rect.height })
-    console.log('相对位置:', { x, y })
+    // 计算相对位置（考虑页面滚动）
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0
     
-    // 转换为画布坐标（考虑缩放和平移）
-    const position = project({ x, y })
+    // 相对于画布的坐标
+    let x = clientX - rect.left
+    let y = clientY - rect.top
     
-    console.log('画布坐标:', position)
+    // 边界检查：确保坐标在画布范围内
+    x = Math.max(0, Math.min(x, rect.width))
+    y = Math.max(0, Math.min(y, rect.height))
     
-    // 创建节点，直接使用转换后的坐标
+    console.log('拖拽位置信息:', {
+      鼠标屏幕坐标: { clientX, clientY },
+      画布位置: { left: rect.left, top: rect.top },
+      画布尺寸: { width: rect.width, height: rect.height },
+      页面滚动: { scrollX, scrollY },
+      相对坐标: { x, y },
+      浏览器: navigator.userAgent.split(')')[0].split('(')[1]
+    })
+    
+    // 使用 VueFlow 的 project 方法转换坐标（考虑缩放和平移）
+    let position
+    try {
+      position = project({ x, y })
+    } catch (projectError) {
+      console.warn('坐标转换失败，使用相对坐标:', projectError)
+      // 降级：直接使用相对坐标
+      position = { x, y }
+    }
+    
+    console.log('最终画布坐标:', position)
+    
+    // 创建节点
     addNodeAtPosition(
       draggedNodeType, 
-      position.x,
-      position.y
+      Math.round(position.x),
+      Math.round(position.y)
     )
   } catch (error) {
-    console.error('拖放节点失败:', error)
+    console.error('拖放节点失败:', error, error.stack)
+    ElMessage.warning('节点放置失败，已放置到默认位置')
     // 降级方案：使用固定位置
     addNodeAtPosition(draggedNodeType, 300, 200)
   } finally {
