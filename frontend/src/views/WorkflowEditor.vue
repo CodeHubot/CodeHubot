@@ -43,11 +43,11 @@
           </span>
           <div class="node-buttons">
             <div
-              v-for="nodeType in nodeTypes"
+              v-for="nodeType in draggableNodeTypes"
               :key="nodeType.type"
-              :draggable="!((nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type))"
+              draggable="true"
               @dragstart="onDragStart($event, nodeType)"
-              :class="['node-add-btn', { 'disabled': (nodeType.type === 'start' || nodeType.type === 'end') && hasNodeType(nodeType.type) }]"
+              class="node-add-btn"
             >
               <div class="btn-content" :style="{ borderLeftColor: nodeType.color }">
                 <el-icon :size="18" :color="nodeType.color">
@@ -101,6 +101,7 @@
                 <span v-if="data.configured" class="status-icon success" title="已配置">✓</span>
                 <span v-else class="status-icon warning" title="待配置">!</span>
                 <el-button
+                  v-if="data.nodeType !== 'start' && data.nodeType !== 'end'"
                   type="danger"
                   size="small"
                   circle
@@ -636,6 +637,11 @@ const nodeTypes = [
   { type: 'end', label: '结束', icon: 'SuccessFilled', color: '#f56c6c' }
 ]
 
+// 可拖拽的节点类型（排除开始和结束节点）
+const draggableNodeTypes = computed(() => {
+  return nodeTypes.filter(t => t.type !== 'start' && t.type !== 'end')
+})
+
 // 选中的节点
 const selectedNode = computed(() => {
   return nodes.value.find(n => n.id === selectedNodeId.value)
@@ -822,6 +828,13 @@ const addNodeAtPosition = (nodeType, x, y) => {
 // 删除节点
 const deleteNode = (nodeId) => {
   const node = nodes.value.find(n => n.id === nodeId)
+  if (!node) return
+
+  if (node.data.nodeType === 'start' || node.data.nodeType === 'end') {
+    ElMessage.warning('开始和结束节点不能删除')
+    return
+  }
+
   const nodeName = node?.data.label || '该节点'
   
   ElMessageBox.confirm(
