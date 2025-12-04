@@ -162,4 +162,8 @@ class WorkflowExecuteResponse(BaseModel):
     task_id: Optional[str] = Field(None, description="Celery任务ID（异步执行时）")
     status: str = Field(..., description="执行状态（pending/running）")
     message: str = Field(..., description="响应消息")
+    output: Optional[Dict[str, Any]] = Field(None, description="执行输出")
+    node_executions: Optional[List[NodeExecutionResult]] = Field(None, description="节点执行详情")
+    execution_time: Optional[int] = Field(None, description="执行耗时(ms)")
+    error_message: Optional[str] = Field(None, description="错误信息")
 

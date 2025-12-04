@@ -348,7 +348,10 @@ async def execute_workflow(
         return WorkflowExecuteResponse(
             execution_id=execution.execution_id,
             status="completed",
-            message="工作流执行成功"
+            message="工作流执行成功",
+            output=execution.output,
+            node_executions=execution.node_executions,
+            execution_time=execution.execution_time
         )
         
     except Exception as e:
