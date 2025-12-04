@@ -575,7 +575,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -646,6 +646,28 @@ const hasNodeType = (type) => {
   return nodes.value.some(n => n.data.nodeType === type)
 }
 
+// 初始化默认节点（开始 + 结束）
+const initDefaultNodes = () => {
+  if (nodes.value.length === 0 && !workflowUuid.value) {
+    // 只在新建工作流时添加默认节点
+    const startNodeType = nodeTypes.find(t => t.type === 'start')
+    const endNodeType = nodeTypes.find(t => t.type === 'end')
+    
+    if (startNodeType) {
+      addNodeAtPosition(startNodeType, 150, 200)
+    }
+    
+    if (endNodeType) {
+      addNodeAtPosition(endNodeType, 600, 200)
+    }
+  }
+}
+
+// 组件挂载后初始化
+onMounted(() => {
+  loadWorkflow()
+})
+
 // 拖拽相关
 let draggedNodeType = null
 
@@ -693,11 +715,11 @@ const onDrop = (event) => {
     
     console.log('Drop position:', { x, y, canvasPosition: position })
     
-    // 创建节点（减去节点尺寸的一半，使节点中心对准鼠标）
+    // 创建节点，直接使用鼠标位置（不偏移）
     addNodeAtPosition(
       draggedNodeType, 
-      position.x - 90,  // 节点宽度180的一半
-      position.y - 24   // 节点高度48的一半
+      position.x,
+      position.y
     )
   } catch (error) {
     console.error('拖放节点失败:', error)
@@ -1068,7 +1090,12 @@ const goBack = () => {
 
 // 加载工作流
 const loadWorkflow = async () => {
-  if (!workflowUuid.value) return
+  if (!workflowUuid.value) {
+    // 新建工作流，添加默认节点
+    initDefaultNodes()
+    return
+  }
+  
   try {
     const response = await getWorkflow(workflowUuid.value)
     const workflow = response.data
@@ -1088,7 +1115,7 @@ const loadWorkflow = async () => {
     })
     edges.value = (workflow.edges || []).map(edge => ({
       ...edge,
-      type: 'smoothstep',
+      type: edgeType.value,
       animated: true,
       style: { stroke: '#409eff', strokeWidth: 2 }
     }))
