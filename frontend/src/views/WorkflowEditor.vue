@@ -762,65 +762,42 @@ const onDrop = (event) => {
   }
   
   try {
-    // 获取 VueFlow 的 DOM 元素（兼容性处理）
+    // 获取当前视口信息
+    const { viewport: viewportData } = useVueFlow()
+    
+    // 获取当前视口的中心点和缩放
+    const currentZoom = viewportData.value?.zoom || 1
+    const currentX = viewportData.value?.x || 0
+    const currentY = viewportData.value?.y || 0
+    
+    // 计算画布顶部中央的位置（考虑视口偏移）
+    // 视口中心X = -currentX / currentZoom + (屏幕宽度/2) / currentZoom
     const vueFlowElement = vueFlowRef.value?.$el
-    if (!vueFlowElement) {
-      console.error('无法获取 VueFlow 元素')
-      addNodeAtPosition(draggedNodeType, 300, 200)
-      return
-    }
+    const rect = vueFlowElement?.getBoundingClientRect() || { width: 1200, height: 600 }
     
-    // 使用标准 API 获取元素位置（所有现代浏览器都支持）
-    const rect = vueFlowElement.getBoundingClientRect()
+    // 画布坐标：顶部中央
+    const canvasX = -currentX / currentZoom + (rect.width / 2) / currentZoom
+    const canvasY = -currentY / currentZoom + 50 / currentZoom  // 距离顶部50px
     
-    // 获取鼠标位置（考虑滚动偏移，兼容旧版浏览器）
-    const clientX = event.clientX || event.pageX || 0
-    const clientY = event.clientY || event.pageY || 0
-    
-    // 计算相对位置（考虑页面滚动）
-    const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0
-    
-    // 相对于画布的坐标
-    let x = clientX - rect.left
-    let y = clientY - rect.top
-    
-    // 边界检查：确保坐标在画布范围内
-    x = Math.max(0, Math.min(x, rect.width))
-    y = Math.max(0, Math.min(y, rect.height))
-    
-    console.log('拖拽位置信息:', {
-      鼠标屏幕坐标: { clientX, clientY },
-      画布位置: { left: rect.left, top: rect.top },
+    console.log('放置节点到画布顶部中央:', {
+      视口缩放: currentZoom,
+      视口偏移: { x: currentX, y: currentY },
       画布尺寸: { width: rect.width, height: rect.height },
-      页面滚动: { scrollX, scrollY },
-      相对坐标: { x, y },
-      浏览器: navigator.userAgent.split(')')[0].split('(')[1]
+      节点位置: { x: Math.round(canvasX), y: Math.round(canvasY) }
     })
     
-    // 使用 VueFlow 的 project 方法转换坐标（考虑缩放和平移）
-    let position
-    try {
-      position = project({ x, y })
-    } catch (projectError) {
-      console.warn('坐标转换失败，使用相对坐标:', projectError)
-      // 降级：直接使用相对坐标
-      position = { x, y }
-    }
-    
-    console.log('最终画布坐标:', position)
-    
-    // 创建节点
+    // 创建节点在画布顶部中央
     addNodeAtPosition(
       draggedNodeType, 
-      Math.round(position.x),
-      Math.round(position.y)
+      Math.round(canvasX),
+      Math.round(canvasY)
     )
+    
+    ElMessage.success('节点已添加到画布顶部，可拖动到目标位置')
   } catch (error) {
-    console.error('拖放节点失败:', error, error.stack)
-    ElMessage.warning('节点放置失败，已放置到默认位置')
+    console.error('拖放节点失败:', error)
     // 降级方案：使用固定位置
-    addNodeAtPosition(draggedNodeType, 300, 200)
+    addNodeAtPosition(draggedNodeType, 400, 100)
   } finally {
     draggedNodeType = null
   }
