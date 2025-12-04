@@ -763,34 +763,28 @@ const onDrop = (event) => {
   }
   
   try {
-    // 新思路：使用固定的网格位置，按顺序排列
-    // 每行放4个节点，超过4个就换行
-    const gridCols = 4        // 每行4个
-    const gridWidth = 250     // 横向间距
-    const gridHeight = 150    // 纵向间距
-    const startX = 350        // 起始X坐标
-    const startY = 150        // 起始Y坐标
+    // 获取画布的边界矩形
+    const { left, top } = vueFlowRef.value.getBoundingClientRect()
     
-    // 计算当前节点的网格位置
-    const col = dropNodeCounter % gridCols
-    const row = Math.floor(dropNodeCounter / gridCols)
+    // 计算鼠标相对于画布左上角的坐标
+    const x = event.clientX - left
+    const y = event.clientY - top
     
-    const canvasX = startX + col * gridWidth
-    const canvasY = startY + row * gridHeight
+    // 将屏幕坐标转换为画布坐标
+    const position = project({ x, y })
     
-    console.log('放置节点到网格位置:', {
-      节点序号: dropNodeCounter,
-      网格位置: { 行: row, 列: col },
-      画布坐标: { x: canvasX, y: canvasY }
+    console.log('放置节点到位置:', {
+      屏幕坐标: { x: event.clientX, y: event.clientY },
+      相对坐标: { x, y },
+      画布坐标: position
     })
     
     // 创建节点
-    addNodeAtPosition(draggedNodeType, canvasX, canvasY)
+    addNodeAtPosition(draggedNodeType, position.x, position.y)
     
     // 增加计数器
     dropNodeCounter++
     
-    ElMessage.success(`节点已添加（第${dropNodeCounter}个）`)
   } catch (error) {
     console.error('拖放节点失败:', error, error.stack)
     // 降级方案：使用固定位置
