@@ -772,29 +772,37 @@ const onDrop = (event) => {
     
     const rect = vueFlowElement.getBoundingClientRect()
     
-    // 计算容器中心的屏幕坐标
+    // 获取当前视口状态
+    const currentViewport = viewport.value
+    const currentZoom = currentViewport?.zoom || 1
+    const currentX = currentViewport?.x || 0
+    const currentY = currentViewport?.y || 0
+    
+    // 计算当前视口中心在画布坐标系中的位置
+    // 视口中心的屏幕坐标
     const screenCenterX = rect.width / 2
     const screenCenterY = rect.height / 2
     
-    console.log('容器信息:', {
-      容器位置: { left: rect.left, top: rect.top },
+    // 转换为画布坐标：考虑视口的缩放和平移
+    // 公式：(屏幕坐标 - 视口平移) / 缩放
+    const canvasX = (screenCenterX - currentX) / currentZoom
+    const canvasY = (screenCenterY - currentY) / currentZoom
+    
+    console.log('放置节点到当前视野中心:', {
       容器尺寸: { width: rect.width, height: rect.height },
-      屏幕中心点: { x: screenCenterX, y: screenCenterY }
+      屏幕中心: { x: screenCenterX, y: screenCenterY },
+      视口状态: { zoom: currentZoom, x: currentX, y: currentY },
+      画布坐标: { x: Math.round(canvasX), y: Math.round(canvasY) }
     })
     
-    // 使用 project 函数将屏幕坐标转换为画布坐标
-    const canvasPosition = project({ x: screenCenterX, y: screenCenterY })
-    
-    console.log('画布坐标:', canvasPosition)
-    
-    // 创建节点在视口中央
+    // 创建节点在当前视野中央
     addNodeAtPosition(
       draggedNodeType, 
-      Math.round(canvasPosition.x),
-      Math.round(canvasPosition.y)
+      Math.round(canvasX),
+      Math.round(canvasY)
     )
     
-    ElMessage.success('节点已添加到视口中央')
+    ElMessage.success('节点已添加到当前视野中央')
   } catch (error) {
     console.error('拖放节点失败:', error, error.stack)
     // 降级方案：使用固定位置
