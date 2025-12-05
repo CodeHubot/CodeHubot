@@ -721,6 +721,21 @@
             <div class="label">当前引用:</div>
             <div class="value">{{ getFullReference() }}</div>
           </div>
+
+          <div v-if="selectedVariable?.children?.length" style="margin-bottom: 16px;">
+            <div style="margin-bottom: 8px; font-size: 14px; color: #606266;">可选属性:</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <el-tag 
+                v-for="child in selectedVariable.children"
+                :key="child.name"
+                style="cursor: pointer;"
+                :effect="subPropertyPath === child.name ? 'dark' : 'plain'"
+                @click="subPropertyPath = child.name"
+              >
+                {{ child.label || child.name }}
+              </el-tag>
+            </div>
+          </div>
           
           <el-form-item label="子属性路径 (可选)">
             <el-input 
@@ -934,6 +949,17 @@ const getNodeOutputs = (node) => {
       break
     case 'llm':
       outputs.push({ name: 'response', type: 'string', label: 'LLM回复', desc: 'AI生成的文本' })
+      outputs.push({
+        name: 'usage',
+        type: 'object',
+        label: 'Token消耗',
+        desc: 'Token使用统计',
+        children: [
+          { name: 'prompt_tokens', label: '提示词Token' },
+          { name: 'completion_tokens', label: '生成Token' },
+          { name: 'total_tokens', label: '总Token' }
+        ]
+      })
       break
     case 'http':
       outputs.push({ name: 'status', type: 'number', label: '状态码', desc: 'HTTP状态码' })
@@ -1039,8 +1065,8 @@ const openVarSelector = (targetObj, fieldName) => {
 // 选择变量
 const selectVariable = (variable) => {
   selectedVariable.value = variable
-  // 如果是对象或Any类型，进入配置模式
-  if (['object', 'any', 'array'].includes(variable.type)) {
+  // 如果是对象或Any类型，或者有定义子属性，进入配置模式
+  if (['object', 'any', 'array'].includes(variable.type) || variable.children?.length > 0) {
     subPropertyPath.value = ''
     showVarConfig.value = true
   } else {
