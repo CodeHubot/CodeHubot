@@ -80,8 +80,15 @@
           </div>
           
           <div class="output-content">
-            <div v-if="runResult?.output" class="code-block">
-              {{ formatOutput(runResult.output) }}
+            <!-- 使用 Markdown 查看器显示输出 -->
+            <div v-if="runResult?.output">
+              <MarkdownViewer 
+                v-if="isMarkdownContent(formattedOutput)"
+                :content="formattedOutput"
+              />
+              <div v-else class="code-block">
+                {{ formattedOutput }}
+              </div>
             </div>
             <div v-if="runResult?.error_message" class="error-msg">
               {{ runResult.error_message }}
@@ -136,9 +143,19 @@
                   <!-- 节点输出 -->
                   <div class="detail-section">
                     <div class="detail-label">输出</div>
-                    <div class="code-block small" :class="{ error: node.status === 'failed' }">
-                      {{ node.status === 'failed' ? node.error_message : formatOutput(node.output) }}
+                    <div v-if="node.status === 'failed'" class="code-block small error">
+                      {{ node.error_message }}
                     </div>
+                    <template v-else>
+                      <MarkdownViewer 
+                        v-if="isMarkdownContent(formatOutput(node.output))"
+                        :content="formatOutput(node.output)"
+                        class="small-viewer"
+                      />
+                      <div v-else class="code-block small">
+                        {{ formatOutput(node.output) }}
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -154,6 +171,7 @@
 import { ref, computed, watch } from 'vue'
 import { VideoPlay, Close, Edit, Checked, CircleCheck, CircleClose, ArrowRight } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import MarkdownViewer from '@/components/common/MarkdownViewer.vue'
 
 const props = defineProps({
   nodes: {
@@ -243,6 +261,37 @@ const formatOutput = (val) => {
     return JSON.stringify(val, null, 2)
   }
   return val
+}
+
+// 格式化后的输出（用于显示）
+const formattedOutput = computed(() => {
+  if (!props.runResult?.output) return ''
+  return formatOutput(props.runResult.output)
+})
+
+// 判断内容是否包含 Markdown 标记
+const isMarkdownContent = (content) => {
+  if (!content || typeof content !== 'string') return false
+  
+  // 检查是否包含常见的 Markdown 标记
+  const markdownPatterns = [
+    /^#{1,6}\s/m,           // 标题 (# ## ###)
+    /\*\*.*?\*\*/,          // 粗体 (**text**)
+    /\*.*?\*/,              // 斜体 (*text*)
+    /\[.*?\]\(.*?\)/,       // 链接 [text](url)
+    /^\s*[-*+]\s/m,         // 无序列表
+    /^\s*\d+\.\s/m,         // 有序列表
+    /^>\s/m,                // 引用
+    /```[\s\S]*?```/,       // 代码块
+    /`[^`]+`/,              // 行内代码
+    /^\s*\|.+\|/m,          // 表格
+    /^---+$/m,              // 分隔线
+    /!\[.*?\]\(.*?\)/       // 图片
+  ]
+  
+  // 如果匹配到2个或以上的 Markdown 模式，认为是 Markdown 内容
+  const matchCount = markdownPatterns.filter(pattern => pattern.test(content)).length
+  return matchCount >= 2
 }
 
 const formatTime = (time) => {
@@ -492,6 +541,24 @@ const handleRun = () => {
 
 :deep(.el-input-number) {
   width: 100%;
+}
+
+/* Markdown 查看器样式调整 */
+:deep(.small-viewer) {
+  font-size: 12px;
+}
+
+:deep(.small-viewer .viewer-content) {
+  max-height: 300px;
+  padding: 12px;
+}
+
+:deep(.small-viewer .viewer-toolbar) {
+  padding: 6px 10px;
+}
+
+:deep(.small-viewer .markdown-body) {
+  font-size: 12px;
 }
 </style>
 

@@ -43,7 +43,11 @@
         <!-- 输出结果 -->
         <div v-if="status === 'completed' && output" class="output-section">
           <h4>输出结果</h4>
-          <pre class="output-content">{{ formatOutput(output) }}</pre>
+          <MarkdownViewer 
+            v-if="isMarkdownContent(formattedOutput)"
+            :content="formattedOutput"
+          />
+          <pre v-else class="output-content">{{ formattedOutput }}</pre>
         </div>
 
         <!-- 节点执行记录 -->
@@ -62,7 +66,12 @@
             <el-table-column prop="execution_time" label="执行时间(ms)" width="120" />
             <el-table-column label="输出" min-width="200">
               <template #default="{ row }">
-                <pre class="node-output">{{ formatOutput(row.output) }}</pre>
+                <MarkdownViewer 
+                  v-if="isMarkdownContent(formatOutput(row.output))"
+                  :content="formatOutput(row.output)"
+                  class="table-viewer"
+                />
+                <pre v-else class="node-output">{{ formatOutput(row.output) }}</pre>
               </template>
             </el-table-column>
           </el-table>
@@ -76,6 +85,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getExecution } from '@/api/workflow'
+import MarkdownViewer from '@/components/common/MarkdownViewer.vue'
 
 const props = defineProps({
   executionId: {
@@ -194,6 +204,37 @@ const formatOutput = (val) => {
   return val
 }
 
+// 格式化后的输出
+const formattedOutput = computed(() => {
+  if (!output.value) return ''
+  return formatOutput(output.value)
+})
+
+// 判断内容是否包含 Markdown 标记
+const isMarkdownContent = (content) => {
+  if (!content || typeof content !== 'string') return false
+  
+  // 检查是否包含常见的 Markdown 标记
+  const markdownPatterns = [
+    /^#{1,6}\s/m,           // 标题 (# ## ###)
+    /\*\*.*?\*\*/,          // 粗体 (**text**)
+    /\*.*?\*/,              // 斜体 (*text*)
+    /\[.*?\]\(.*?\)/,       // 链接 [text](url)
+    /^\s*[-*+]\s/m,         // 无序列表
+    /^\s*\d+\.\s/m,         // 有序列表
+    /^>\s/m,                // 引用
+    /```[\s\S]*?```/,       // 代码块
+    /`[^`]+`/,              // 行内代码
+    /^\s*\|.+\|/m,          // 表格
+    /^---+$/m,              // 分隔线
+    /!\[.*?\]\(.*?\)/       // 图片
+  ]
+  
+  // 如果匹配到2个或以上的 Markdown 模式，认为是 Markdown 内容
+  const matchCount = markdownPatterns.filter(pattern => pattern.test(content)).length
+  return matchCount >= 2
+}
+
 // 格式化日期
 const formatDate = (date) => {
   if (!date) return '-'
@@ -293,6 +334,25 @@ onUnmounted(() => {
   font-size: 12px;
   max-width: 300px;
   overflow-x: auto;
+}
+
+/* Markdown 查看器在表格中的样式 */
+:deep(.table-viewer) {
+  font-size: 12px;
+  max-width: 400px;
+}
+
+:deep(.table-viewer .viewer-content) {
+  max-height: 200px;
+  padding: 8px;
+}
+
+:deep(.table-viewer .viewer-toolbar) {
+  padding: 4px 8px;
+}
+
+:deep(.table-viewer .markdown-body) {
+  font-size: 12px;
 }
 </style>
 
