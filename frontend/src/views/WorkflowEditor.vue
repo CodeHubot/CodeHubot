@@ -559,54 +559,100 @@
           <template v-if="selectedNode.data.nodeType === 'string'">
             <el-form-item label="操作类型">
               <el-select v-model="selectedNode.data.operation" placeholder="选择操作">
-                <el-option label="拼接字符串" value="concat" />
-                <el-option label="替换文本" value="replace" />
-                <el-option label="截取字符串" value="substring" />
-                <el-option label="格式化" value="format" />
-                <el-option label="去除空格" value="trim" />
-                <el-option label="转大写" value="upper" />
-                <el-option label="转小写" value="lower" />
-                <el-option label="分割字符串" value="split" />
-                <el-option label="提取正则" value="regex" />
+                <el-option label="📝 文本模板（推荐）" value="template" />
+                <el-option label="➕ 拼接字符串" value="concat" />
+                <el-option label="🔄 替换文本" value="replace" />
+                <el-option label="✂️ 分割字符串" value="split" />
+                <el-option label="📏 截取字符串" value="substring" />
+                <el-option label="🧹 去除空格" value="trim" />
+                <el-option label="🔠 转大写" value="upper" />
+                <el-option label="🔡 转小写" value="lower" />
+                <el-option label="🔍 正则提取" value="regex" />
               </el-select>
             </el-form-item>
 
-            <el-form-item label="输入字符串">
-              <el-input
-                v-model="selectedNode.data.inputString"
-                placeholder="支持变量: {input.text} 或 {node-id.result}"
-              />
+            <!-- 模板模式（最简单） -->
+            <template v-if="selectedNode.data.operation === 'template'">
+              <el-form-item label="文本模板">
+                <div class="input-with-var">
+                  <el-input
+                    v-model="selectedNode.data.template"
+                    type="textarea"
+                    :rows="6"
+                    placeholder="直接编写文本，支持变量引用：
+你好，{input.name}！
+
+根据你的问题：{input.query}
+
+我的回答是：{llm-1.response}"
+                  />
+                  <el-button class="var-trigger" size="small" @click="openVarSelector(selectedNode.data, 'template')">
+                    {x}
+                  </el-button>
+                </div>
+                <div class="help-text">最简单的方式：直接编写文本，用 {变量名} 引用其他节点的输出</div>
+              </el-form-item>
+            </template>
+
+            <!-- 其他操作需要输入 -->
+            <el-form-item label="输入文本" v-if="selectedNode.data.operation !== 'template'">
+              <div class="input-with-var">
+                <el-input
+                  v-model="selectedNode.data.input"
+                  placeholder="支持变量: {input.text} 或 {llm-1.response}"
+                />
+                <el-button class="var-trigger" size="small" @click="openVarSelector(selectedNode.data, 'input')">
+                  {x}
+                </el-button>
+              </div>
             </el-form-item>
 
             <!-- 拼接 -->
             <template v-if="selectedNode.data.operation === 'concat'">
-              <el-form-item label="拼接字符串列表">
-                <el-input
-                  v-model="selectedNode.data.concatStrings"
-                  type="textarea"
-                  :rows="4"
-                  placeholder='每行一个字符串:
+              <el-form-item label="要拼接的文本">
+                <div class="input-with-var">
+                  <el-input
+                    v-model="selectedNode.data.texts"
+                    type="textarea"
+                    :rows="5"
+                    placeholder="每行一个文本，支持变量：
 {input.text}
-{llm-node.response}
-固定文本'
-                />
+{llm-1.response}
+固定文本内容"
+                  />
+                  <el-button class="var-trigger" size="small" @click="openVarSelector(selectedNode.data, 'texts')">
+                    {x}
+                  </el-button>
+                </div>
               </el-form-item>
               <el-form-item label="分隔符">
-                <el-input v-model="selectedNode.data.separator" placeholder="如: 空格、逗号、换行等" />
+                <el-input v-model="selectedNode.data.separator" placeholder="如: 空格、逗号、换行 (\n)" />
               </el-form-item>
             </template>
 
             <!-- 替换 -->
             <template v-if="selectedNode.data.operation === 'replace'">
-              <el-form-item label="查找文本">
-                <el-input v-model="selectedNode.data.findText" placeholder="要替换的文本" />
+              <el-form-item label="查找内容">
+                <el-input v-model="selectedNode.data.find" placeholder="要查找的文本" />
               </el-form-item>
               <el-form-item label="替换为">
-                <el-input v-model="selectedNode.data.replaceText" placeholder="新文本" />
+                <el-input v-model="selectedNode.data.replace_with" placeholder="替换成的文本" />
               </el-form-item>
               <el-form-item>
-                <el-checkbox v-model="selectedNode.data.replaceAll">替换所有</el-checkbox>
-                <el-checkbox v-model="selectedNode.data.caseSensitive">区分大小写</el-checkbox>
+                <el-checkbox v-model="selectedNode.data.replace_all">替换所有匹配</el-checkbox>
+                <el-checkbox v-model="selectedNode.data.case_sensitive">区分大小写</el-checkbox>
+              </el-form-item>
+            </template>
+
+            <!-- 分割 -->
+            <template v-if="selectedNode.data.operation === 'split'">
+              <el-form-item label="分隔符">
+                <el-input v-model="selectedNode.data.separator" placeholder="如: 逗号、空格、换行(\n)" />
+                <div class="help-text">将文本按分隔符分割成列表</div>
+              </el-form-item>
+              <el-form-item label="最大分割次数">
+                <el-input-number v-model="selectedNode.data.max_split" :min="-1" />
+                <div class="help-text">-1 表示不限制</div>
               </el-form-item>
             </template>
 
@@ -615,12 +661,13 @@
               <el-row :gutter="16">
                 <el-col :span="12">
                   <el-form-item label="开始位置">
-                    <el-input-number v-model="selectedNode.data.startIndex" :min="0" />
+                    <el-input-number v-model="selectedNode.data.start" :min="0" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
                   <el-form-item label="结束位置">
-                    <el-input-number v-model="selectedNode.data.endIndex" :min="0" />
+                    <el-input-number v-model="selectedNode.data.end" :min="0" />
+                    <div class="help-text">0 表示到末尾</div>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -629,10 +676,14 @@
             <!-- 正则提取 -->
             <template v-if="selectedNode.data.operation === 'regex'">
               <el-form-item label="正则表达式">
-                <el-input v-model="selectedNode.data.regexPattern" placeholder="如: \d+, [a-z]+" />
+                <el-input v-model="selectedNode.data.pattern" placeholder="如: \d+, [a-zA-Z]+" />
               </el-form-item>
               <el-form-item label="提取组">
-                <el-input-number v-model="selectedNode.data.regexGroup" :min="0" />
+                <el-input-number v-model="selectedNode.data.group" :min="0" />
+                <div class="help-text">0 表示整个匹配，1+ 表示捕获组</div>
+              </el-form-item>
+              <el-form-item>
+                <el-checkbox v-model="selectedNode.data.find_all">查找所有匹配</el-checkbox>
               </el-form-item>
             </template>
           </template>
@@ -988,7 +1039,14 @@ const getNodeOutputs = (node) => {
       outputs.push({ name: 'confidence', type: 'number', label: '置信度', desc: '识别可信度' })
       break
     case 'string':
-      outputs.push({ name: 'result', type: 'string', label: '处理结果', desc: '字符串操作结果' })
+      outputs.push({ name: 'result', type: 'string', label: '处理结果', desc: '字符串操作后的结果' })
+      outputs.push({ name: 'text', type: 'string', label: '文本内容', desc: 'result的别名' })
+      outputs.push({ name: 'length', type: 'number', label: '文本长度', desc: '字符数量' })
+      outputs.push({ name: 'is_empty', type: 'boolean', label: '是否为空', desc: '文本是否为空' })
+      outputs.push({ name: 'list', type: 'array', label: '列表结果', desc: '分割后的列表（split操作）' })
+      outputs.push({ name: 'count', type: 'number', label: '列表长度', desc: '分割后的项目数' })
+      outputs.push({ name: 'first', type: 'string', label: '第一项', desc: '列表的第一项' })
+      outputs.push({ name: 'last', type: 'string', label: '最后一项', desc: '列表的最后一项' })
       break
   }
   
@@ -1221,11 +1279,21 @@ const createNode = (nodeType, x, y) => {
       confidenceThreshold: 0.6,
       intentCategories: [],
       // 字符串处理配置
-      operation: 'concat',
+      operation: 'template',
+      template: '',
+      input: '',
+      texts: '',
       separator: '',
-      replaceAll: true,
-      caseSensitive: false,
-      startIndex: 0
+      find: '',
+      replace_with: '',
+      replace_all: true,
+      case_sensitive: true,
+      start: 0,
+      end: 0,
+      max_split: -1,
+      pattern: '',
+      group: 0,
+      find_all: false
     }
   }
 
