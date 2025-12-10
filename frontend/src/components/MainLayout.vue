@@ -1423,8 +1423,8 @@ onUnmounted(() => {
 }
 
 .content-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 /* 移动端遮罩层 */
