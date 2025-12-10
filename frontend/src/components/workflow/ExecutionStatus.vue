@@ -43,7 +43,7 @@
         <!-- 输出结果 -->
         <div v-if="status === 'completed' && output" class="output-section">
           <h4>输出结果</h4>
-          <pre class="output-content">{{ JSON.stringify(output, null, 2) }}</pre>
+          <pre class="output-content">{{ formatOutput(output) }}</pre>
         </div>
 
         <!-- 节点执行记录 -->
@@ -62,7 +62,7 @@
             <el-table-column prop="execution_time" label="执行时间(ms)" width="120" />
             <el-table-column label="输出" min-width="200">
               <template #default="{ row }">
-                <pre class="node-output">{{ JSON.stringify(row.output, null, 2) }}</pre>
+                <pre class="node-output">{{ formatOutput(row.output) }}</pre>
               </template>
             </el-table-column>
           </el-table>
@@ -179,6 +179,19 @@ const stopPolling = () => {
 // 刷新状态
 const refreshStatus = () => {
   loadStatus()
+}
+
+// 格式化输出
+const formatOutput = (val) => {
+  if (typeof val === 'object' && val !== null) {
+    // 如果对象只有一个 output 字段，直接返回 output 的值
+    if (Object.keys(val).length === 1 && 'output' in val) {
+      return formatOutput(val.output) // 递归处理，防止 output 值也是对象
+    }
+    // 其他情况格式化为 JSON
+    return JSON.stringify(val, null, 2)
+  }
+  return val
 }
 
 // 格式化日期

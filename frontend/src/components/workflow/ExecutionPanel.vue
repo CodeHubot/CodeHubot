@@ -234,7 +234,12 @@ const getNodeLabel = (nodeId) => {
 }
 
 const formatOutput = (val) => {
-  if (typeof val === 'object') {
+  if (typeof val === 'object' && val !== null) {
+    // 如果对象只有一个 output 字段，直接返回 output 的值
+    if (Object.keys(val).length === 1 && 'output' in val) {
+      return formatOutput(val.output) // 递归处理，防止 output 值也是对象
+    }
+    // 其他情况格式化为 JSON
     return JSON.stringify(val, null, 2)
   }
   return val
