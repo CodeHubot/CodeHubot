@@ -1800,6 +1800,12 @@ const handleRun = async () => {
   // 先保存
   await saveWorkflow()
   
+  // 检查保存是否成功（必须有UUID才能执行）
+  if (!workflowUuid.value) {
+    ElMessage.error('工作流保存失败，无法执行')
+    return
+  }
+  
   // 找到开始节点
   const startNode = nodes.value.find(n => n.data.nodeType === 'start')
   if (!startNode) {
@@ -1816,6 +1822,12 @@ const handleRun = async () => {
 
 // 确认运行
 const confirmRun = async (params) => {
+  // 检查工作流是否已保存
+  if (!workflowUuid.value) {
+    ElMessage.error('工作流尚未保存，无法执行')
+    return
+  }
+  
   // 验证必填参数
   for (const param of startNodeParams.value) {
     if (param.required && !params[param.name] && params[param.name] !== 0 && params[param.name] !== false) {
