@@ -35,6 +35,21 @@ class WorkflowEdge(BaseModel):
     sourceHandle: Optional[str] = Field(None, description="源节点句柄")
     targetHandle: Optional[str] = Field(None, description="目标节点句柄")
     label: Optional[str] = Field(None, description="边标签（可选）")
+    condition: Optional[Dict[str, Any]] = Field(None, description="条件配置（用于条件分支）")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "edge-1",
+                "source": "intent-1",
+                "target": "llm-1",
+                "condition": {
+                    "type": "intent_match",
+                    "field": "intent",
+                    "value": "查询天气"
+                }
+            }
+        }
 
 
 # ============================================================================

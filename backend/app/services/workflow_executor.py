@@ -54,8 +54,24 @@ class WorkflowExecutor:
             execution_order = self._get_execution_order(nodes, edges)
             logger.info(f"节点执行顺序: {[node.id for node in execution_order]}")
             
-            # 3. 串行执行每个节点
+            # 3. 串行执行每个节点（支持条件分支）
             for node in execution_order:
+                # 检查节点是否应该执行（条件路由）
+                if not self._should_execute_node(node, edges):
+                    logger.info(f"跳过节点: {node.id} ({node.type}) - 条件不满足")
+                    
+                    # 记录跳过的节点
+                    self.node_results[node.id] = NodeExecutionResult(
+                        node_id=node.id,
+                        node_type=node.type,
+                        status="skipped",
+                        output=None,
+                        execution_time=0,
+                        started_at=get_beijing_time_naive(),
+                        completed_at=get_beijing_time_naive()
+                    )
+                    continue
+                
                 logger.info(f"执行节点: {node.id} ({node.type})")
                 node_start_time = get_beijing_time_naive()
                 
@@ -226,6 +242,102 @@ class WorkflowExecutor:
                     queue.append(neighbor)
         
         return result
+    
+    def _should_execute_node(self, node: WorkflowNode, edges: List[WorkflowEdge]) -> bool:
+        """
+        判断节点是否应该被执行（条件路由）
+        
+        对于有条件分支的节点，检查所有入边的条件，
+        如果所有入边都有条件且都不满足，则跳过该节点
+        
+        Args:
+            node: 待判断的节点
+            edges: 所有边
+            
+        Returns:
+            bool: 是否应该执行该节点
+        """
+        # 找到所有指向该节点的边
+        incoming_edges = [edge for edge in edges if edge.target == node.id]
+        
+        # 如果没有入边，说明是开始节点，总是执行
+        if not incoming_edges:
+            return True
+        
+        # 如果所有入边都没有条件，总是执行
+        if all(not edge.condition for edge in incoming_edges):
+            return True
+        
+        # 检查至少有一条入边满足条件
+        for edge in incoming_edges:
+            source_id = edge.source
+            
+            # 如果源节点还没执行，暂时认为应该执行
+            if source_id not in self.execution_context:
+                continue
+            
+            source_output = self.execution_context[source_id]
+            
+            # 如果边没有条件，或条件满足，则执行
+            if not edge.condition or self._check_edge_condition(edge, source_output):
+                logger.info(f"节点 {node.id} 的入边 {edge.id} 条件满足，将执行该节点")
+                return True
+        
+        # 所有带条件的入边都不满足，跳过该节点
+        logger.info(f"节点 {node.id} 的所有条件入边都不满足，跳过执行")
+        return False
+    
+    def _check_edge_condition(self, edge: WorkflowEdge, source_output: Dict[str, Any]) -> bool:
+        """
+        检查边的条件是否满足
+        
+        Args:
+            edge: 边对象
+            source_output: 源节点的输出
+            
+        Returns:
+            bool: 条件是否满足
+        """
+        # 如果边没有条件，默认满足
+        if not edge.condition:
+            return True
+        
+        condition = edge.condition
+        condition_type = condition.get("type")
+        
+        if condition_type == "intent_match":
+            # 意图匹配条件
+            field = condition.get("field", "intent")
+            expected_value = condition.get("value")
+            actual_value = source_output.get(field)
+            
+            match = (actual_value == expected_value)
+            logger.info(f"条件判断 [{edge.id}]: {field}={actual_value} == {expected_value} => {match}")
+            return match
+            
+        elif condition_type == "field_equals":
+            # 字段值相等条件
+            field = condition.get("field")
+            expected_value = condition.get("value")
+            actual_value = source_output.get(field)
+            
+            return actual_value == expected_value
+            
+        elif condition_type == "field_contains":
+            # 字段包含条件
+            field = condition.get("field")
+            search_value = condition.get("value")
+            actual_value = str(source_output.get(field, ""))
+            
+            return search_value in actual_value
+        
+        elif condition_type == "always":
+            # 总是执行（默认分支）
+            return True
+        
+        # 未知条件类型，默认满足
+        logger.warning(f"未知的条件类型: {condition_type}，默认执行")
+        return True
     
     async def _execute_node(self, node: WorkflowNode, db_session) -> Dict[str, Any]:
         """

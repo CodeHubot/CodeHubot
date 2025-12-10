@@ -157,10 +157,114 @@
     <!-- 右侧配置抽屉 -->
     <el-drawer
       v-model="showConfigDrawer"
-      :title="`配置: ${selectedNode?.data.label || ''}`"
+      :title="selectedNode ? `配置: ${selectedNode.data.label}` : selectedEdge ? '连线条件配置' : '配置'"
       size="500px"
       direction="rtl"
     >
+      <!-- 边的配置 -->
+      <div v-if="selectedEdge && !selectedNode" class="config-content">
+        <el-form label-position="top">
+          <el-divider content-position="left">连线信息</el-divider>
+          
+          <el-form-item label="连线标签">
+            <el-input 
+              v-model="selectedEdge.label" 
+              placeholder="可选，显示在连线上的文字"
+              clearable
+            />
+            <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+              例如："是"、"否"、"查询天气"等
+            </div>
+          </el-form-item>
+
+          <el-divider content-position="left">条件配置</el-divider>
+          
+          <el-form-item label="条件类型">
+            <el-select 
+              v-model="selectedEdge.condition" 
+              placeholder="选择条件类型" 
+              @change="onConditionTypeChange"
+              clearable
+            >
+              <el-option label="无条件（默认）" :value="null" />
+              <el-option label="意图匹配" value="intent_match" />
+              <el-option label="字段值相等" value="field_equals" />
+              <el-option label="字段包含文本" value="field_contains" />
+              <el-option label="总是执行" value="always" />
+            </el-select>
+            <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+              用于条件分支，根据上一个节点的输出决定是否执行此路径
+            </div>
+          </el-form-item>
+
+          <!-- 意图匹配配置 -->
+          <template v-if="selectedEdge.condition === 'intent_match'">
+            <el-form-item label="字段名">
+              <el-input v-model="selectedEdge.conditionField" placeholder="默认: intent" />
+            </el-form-item>
+            <el-form-item label="匹配值">
+              <el-input 
+                v-model="selectedEdge.conditionValue" 
+                placeholder="例如: 查询天气" 
+                required
+              />
+              <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                当上一个节点输出的意图等于此值时，执行此路径
+              </div>
+            </el-form-item>
+          </template>
+
+          <!-- 字段相等配置 -->
+          <template v-if="selectedEdge.condition === 'field_equals'">
+            <el-form-item label="字段名">
+              <el-input 
+                v-model="selectedEdge.conditionField" 
+                placeholder="例如: status" 
+                required
+              />
+            </el-form-item>
+            <el-form-item label="匹配值">
+              <el-input 
+                v-model="selectedEdge.conditionValue" 
+                placeholder="例如: success" 
+                required
+              />
+            </el-form-item>
+          </template>
+
+          <!-- 字段包含配置 -->
+          <template v-if="selectedEdge.condition === 'field_contains'">
+            <el-form-item label="字段名">
+              <el-input 
+                v-model="selectedEdge.conditionField" 
+                placeholder="例如: result" 
+                required
+              />
+            </el-form-item>
+            <el-form-item label="包含文本">
+              <el-input 
+                v-model="selectedEdge.conditionValue" 
+                placeholder="例如: error" 
+                required
+              />
+            </el-form-item>
+          </template>
+
+          <el-divider />
+
+          <div style="display: flex; gap: 12px;">
+            <el-button type="danger" @click="deleteSelectedEdge" style="flex: 1;">
+              <el-icon><Delete /></el-icon>
+              删除连线
+            </el-button>
+            <el-button @click="showConfigDrawer = false; selectedEdgeId = null" style="flex: 1;">
+              关闭
+            </el-button>
+          </div>
+        </el-form>
+      </div>
+
+      <!-- 节点的配置 -->
       <div v-if="selectedNode" class="config-content">
         <el-form :model="selectedNode.data" label-position="top">
           <!-- 基础信息 -->
@@ -497,62 +601,114 @@
 
           <!-- 意图识别节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'intent'">
-            <el-form-item label="输入文本">
-              <el-input
-                v-model="selectedNode.data.inputText"
-                placeholder="支持变量: {input.query}"
-              />
+            <el-alert type="info" :closable="false" style="margin-bottom: 16px;">
+              <template #title>
+                <div style="font-size: 13px;">
+                  🎯 意图识别用于条件分支：根据用户输入识别意图，然后通过设置不同的<strong>连线条件</strong>执行不同的路径
+                </div>
+              </template>
+            </el-alert>
+
+            <el-form-item label="输入文本" required>
+              <div class="input-with-var">
+                <el-input
+                  v-model="selectedNode.data.input_text"
+                  placeholder="例如: {input.query} 或 {start-1.user_input}"
+                />
+                <el-button class="var-trigger" size="small" @click="openVarSelector(selectedNode.data, 'input_text')">
+                  {x}
+                </el-button>
+              </div>
+              <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                待识别的文本内容，通常来自用户输入或上一个节点的输出
+              </div>
             </el-form-item>
 
-            <el-form-item label="意图类别">
+            <el-form-item label="意图类别" required>
               <el-select
-                v-model="selectedNode.data.intentCategories"
+                v-model="selectedNode.data.intent_categories"
                 multiple
                 filterable
                 allow-create
-                placeholder="输入意图类别后回车添加"
+                placeholder="输入意图类别后按回车添加，例如：查询天气、播放音乐、控制设备"
                 style="width: 100%"
               >
-                <el-option label="问答" value="qa" />
-                <el-option label="闲聊" value="chat" />
-                <el-option label="查询" value="query" />
-                <el-option label="命令" value="command" />
+                <el-option label="🌤️ 查询天气" value="查询天气" />
+                <el-option label="🎵 播放音乐" value="播放音乐" />
+                <el-option label="💡 控制设备" value="控制设备" />
+                <el-option label="❓ 问答查询" value="问答查询" />
+                <el-option label="💬 闲聊对话" value="闲聊对话" />
+                <el-option label="🔍 搜索信息" value="搜索信息" />
               </el-select>
+              <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                支持自定义意图，输入后按回车即可添加。添加后需要在<strong>连线上配置对应的条件</strong>
+              </div>
             </el-form-item>
 
             <el-form-item label="识别方式">
-              <el-radio-group v-model="selectedNode.data.recognitionMode">
-                <el-radio label="llm">LLM识别</el-radio>
-                <el-radio label="keyword">关键词匹配</el-radio>
+              <el-radio-group v-model="selectedNode.data.recognition_mode">
+                <el-radio value="llm">🤖 LLM智能识别（推荐）</el-radio>
+                <el-radio value="keyword">🔑 关键词匹配</el-radio>
               </el-radio-group>
             </el-form-item>
 
-            <el-form-item v-if="selectedNode.data.recognitionMode === 'llm'" label="使用模型">
-              <el-select v-model="selectedNode.data.llmModel" placeholder="选择LLM模型">
-                <el-option label="GPT-4" value="gpt-4" />
-                <el-option label="GPT-3.5" value="gpt-3.5-turbo" />
-                <el-option label="Qwen-Max" value="qwen-max" />
-                <el-option label="Qwen-Plus" value="qwen-plus" />
+            <el-form-item v-if="selectedNode.data.recognition_mode === 'llm'" label="使用智能体" required>
+              <el-select v-model="selectedNode.data.agent_uuid" placeholder="选择智能体" filterable>
+                <el-option
+                  v-for="agent in agents"
+                  :key="agent.uuid"
+                  :label="`${agent.name} ${agent.llm_model_name ? `(${agent.llm_model_name})` : ''}`"
+                  :value="agent.uuid"
+                >
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ agent.name }}</span>
+                    <span style="color: #909399; font-size: 12px;">{{ agent.llm_model_name }}</span>
+                  </div>
+                </el-option>
               </el-select>
+              <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                使用智能体的LLM模型进行意图识别，准确度更高
+              </div>
             </el-form-item>
 
-            <el-form-item v-if="selectedNode.data.recognitionMode === 'keyword'" label="关键词映射">
+            <el-form-item v-if="selectedNode.data.recognition_mode === 'keyword'" label="关键词映射" required>
               <el-input
-                v-model="selectedNode.data.keywordMapping"
+                v-model="selectedNode.data.keyword_mapping"
                 type="textarea"
-                :rows="6"
-                placeholder='JSON格式:
+                :rows="8"
+                placeholder='JSON格式，将意图类别映射到关键词：
 {
-  "问答": ["问题", "怎么", "如何"],
-  "闲聊": ["你好", "天气", "聊天"],
-  "查询": ["查询", "查看", "搜索"]
+  "查询天气": ["天气", "气温", "下雨", "晴天"],
+  "播放音乐": ["播放", "音乐", "歌曲", "听歌"],
+  "控制设备": ["打开", "关闭", "控制", "设备"]
 }'
               />
+              <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                当输入文本包含某个意图的关键词时，识别为该意图
+              </div>
             </el-form-item>
 
+            <el-divider content-position="left">高级选项</el-divider>
+
             <el-form-item label="置信度阈值">
-              <el-slider v-model="selectedNode.data.confidenceThreshold" :min="0" :max="1" :step="0.05" show-input />
+              <el-slider v-model="selectedNode.data.confidence_threshold" :min="0" :max="1" :step="0.05" show-input />
+              <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+                识别结果的置信度低于此值时，判定为"未知"意图
+              </div>
             </el-form-item>
+
+            <el-divider />
+
+            <el-alert type="success" :closable="false">
+              <template #title>
+                <div style="font-size: 12px;">
+                  <strong>💡 使用提示</strong><br />
+                  1. 配置好意图类别后，点击节点出来的<strong>连线</strong><br />
+                  2. 在连线上设置<strong>条件</strong>，例如"意图匹配=查询天气"<br />
+                  3. 这样就能根据不同意图执行不同的节点路径
+                </div>
+              </template>
+            </el-alert>
           </template>
 
           <!-- 字符串处理节点配置 -->
@@ -952,6 +1108,7 @@ import {
 } from '@/api/workflow'
 import { getActiveLLMModels } from '@/api/llm-model'
 import { getKnowledgeBases } from '@/api/knowledgeBases'
+import { getAgents } from '@/api/agent'
 import ExecutionPanel from '@/components/workflow/ExecutionPanel.vue'
 
 const route = useRoute()
@@ -964,6 +1121,7 @@ const workflowUuid = ref(route.params.uuid)
 const saving = ref(false)
 const running = ref(false)
 const selectedNodeId = ref(null)
+const selectedEdgeId = ref(null)
 const showConfigDrawer = ref(false)
 const showExecutionPanel = ref(false)
 
@@ -975,6 +1133,7 @@ const startNodeParams = ref([])
 const runResult = ref(null)
 const llmModelOptions = ref([])
 const knowledgeBases = ref([])
+const agents = ref([])
 
 // 节点和边
 const nodes = ref([])
@@ -1035,8 +1194,12 @@ const getNodeOutputs = (node) => {
       outputs.push({ name: 'kb_name', type: 'string', label: '知识库名称', desc: '检索的知识库名称' })
       break
     case 'intent':
-      outputs.push({ name: 'category', type: 'string', label: '意图分类', desc: '识别出的意图' })
-      outputs.push({ name: 'confidence', type: 'number', label: '置信度', desc: '识别可信度' })
+      outputs.push({ name: 'intent', type: 'string', label: '意图类别', desc: '识别出的意图' })
+      outputs.push({ name: 'category', type: 'string', label: '意图分类', desc: 'intent的别名' })
+      outputs.push({ name: 'confidence', type: 'number', label: '置信度', desc: '识别可信度(0-1)' })
+      outputs.push({ name: 'is_match', type: 'boolean', label: '是否匹配', desc: '是否匹配到意图' })
+      outputs.push({ name: 'method', type: 'string', label: '识别方法', desc: 'llm或keyword' })
+      outputs.push({ name: 'input_text', type: 'string', label: '输入文本', desc: '原始输入' })
       break
     case 'string':
       outputs.push({ name: 'result', type: 'string', label: '处理结果', desc: '字符串操作后的结果' })
@@ -1201,6 +1364,11 @@ const selectedNode = computed(() => {
   return nodes.value.find(n => n.id === selectedNodeId.value)
 })
 
+// 选中的边
+const selectedEdge = computed(() => {
+  return edges.value.find(e => e.id === selectedEdgeId.value)
+})
+
 // 检查是否已有某类型节点
 const hasNodeType = (type) => {
   return nodes.value.some(n => n.data.nodeType === type)
@@ -1275,9 +1443,12 @@ const createNode = (nodeType, x, y) => {
       top_k: 5,
       similarity_threshold: 0.7,
       // 意图识别配置
-      recognitionMode: 'llm',
-      confidenceThreshold: 0.6,
-      intentCategories: [],
+      recognition_mode: 'llm',
+      confidence_threshold: 0.6,
+      intent_categories: [],
+      input_text: '',
+      agent_uuid: '',
+      keyword_mapping: '',
       // 字符串处理配置
       operation: 'template',
       template: '',
@@ -1306,6 +1477,7 @@ onMounted(() => {
   loadWorkflow()
   loadLLMModels()
   loadKnowledgeBases()
+  loadAgents()
 })
 
 // 加载 LLM 模型
@@ -1366,6 +1538,28 @@ const loadKnowledgeBases = async () => {
   } catch (error) {
     console.error('加载知识库失败:', error)
     ElMessage.warning('加载知识库列表失败，请检查网络连接')
+  }
+}
+
+// 加载智能体列表
+const loadAgents = async () => {
+  try {
+    const res = await getAgents({ page: 1, page_size: 100 })
+    // 提取智能体列表
+    const agentList = res.data?.agents || res.data?.items || res.data || []
+    
+    agents.value = agentList.map(agent => ({
+      uuid: agent.uuid,
+      name: agent.name,
+      description: agent.description,
+      llm_model_name: agent.llm_model_name || '未配置模型',
+      llm_model_id: agent.llm_model_id
+    }))
+    
+    console.log('智能体加载完成:', agents.value.length, '个')
+  } catch (error) {
+    console.error('加载智能体失败:', error)
+    // 不显示错误消息，可能是权限问题
   }
 }
 
@@ -1558,10 +1752,48 @@ const onNodeClick = ({ node }) => {
   showConfigDrawer.value = true
 }
 
-// 边点击（删除连线）
+// 边点击（选中边进行配置）
 const onEdgeClick = ({ edge }) => {
-  const sourceNode = nodes.value.find(n => n.id === edge.source)
-  const targetNode = nodes.value.find(n => n.id === edge.target)
+  selectedNodeId.value = null  // 清空节点选择
+  selectedEdgeId.value = edge.id  // 选中边
+  
+  // 确保边有条件数据结构
+  const edgeData = edges.value.find(e => e.id === edge.id)
+  if (edgeData && !edgeData.condition) {
+    edgeData.condition = null  // 初始化为无条件
+  }
+  if (edgeData && !edgeData.label) {
+    edgeData.label = null  // 初始化标签
+  }
+  
+  showConfigDrawer.value = true
+}
+
+// 条件类型改变时初始化字段
+const onConditionTypeChange = (value) => {
+  if (!selectedEdge.value) return
+  
+  if (value === null || value === 'always') {
+    // 无条件或总是执行，清空字段
+    selectedEdge.value.conditionField = ''
+    selectedEdge.value.conditionValue = ''
+  } else if (value === 'intent_match') {
+    // 意图匹配，默认字段为intent
+    selectedEdge.value.conditionField = 'intent'
+    selectedEdge.value.conditionValue = selectedEdge.value.conditionValue || ''
+  } else {
+    // 其他条件，清空字段让用户填写
+    selectedEdge.value.conditionField = selectedEdge.value.conditionField || ''
+    selectedEdge.value.conditionValue = selectedEdge.value.conditionValue || ''
+  }
+}
+
+// 删除选中的边
+const deleteSelectedEdge = () => {
+  if (!selectedEdge.value) return
+  
+  const sourceNode = nodes.value.find(n => n.id === selectedEdge.value.source)
+  const targetNode = nodes.value.find(n => n.id === selectedEdge.value.target)
   const fromName = sourceNode?.data.label || '节点'
   const toName = targetNode?.data.label || '节点'
   
@@ -1575,7 +1807,9 @@ const onEdgeClick = ({ edge }) => {
       center: true
     }
   ).then(() => {
-    edges.value = edges.value.filter(e => e.id !== edge.id)
+    edges.value = edges.value.filter(e => e.id !== selectedEdge.value.id)
+    selectedEdgeId.value = null
+    showConfigDrawer.value = false
     ElMessage.success('连线已删除')
   }).catch(() => {})
 }
@@ -1876,11 +2110,32 @@ const saveWorkflow = async () => {
       data: node.data
     }))
 
-    const apiEdges = edges.value.map(edge => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target
-    }))
+    const apiEdges = edges.value.map(edge => {
+      const edgeData = {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target
+      }
+      
+      // 添加标签
+      if (edge.label) {
+        edgeData.label = edge.label
+      }
+      
+      // 添加条件（从UI字段转换为条件对象）
+      if (edge.condition && edge.condition !== null) {
+        edgeData.condition = {
+          type: edge.condition,
+          field: edge.conditionField || (edge.condition === 'intent_match' ? 'intent' : ''),
+          value: edge.conditionValue || ''
+        }
+      } else if (typeof edge.condition === 'object' && edge.condition !== null) {
+        // 如果condition已经是对象，直接使用
+        edgeData.condition = edge.condition
+      }
+      
+      return edgeData
+    })
 
     const data = {
       name: workflowName.value,
@@ -2047,12 +2302,27 @@ const loadWorkflow = async () => {
         }
       }
     })
-    edges.value = (workflow.edges || []).map(edge => ({
-      ...edge,
-      type: edgeType.value,
-      animated: false, // 默认静态
-      style: { stroke: '#b1b3b8', strokeWidth: 2 } // 默认灰色
-    }))
+    edges.value = (workflow.edges || []).map(edge => {
+      const edgeData = {
+        ...edge,
+        type: edgeType.value,
+        animated: false, // 默认静态
+        style: { stroke: '#b1b3b8', strokeWidth: 2 } // 默认灰色
+      }
+      
+      // 将条件对象转换为UI字段
+      if (edge.condition && typeof edge.condition === 'object') {
+        edgeData.condition = edge.condition.type
+        edgeData.conditionField = edge.condition.field || ''
+        edgeData.conditionValue = edge.condition.value || ''
+      } else {
+        edgeData.condition = null
+        edgeData.conditionField = ''
+        edgeData.conditionValue = ''
+      }
+      
+      return edgeData
+    })
     const maxId = Math.max(...nodes.value.map(n => {
       const match = n.id.match(/-(\d+)$/)
       return match ? parseInt(match[1]) : 0

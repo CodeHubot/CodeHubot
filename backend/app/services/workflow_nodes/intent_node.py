@@ -36,8 +36,12 @@ async def execute_intent_node(
     Returns:
         Dict[str, Any]: 节点输出，包含：
             - intent: 识别的意图类别
+            - category: 意图类别（intent的别名）
             - confidence: 置信度（0-1）
             - method: 识别方法（"llm" 或 "keyword"）
+            - input_text: 原始输入文本
+            - all_categories: 所有可选意图类别
+            - is_match: 是否匹配到意图（confidence > 0）
     """
     # 获取节点配置
     input_text = node_data.get("input_text", "")
@@ -90,8 +94,13 @@ async def _recognize_by_keyword(
         # 没有匹配到任何意图
         return {
             "intent": None,
+            "category": None,
             "confidence": 0.0,
-            "method": "keyword"
+            "method": "keyword",
+            "input_text": input_text,
+            "all_categories": intent_categories,
+            "is_match": False,
+            "scores": {}
         }
     
     # 选择得分最高的意图
@@ -102,8 +111,13 @@ async def _recognize_by_keyword(
     
     return {
         "intent": best_intent,
+        "category": best_intent,  # 别名
         "confidence": confidence,
-        "method": "keyword"
+        "method": "keyword",
+        "input_text": input_text,
+        "all_categories": intent_categories,
+        "is_match": True,
+        "scores": scores
     }
 
 
@@ -168,12 +182,18 @@ async def _recognize_by_llm(
         
         # LLM识别的置信度设为0.8（可以根据实际情况调整）
         confidence = 0.8 if recognized_intent != "未知" else 0.0
+        is_match = recognized_intent != "未知"
         
         return {
             "intent": recognized_intent,
+            "category": recognized_intent,  # 别名
             "confidence": confidence,
             "method": "llm",
-            "raw_response": response
+            "input_text": input_text,
+            "all_categories": intent_categories,
+            "is_match": is_match,
+            "raw_response": response,
+            "llm_model": llm_model.name
         }
         
     except Exception as e:
