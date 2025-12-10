@@ -449,48 +449,50 @@
           <!-- 知识库节点配置 -->
           <template v-if="selectedNode.data.nodeType === 'knowledge'">
             <el-form-item label="选择知识库">
-              <el-select v-model="selectedNode.data.kbUuid" placeholder="请选择知识库" filterable>
-                <el-option label="产品知识库" value="kb-1" />
-                <el-option label="技术文档库" value="kb-2" />
+              <el-select v-model="selectedNode.data.kb_uuid" placeholder="请选择知识库" filterable>
+                <el-option
+                  v-for="kb in knowledgeBases"
+                  :key="kb.uuid"
+                  :label="`${kb.name} (${kb.document_count}篇文档, ${kb.chunk_count}个片段)`"
+                  :value="kb.uuid"
+                >
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ kb.name }}</span>
+                    <span style="color: #909399; font-size: 12px;">{{ kb.scope_type }}</span>
+                  </div>
+                </el-option>
               </el-select>
+              <div class="help-text" v-if="knowledgeBases.length === 0">
+                暂无可用知识库，请先在知识库管理中创建
+              </div>
             </el-form-item>
 
             <el-form-item label="查询文本">
-              <el-input
-                v-model="selectedNode.data.query"
-                type="textarea"
-                :rows="3"
-                placeholder="支持变量: {input.query}"
-              />
+              <div class="input-with-var">
+                <el-input
+                  v-model="selectedNode.data.query"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="输入查询文本，支持变量: {input.query}"
+                />
+                <el-button class="var-trigger" size="small" @click="openVarSelector(selectedNode.data, 'query')">
+                  {x}
+                </el-button>
+              </div>
             </el-form-item>
 
             <el-row :gutter="16">
               <el-col :span="12">
                 <el-form-item label="返回数量">
-                  <el-input-number v-model="selectedNode.data.topK" :min="1" :max="20" />
+                  <el-input-number v-model="selectedNode.data.top_k" :min="1" :max="20" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="相似度阈值">
-                  <el-slider v-model="selectedNode.data.similarityThreshold" :min="0" :max="1" :step="0.05" show-input />
+                  <el-slider v-model="selectedNode.data.similarity_threshold" :min="0" :max="1" :step="0.05" show-input />
                 </el-form-item>
               </el-col>
             </el-row>
-
-            <el-form-item label="检索模式">
-              <el-radio-group v-model="selectedNode.data.searchMode">
-                <el-radio label="vector">向量检索</el-radio>
-                <el-radio label="hybrid">混合检索</el-radio>
-                <el-radio label="keyword">关键词检索</el-radio>
-              </el-radio-group>
-            </el-form-item>
-
-            <el-form-item label="文档过滤">
-              <el-input
-                v-model="selectedNode.data.filters"
-                placeholder='可选，JSON格式: {"category": "产品", "status": "published"}'
-              />
-            </el-form-item>
           </template>
 
           <!-- 意图识别节点配置 -->
@@ -898,6 +900,7 @@ import {
   executeWorkflow
 } from '@/api/workflow'
 import { getActiveLLMModels } from '@/api/llm-model'
+import { getKnowledgeBases } from '@/api/knowledgeBases'
 import ExecutionPanel from '@/components/workflow/ExecutionPanel.vue'
 
 const route = useRoute()
@@ -920,6 +923,7 @@ const runParams = ref({})
 const startNodeParams = ref([])
 const runResult = ref(null)
 const llmModelOptions = ref([])
+const knowledgeBases = ref([])
 
 // 节点和边
 const nodes = ref([])
@@ -972,7 +976,12 @@ const getNodeOutputs = (node) => {
       outputs.push({ name: 'method', type: 'string', label: '请求方法', desc: 'HTTP请求方法' })
       break
     case 'knowledge':
-      outputs.push({ name: 'results', type: 'array', label: '检索结果', desc: '匹配的知识片段' })
+      outputs.push({ name: 'results', type: 'array', label: '检索结果列表', desc: '匹配的知识片段数组' })
+      outputs.push({ name: 'total', type: 'number', label: '结果数量', desc: '检索到的结果总数' })
+      outputs.push({ name: 'top_content', type: 'string', label: '最相似内容', desc: '相似度最高的片段内容' })
+      outputs.push({ name: 'top_similarity', type: 'number', label: '最高相似度', desc: '最高相似度分数（0-1）' })
+      outputs.push({ name: 'combined_content', type: 'string', label: '合并内容', desc: '所有结果合并的文本（适合传给LLM）' })
+      outputs.push({ name: 'kb_name', type: 'string', label: '知识库名称', desc: '检索的知识库名称' })
       break
     case 'intent':
       outputs.push({ name: 'category', type: 'string', label: '意图分类', desc: '识别出的意图' })
@@ -1203,9 +1212,10 @@ const createNode = (nodeType, x, y) => {
       validateSSL: true,
       followRedirect: true,
       // 知识库配置
-      topK: 5,
-      similarityThreshold: 0.7,
-      searchMode: 'vector',
+      kb_uuid: '',
+      query: '',
+      top_k: 5,
+      similarity_threshold: 0.7,
       // 意图识别配置
       recognitionMode: 'llm',
       confidenceThreshold: 0.6,
@@ -1227,6 +1237,7 @@ const createNode = (nodeType, x, y) => {
 onMounted(() => {
   loadWorkflow()
   loadLLMModels()
+  loadKnowledgeBases()
 })
 
 // 加载 LLM 模型
@@ -1265,6 +1276,29 @@ const getProviderLabel = (provider) => {
         'doubao': '豆包 (Doubao)'
     }
     return map[provider.toLowerCase()] || provider
+}
+
+// 加载知识库列表
+const loadKnowledgeBases = async () => {
+  try {
+    const res = await getKnowledgeBases({ page: 1, page_size: 100 })
+    // 根据API返回格式提取知识库列表
+    const kbs = res.data?.knowledge_bases || res.data || []
+    
+    knowledgeBases.value = kbs.map(kb => ({
+      uuid: kb.uuid,
+      name: kb.name,
+      description: kb.description,
+      scope_type: kb.scope_type,
+      document_count: kb.document_count || 0,
+      chunk_count: kb.chunk_count || 0
+    }))
+    
+    console.log('知识库加载完成:', knowledgeBases.value.length, '个')
+  } catch (error) {
+    console.error('加载知识库失败:', error)
+    ElMessage.warning('加载知识库列表失败，请检查网络连接')
+  }
 }
 
 // 拖拽相关

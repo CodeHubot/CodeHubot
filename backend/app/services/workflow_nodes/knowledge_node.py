@@ -39,11 +39,11 @@ async def execute_knowledge_node(
     if not db_session:
         raise ValueError("知识库检索节点执行需要数据库会话")
     
-    # 获取节点配置
-    kb_uuid = node_data.get("kb_uuid")
+    # 获取节点配置（支持两种命名风格：camelCase 和 snake_case）
+    kb_uuid = node_data.get("kb_uuid") or node_data.get("kbUuid")
     query = node_data.get("query", "")
-    top_k = node_data.get("top_k", 5)
-    similarity_threshold = node_data.get("similarity_threshold", 0.7)
+    top_k = node_data.get("top_k") or node_data.get("topK", 5)
+    similarity_threshold = node_data.get("similarity_threshold") or node_data.get("similarityThreshold", 0.7)
     
     if not kb_uuid:
         raise ValueError("知识库检索节点必须配置知识库UUID")
@@ -107,8 +107,26 @@ async def execute_knowledge_node(
     
     logger.info(f"知识库检索完成，找到 {len(results)} 个结果")
     
-    return {
+    # 构造输出结果
+    output = {
         "results": results,
-        "total": len(results)
+        "total": len(results),
+        "kb_uuid": kb_uuid,
+        "kb_name": kb.name,
+        "query": query  # 经过变量替换后的查询文本
     }
+    
+    # 如果有结果，添加便捷访问字段
+    if results:
+        output["top_result"] = results[0]  # 最相似的结果
+        output["top_content"] = results[0]["content"]  # 最相似的内容
+        output["top_similarity"] = results[0]["similarity"]  # 最高相似度
+        
+        # 合并所有内容，用于LLM节点
+        output["combined_content"] = "\n\n---\n\n".join([
+            f"【来源：{r['document_title']}】\n{r['content']}"
+            for r in results
+        ])
+    
+    return output
 
