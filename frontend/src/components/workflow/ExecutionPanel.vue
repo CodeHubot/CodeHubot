@@ -308,6 +308,11 @@ const toggleNodeDetail = (nodeId) => {
 }
 
 const handleRun = () => {
+  // 清除上一次的执行结果
+  hasExecuted.value = false
+  runStatus.value = 'pending'
+  expandedNodes.value = []
+  
   emit('run', runParams.value)
 }
 </script>
