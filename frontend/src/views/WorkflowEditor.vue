@@ -962,9 +962,14 @@ const getNodeOutputs = (node) => {
       })
       break
     case 'http':
-      outputs.push({ name: 'status', type: 'number', label: '状态码', desc: 'HTTP状态码' })
-      outputs.push({ name: 'data', type: 'any', label: '响应数据', desc: 'HTTP响应体' })
+      outputs.push({ name: 'status_code', type: 'number', label: '状态码', desc: 'HTTP状态码' })
+      outputs.push({ name: 'status', type: 'number', label: '状态码', desc: 'HTTP状态码（别名）' })
+      outputs.push({ name: 'success', type: 'boolean', label: '成功标志', desc: '请求是否成功（2xx状态码）' })
+      outputs.push({ name: 'body', type: 'any', label: '响应体', desc: 'HTTP响应体原始数据' })
+      outputs.push({ name: 'data', type: 'any', label: '响应数据', desc: 'HTTP响应数据（body别名）' })
       outputs.push({ name: 'headers', type: 'object', label: '响应头', desc: 'HTTP响应头' })
+      outputs.push({ name: 'url', type: 'string', label: '请求URL', desc: '实际请求的URL' })
+      outputs.push({ name: 'method', type: 'string', label: '请求方法', desc: 'HTTP请求方法' })
       break
     case 'knowledge':
       outputs.push({ name: 'results', type: 'array', label: '检索结果', desc: '匹配的知识片段' })
@@ -1188,8 +1193,12 @@ const createNode = (nodeType, x, y) => {
       streamMode: false,
       jsonMode: false,
       // HTTP配置
-      method: 'POST',
-      timeout: 30,
+      url: '',
+      method: 'GET',
+      headers: {},
+      headerParams: [],
+      body: '',
+      timeout: 10,
       retryCount: 0,
       validateSSL: true,
       followRedirect: true,
