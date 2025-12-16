@@ -5,7 +5,7 @@ from app.core.database import Base
 from app.utils.timezone import get_beijing_time_naive
 
 class User(Base):
-    __tablename__ = "aiot_core_users"
+    __tablename__ = "core_users"
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=True)  # 改为可选
@@ -19,7 +19,7 @@ class User(Base):
     
     # 角色和归属
     role = Column(String(50), default='individual', nullable=False, comment='用户角色：individual/platform_admin/school_admin/teacher/student')
-    school_id = Column(Integer, ForeignKey('aiot_schools.id', ondelete='SET NULL'), nullable=True, index=True, comment='所属学校ID（独立用户为NULL）')
+    school_id = Column(Integer, ForeignKey('core_schools.id', ondelete='SET NULL'), nullable=True, index=True, comment='所属学校ID（独立用户为NULL）')
     school_name = Column(String(200), nullable=True, comment='学校名称（冗余字段，便于查询）')
     
     # 机构用户字段

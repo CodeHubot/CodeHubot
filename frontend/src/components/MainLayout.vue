@@ -148,6 +148,21 @@
                 <div class="item-indicator"></div>
               </div>
 
+              <div 
+                class="nav-item"
+                :class="{ active: $route.path === '/device-pbl-authorization' }"
+                @click="handleNavItemClick({route: '/device-pbl-authorization'}, $event)"
+              >
+                <div class="item-icon">
+                  <el-icon size="20"><Key /></el-icon>
+                </div>
+                <div class="item-content" v-if="!sidebarCollapsed">
+                  <span class="item-title">设备授权</span>
+                  <span class="item-desc">授权设备给小组</span>
+                </div>
+                <div class="item-indicator"></div>
+              </div>
+
             </div>
           </div>
 
@@ -474,7 +489,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   House, Monitor, User, ArrowRight, ArrowDown, Setting, SwitchButton,
   Fold, Expand, Menu, TrendCharts, UserFilled, Plus, List, Box, Collection,
-  InfoFilled, ChatDotRound, Connection, OfficeBuilding, Postcard, Share
+  InfoFilled, ChatDotRound, Connection, OfficeBuilding, Postcard, Share, Key
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

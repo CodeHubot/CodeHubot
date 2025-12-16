@@ -29,12 +29,12 @@ class Document(Base):
     文档模型
     仅支持TXT和Markdown格式
     """
-    __tablename__ = "aiot_documents"
+    __tablename__ = "kb_documents"
     
     # 基础字段
     id = Column(Integer, primary_key=True, index=True, comment="文档ID")
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")
-    knowledge_base_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=False, index=True, comment="所属知识库ID")
+    knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="所属知识库ID")
     
     # 文档基本信息
     title = Column(String(200), nullable=False, comment="文档标题")
@@ -58,7 +58,7 @@ class Document(Base):
     meta_data = Column(JSON, comment="扩展元数据")
     
     # 上传者
-    uploader_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, index=True, comment="上传者用户ID")
+    uploader_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, index=True, comment="上传者用户ID")
     
     # 状态
     is_active = Column(Integer, default=1, comment="是否激活")
@@ -84,13 +84,13 @@ class DocumentChunk(Base):
     文本块模型
     用于向量检索
     """
-    __tablename__ = "aiot_document_chunks"
+    __tablename__ = "kb_document_chunks"
     
     # 基础字段
     id = Column(Integer, primary_key=True, index=True, comment="文本块ID")
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")
-    document_id = Column(Integer, ForeignKey("aiot_documents.id"), nullable=False, index=True, comment="所属文档ID")
-    knowledge_base_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=False, index=True, comment="所属知识库ID")
+    document_id = Column(Integer, ForeignKey("kb_documents.id"), nullable=False, index=True, comment="所属文档ID")
+    knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="所属知识库ID")
     
     # 文本内容
     content = Column(Text, nullable=False, comment="文本块内容")
@@ -102,8 +102,8 @@ class DocumentChunk(Base):
     embedding_vector = Column(JSON, comment="向量表示（JSON数组）")
     
     # 上下文信息
-    previous_chunk_id = Column(Integer, ForeignKey("aiot_document_chunks.id"), nullable=True, comment="上一个文本块ID")
-    next_chunk_id = Column(Integer, ForeignKey("aiot_document_chunks.id"), nullable=True, comment="下一个文本块ID")
+    previous_chunk_id = Column(Integer, ForeignKey("kb_document_chunks.id"), nullable=True, comment="上一个文本块ID")
+    next_chunk_id = Column(Integer, ForeignKey("kb_document_chunks.id"), nullable=True, comment="下一个文本块ID")
     
     # 元数据
     meta_data = Column(JSON, comment="扩展元数据")

@@ -48,14 +48,74 @@ def get_accessible_product_ids(db: Session, user: User) -> List[int]:
         return [p.id for p in products]
 
 
-def can_access_device(device: Device, user: User) -> bool:
-    """检查用户是否有权限访问设备"""
+def can_access_device(device: Device, user: User, db: Session = None) -> bool:
+    """检查用户是否有权限访问设备（读取和使用）
+    
+    包括：
+    1. 管理员可以访问所有设备
+    2. 设备所有者可以访问
+    3. 学生通过PBL小组授权可以访问（只能使用，不能配置）
+    """
     if is_admin_user(user):
         # 管理员可以访问所有设备
         return True
-    else:
-        # 普通用户：只能访问自己注册的设备
-        return device.user_id == user.id
+    
+    # 设备所有者可以访问
+    if device.user_id == user.id:
+        return True
+    
+    # 检查PBL授权（学生通过小组授权访问）
+    if user.role == 'student' and db is not None:
+        # 查询学生所在的小组（从PBL表直接查询）
+        my_groups = db.execute(text("""
+            SELECT group_id FROM pbl_group_members 
+            WHERE user_id = :user_id AND is_active = 1
+        """), {"user_id": user.id}).fetchall()
+        
+        if my_groups:
+            group_ids = [g[0] for g in my_groups]
+            # 检查是否有有效授权
+            from datetime import datetime
+            auth = db.execute(text("""
+                SELECT 1 FROM pbl_group_device_authorizations
+                WHERE device_id = :device_id
+                  AND group_id IN :group_ids
+                  AND is_active = 1
+                  AND (expires_at IS NULL OR expires_at > :now)
+                LIMIT 1
+            """), {
+                "device_id": device.id, 
+                "group_ids": tuple(group_ids),
+                "now": datetime.now()
+            }).fetchone()
+            
+            if auth:
+                return True
+    
+    return False
+
+
+def can_configure_device(device: Device, user: User, db: Session = None) -> bool:
+    """检查用户是否有权限配置设备（修改配置、设置预设指令等）
+    
+    注意：学生即使通过PBL授权可以使用设备，也不能配置设备
+    只有设备所有者和管理员可以配置设备
+    
+    包括：
+    1. 管理员可以配置所有设备
+    2. 设备所有者可以配置自己的设备
+    3. 学生即使有PBL授权也不能配置设备
+    """
+    if is_admin_user(user):
+        # 管理员可以配置所有设备
+        return True
+    
+    # 只有设备所有者可以配置设备
+    if device.user_id == user.id:
+        return True
+    
+    # 学生即使通过PBL授权可以使用设备，也不能配置设备
+    return False
 
 @router.post("/", response_model=DeviceResponse)
 def create_device(
@@ -141,6 +201,39 @@ def get_devices(
     elif current_user.role == 'school_admin' and current_user.school_id:
         # 学校管理员只能看到明确归属于本校的设备
         query = query.filter(Device.school_id == current_user.school_id)
+    elif current_user.role == 'student':
+        # 学生：可以看到自己注册的设备 + 通过PBL小组授权获得的设备
+        # 查询学生所在的小组
+        my_groups = db.execute(text("""
+            SELECT group_id FROM pbl_group_members 
+            WHERE user_id = :user_id AND is_active = 1
+        """), {"user_id": current_user.id}).fetchall()
+        
+        group_ids = [g[0] for g in my_groups] if my_groups else []
+        
+        # 查询这些小组被授权的设备ID
+        authorized_device_ids = []
+        if group_ids:
+            from datetime import datetime
+            authorized_devices = db.execute(text("""
+                SELECT DISTINCT device_id 
+                FROM pbl_group_device_authorizations
+                WHERE group_id IN :group_ids
+                  AND is_active = 1
+                  AND (expires_at IS NULL OR expires_at > :now)
+            """), {
+                "group_ids": tuple(group_ids),
+                "now": datetime.now()
+            }).fetchall()
+            authorized_device_ids = [d[0] for d in authorized_devices]
+        
+        # 合并查询：自己注册的设备 + 授权获得的设备
+        if authorized_device_ids:
+            query = query.filter(
+                (Device.user_id == current_user.id) | (Device.id.in_(authorized_device_ids))
+            )
+        else:
+            query = query.filter(Device.user_id == current_user.id)
     else:
         # 普通用户只能看到自己注册的设备
         query = query.filter(Device.user_id == current_user.id)
@@ -360,7 +453,7 @@ def get_device(
         raise HTTPException(status_code=404, detail="设备不存在")
     
     # 数据权限检查：管理员可以访问所有设备，普通用户只能访问自己注册的设备
-    if not can_access_device(device, current_user):
+    if not can_access_device(device, current_user, db):
         raise HTTPException(
             status_code=403,
             detail="无权访问该设备"
@@ -378,17 +471,20 @@ def update_device(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """更新设备信息 - 数据权限控制：只能更新自己注册的设备，管理员可以更新所有设备"""
+    """更新设备信息 - 数据权限控制：只能更新自己注册的设备，管理员可以更新所有设备
+    
+    注意：学生即使通过PBL授权可以使用设备，也不能更新设备信息
+    """
     device = db.query(Device).filter(Device.uuid == device_uuid).first()
     
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
     
-    # 数据权限检查：管理员可以更新所有设备，普通用户只能更新自己注册的设备
-    if not can_access_device(device, current_user):
+    # 配置权限检查：只有设备所有者和管理员可以更新设备信息
+    if not can_configure_device(device, current_user, db):
         raise HTTPException(
             status_code=403,
-            detail="无权更新该设备"
+            detail="无权更新该设备（学生只能使用授权设备，不能配置设备）"
         )
     
     # 如果更新产品，检查产品是否存在且用户有权限访问
@@ -433,13 +529,15 @@ def set_device_school(
     - 设备所有者可以将设备设置为学校设备
     - 学校管理员可以将设备设置为本校设备
     - 设置为NULL表示转为个人设备
+    
+    注意：学生即使通过PBL授权可以使用设备，也不能设置设备学校归属
     """
     device = db.query(Device).filter(Device.uuid == device_uuid).first()
     
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
     
-    # 权限检查
+    # 配置权限检查：只有设备所有者和管理员可以设置设备学校归属
     is_owner = device.user_id == current_user.id
     is_school_admin_of_target = (
         current_user.role == 'school_admin' and 
@@ -449,7 +547,7 @@ def set_device_school(
     if not (is_owner or is_school_admin_of_target or is_admin_user(current_user)):
         raise HTTPException(
             status_code=403,
-            detail="无权设置该设备的学校归属"
+            detail="无权设置该设备的学校归属（学生只能使用授权设备，不能配置设备）"
         )
     
     # 如果设置为学校设备，验证学校存在
@@ -481,7 +579,7 @@ def delete_device(
         raise HTTPException(status_code=404, detail="设备不存在")
     
     # 数据权限检查：管理员可以删除所有设备，普通用户只能删除自己注册的设备
-    if not can_access_device(device, current_user):
+    if not can_access_device(device, current_user, db):
         raise HTTPException(
             status_code=403,
             detail="无权删除该设备"
@@ -509,7 +607,7 @@ def get_devices_statistics(
                     SUM(CASE WHEN is_online = 1 THEN 1 ELSE 0 END) as online_devices,
                     SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_devices,
                     AVG(error_count) as avg_error_count
-                FROM aiot_core_devices
+                FROM device_main
             """)).fetchone()
         else:
             stats = db.execute(text("""
@@ -519,7 +617,7 @@ def get_devices_statistics(
                     SUM(CASE WHEN is_online = 1 THEN 1 ELSE 0 END) as online_devices,
                     SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_devices,
                     AVG(error_count) as avg_error_count
-                FROM aiot_core_devices
+                FROM device_main
                 WHERE user_id = :user_id
             """), {"user_id": current_user.id}).fetchone()
         
@@ -576,7 +674,7 @@ def get_devices_by_product(
     if is_admin_user(current_user):
         devices = db.execute(text("""
             SELECT d.*
-            FROM aiot_core_devices d
+            FROM device_main d
             WHERE d.product_id = :product_id
             ORDER BY d.created_at DESC
             LIMIT :limit OFFSET :skip
@@ -584,7 +682,7 @@ def get_devices_by_product(
     else:
         devices = db.execute(text("""
             SELECT d.*
-            FROM aiot_core_devices d
+            FROM device_main d
             WHERE d.product_id = :product_id AND d.user_id = :user_id
             ORDER BY d.created_at DESC
             LIMIT :limit OFFSET :skip
@@ -599,11 +697,22 @@ def activate_device(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """激活设备"""
+    """激活设备
+    
+    注意：学生即使通过PBL授权可以使用设备，也不能激活/停用设备
+    只有设备所有者和管理员可以激活设备
+    """
     device = db.query(Device).filter(Device.uuid == device_uuid).first()
     
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
+    
+    # 配置权限检查：只有设备所有者和管理员可以激活设备
+    if not can_configure_device(device, current_user, db):
+        raise HTTPException(
+            status_code=403,
+            detail="无权激活该设备（学生只能使用授权设备，不能配置设备）"
+        )
     
     device.is_active = True
     db.commit()
@@ -617,11 +726,22 @@ def deactivate_device(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """停用设备"""
+    """停用设备
+    
+    注意：学生即使通过PBL授权可以使用设备，也不能停用设备
+    只有设备所有者和管理员可以停用设备
+    """
     device = db.query(Device).filter(Device.uuid == device_uuid).first()
     
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
+    
+    # 配置权限检查：只有设备所有者和管理员可以停用设备
+    if not can_configure_device(device, current_user, db):
+        raise HTTPException(
+            status_code=403,
+            detail="无权停用该设备（学生只能使用授权设备，不能配置设备）"
+        )
     
     device.is_active = False
     db.commit()
@@ -642,7 +762,7 @@ def get_device_product_info(
         raise HTTPException(status_code=404, detail="设备不存在")
     
     # 数据权限检查：管理员可以访问所有设备，普通用户只能访问自己注册的设备
-    if not can_access_device(device, current_user):
+    if not can_access_device(device, current_user, db):
         raise HTTPException(
             status_code=403,
             detail="无权访问该设备"
@@ -701,7 +821,24 @@ async def pre_register_device(
     - 如果MAC地址对应的设备已解绑（user_id为None），允许重新绑定新产品和用户
     - 如果MAC地址对应的设备已绑定其他用户，则拒绝注册
     - 如果MAC地址不存在，创建新设备记录
+    
+    支持教师注册设备：
+    - 教师注册的设备自动设置school_id
+    - 设备归教师所有（user_id = 教师ID）
     """
+    # 权限检查：允许教师注册
+    if current_user.role not in ['platform_admin', 'school_admin', 'teacher']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员和教师可以注册设备"
+        )
+    
+    # 教师必须关联学校
+    if current_user.role == 'teacher' and not current_user.school_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="教师账号未关联学校，无法注册设备"
+        )
     # 检查MAC地址是否已存在
     existing_device = db.query(Device).filter(Device.mac_address == device_data.mac_address).first()
     
@@ -756,6 +893,10 @@ async def pre_register_device(
         existing_device.updated_at = get_beijing_now()
         existing_device.is_online = False  # 重置在线状态
         
+        # 设置学校ID（教师注册的设备自动关联学校）
+        if current_user.school_id:
+            existing_device.school_id = current_user.school_id
+        
         # 如果产品有默认配置，应用到设备
         if product.default_device_config:
             if 'device_sensor_config' in product.default_device_config:
@@ -789,6 +930,10 @@ async def pre_register_device(
             device_status=DeviceStatus.BOUND.value,  # 已绑定产品，状态为BOUND (使用.value获取字符串)
             is_online=False
         )
+        
+        # 设置学校ID（教师注册的设备自动关联学校）
+        if current_user.school_id:
+            db_device.school_id = current_user.school_id
         
         # 如果产品有默认配置，应用到设备
         if product.default_device_config:
@@ -1008,7 +1153,7 @@ async def get_device_full_config(
     
     # 数据权限检查：管理员可以访问所有设备，普通用户只能访问自己注册的设备
     device = db.query(Device).filter(Device.uuid == device_uuid).first()
-    if not can_access_device(device, current_user):
+    if not can_access_device(device, current_user, db):
         raise HTTPException(status_code=403, detail="无权访问该设备")
     
     if not device_info:
@@ -1085,9 +1230,12 @@ async def update_device_config(
             detail="设备不存在"
         )
     
-    # 数据权限检查：管理员可以访问所有设备，普通用户只能访问自己注册的设备
-    if not can_access_device(device, current_user):
-        raise HTTPException(status_code=403, detail="无权访问该设备")
+    # 配置权限检查：只有设备所有者和管理员可以更新设备配置
+    if not can_configure_device(device, current_user, db):
+        raise HTTPException(
+            status_code=403,
+            detail="无权更新该设备配置（学生只能使用授权设备，不能配置设备）"
+        )
     
     # 更新配置字段
     if "device_sensor_config" in config_data:
@@ -1306,7 +1454,7 @@ async def get_device_product_history(
         )
     
     # 数据权限检查：管理员可以访问所有设备，普通用户只能访问自己注册的设备
-    if not can_access_device(device, current_user):
+    if not can_access_device(device, current_user, db):
         raise HTTPException(status_code=403, detail="无权访问该设备")
     
     # 查询产品切换历史
@@ -1562,7 +1710,7 @@ async def get_device_presets(
         raise HTTPException(status_code=404, detail="设备不存在")
     
     # 数据权限检查
-    if not can_access_device(device, current_user):
+    if not can_access_device(device, current_user, db):
         raise HTTPException(status_code=403, detail="无权访问该设备")
     
     if not device.product:
@@ -1972,7 +2120,7 @@ async def get_device_product_config(
             )
         
         # 权限检查
-        if not can_access_device(device, current_user):
+        if not can_access_device(device, current_user, db):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权访问该设备"
@@ -2050,12 +2198,12 @@ async def unbind_device(
                 detail="设备不存在"
             )
         
-        # 验证设备所有权
-        if device.user_id != current_user.id:
+        # 配置权限检查：只有设备所有者和管理员可以解绑设备
+        if not can_configure_device(device, current_user, db):
             logger.warning(f"用户 {current_user.id} 尝试解绑不属于自己的设备 {device_uuid}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权解绑此设备"
+                detail="无权解绑此设备（学生只能使用授权设备，不能解绑设备）"
             )
         
         device_name = device.name

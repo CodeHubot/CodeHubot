@@ -22,7 +22,7 @@ class KBRetrievalLog(Base):
     知识库检索日志模型
     用于记录每次知识库检索的详细信息
     """
-    __tablename__ = "aiot_kb_retrieval_logs"
+    __tablename__ = "kb_retrieval_logs"
     
     # 基础字段
     id = Column(Integer, primary_key=True, index=True, comment="日志ID")
@@ -30,8 +30,8 @@ class KBRetrievalLog(Base):
     
     # 查询信息
     query = Column(Text, nullable=False, comment="查询文本")
-    agent_id = Column(Integer, ForeignKey("aiot_agents.id"), nullable=True, index=True, comment="智能体ID")
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, index=True, comment="用户ID")
+    agent_id = Column(Integer, ForeignKey("agent_main.id"), nullable=True, index=True, comment="智能体ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, index=True, comment="用户ID")
     
     # 检索范围
     kb_ids = Column(JSON, comment="检索的知识库ID列表")
@@ -63,11 +63,11 @@ class KBAnalytics(Base):
     知识库统计分析模型
     按日统计知识库的使用情况和质量指标
     """
-    __tablename__ = "aiot_kb_analytics"
+    __tablename__ = "kb_analytics"
     
     # 基础字段
     id = Column(Integer, primary_key=True, index=True, comment="统计ID")
-    knowledge_base_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=False, index=True, comment="知识库ID")
+    knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="知识库ID")
     date = Column(Date, nullable=False, index=True, comment="统计日期")
     
     # 查询统计

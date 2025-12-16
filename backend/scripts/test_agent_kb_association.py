@@ -138,7 +138,7 @@ async def main():
         logger.error("   1. 检查后端服务是否运行: ps aux | grep uvicorn")
         logger.error("   2. 检查数据库表: SHOW TABLES LIKE 'aiot_agent_knowledge_bases';")
         logger.error("   3. 查看后端日志: tail -f logs/backend.log")
-        logger.error("   4. 检查智能体是否存在: SELECT * FROM aiot_agents WHERE uuid='xxx';")
+        logger.error("   4. 检查智能体是否存在: SELECT * FROM agent_main WHERE uuid='xxx';")
     logger.info("=" * 60)
 
 if __name__ == "__main__":

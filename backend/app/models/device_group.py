@@ -12,17 +12,17 @@ import uuid as uuid_lib
 
 class DeviceGroup(Base):
     """设备分组模型"""
-    __tablename__ = "aiot_device_groups"
+    __tablename__ = "device_groups"
     
     id = Column(Integer, primary_key=True, index=True, comment="分组ID")
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID')
-    school_id = Column(Integer, ForeignKey("aiot_schools.id"), nullable=False, index=True, comment="所属学校ID")
+    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=False, index=True, comment="所属学校ID")
     group_name = Column(String(100), nullable=False, comment="设备组名称")
     group_code = Column(String(50), comment="设备组编号")
     description = Column(Text, comment="描述")
     device_count = Column(Integer, default=0, comment="设备数量")
     is_active = Column(Boolean, default=True, index=True, comment="是否激活")
-    created_by = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=True, comment="创建人ID")
+    created_by = Column(Integer, ForeignKey("core_users.id"), nullable=True, comment="创建人ID")
     created_at = Column(DateTime, default=get_beijing_time_naive, comment="创建时间")
     updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive, comment="更新时间")
     deleted_at = Column(DateTime, nullable=True, comment="删除时间")
@@ -36,11 +36,11 @@ class DeviceGroup(Base):
 
 class DeviceGroupMember(Base):
     """设备分组成员模型"""
-    __tablename__ = "aiot_device_group_members"
+    __tablename__ = "device_group_members"
     
     id = Column(Integer, primary_key=True, index=True, comment="记录ID")
-    group_id = Column(Integer, ForeignKey("aiot_device_groups.id"), nullable=False, index=True, comment="设备组ID")
-    device_id = Column(Integer, ForeignKey("aiot_core_devices.id"), nullable=False, index=True, comment="设备ID")
+    group_id = Column(Integer, ForeignKey("device_groups.id"), nullable=False, index=True, comment="设备组ID")
+    device_id = Column(Integer, ForeignKey("device_main.id"), nullable=False, index=True, comment="设备ID")
     joined_at = Column(DateTime, default=get_beijing_time_naive, comment="加入时间")
     left_at = Column(DateTime, nullable=True, comment="离开时间")
     created_at = Column(DateTime, default=get_beijing_time_naive, comment="创建时间")
@@ -57,8 +57,8 @@ class CourseDeviceAuthorization(Base):
     id = Column(Integer, primary_key=True, index=True, comment="授权ID")
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID')
     course_id = Column(Integer, ForeignKey("aiot_courses.id"), nullable=False, index=True, comment="课程ID")
-    device_group_id = Column(Integer, ForeignKey("aiot_device_groups.id"), nullable=False, index=True, comment="设备组ID")
-    authorized_by = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="授权人ID")
+    device_group_id = Column(Integer, ForeignKey("device_groups.id"), nullable=False, index=True, comment="设备组ID")
+    authorized_by = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="授权人ID")
     authorized_at = Column(DateTime, default=get_beijing_time_naive, comment="授权时间")
     expires_at = Column(DateTime, nullable=True, comment="过期时间")
     is_active = Column(Boolean, default=True, index=True, comment="是否激活")

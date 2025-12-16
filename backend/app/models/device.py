@@ -18,16 +18,16 @@ class Device(Base):
     设备模型 - 每个具体的设备实例
     简化的两层架构：设备直接关联产品，UUID作为唯一标识符
     """
-    __tablename__ = "aiot_core_devices"
+    __tablename__ = "device_main"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, index=True, nullable=False, comment="设备UUID - 唯一标识符")
     device_id = Column(String(100), unique=True, index=True, nullable=False, comment="设备ID - 用于设备注册验证")
     
     # 关联信息
-    product_id = Column(Integer, ForeignKey("aiot_core_products.id"), nullable=True, comment="关联产品ID（动态绑定，可为空）")
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="关联用户ID")
-    school_id = Column(Integer, ForeignKey("aiot_schools.id"), nullable=True, index=True, comment="所属学校ID（用于教学场景）")
+    product_id = Column(Integer, ForeignKey("device_products.id"), nullable=True, comment="关联产品ID（动态绑定，可为空）")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="关联用户ID")
+    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=True, index=True, comment="所属学校ID（用于教学场景）")
     
     # 设备基本信息
     name = Column(String(100), nullable=False, comment="设备名称")

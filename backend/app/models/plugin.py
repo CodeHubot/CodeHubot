@@ -8,7 +8,7 @@ class Plugin(Base):
     """
     插件模型 - 存储 OpenAI 格式的插件定义（OpenAPI 3.0.0）
     """
-    __tablename__ = "aiot_plugins"
+    __tablename__ = "plugin_main"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")
@@ -19,7 +19,7 @@ class Plugin(Base):
     openapi_spec = Column(JSON, nullable=False, comment="OpenAPI 3.0.0 规范（JSON）")
     
     # 用户关联
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="创建用户 ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="创建用户 ID")
     
     # 状态
     is_active = Column(Integer, default=1, comment="是否激活（1=激活，0=禁用）")

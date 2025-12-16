@@ -13,6 +13,7 @@ from .document import Document, DocumentChunk
 from .kb_analytics import KBRetrievalLog, KBAnalytics
 from .device_group import DeviceGroup, DeviceGroupMember
 from .device_binding_history import DeviceBindingHistory
+from .pbl_group_device_authorization import PBLGroupDeviceAuthorization
 # from .interaction_log import InteractionLog, InteractionStatsHourly, InteractionStatsDaily  # 已删除日志表
 from .prompt_template import PromptTemplate
 from .workflow import Workflow
@@ -26,6 +27,7 @@ __all__ = [
     "KnowledgeBase", "Document", "DocumentChunk",
     "KBRetrievalLog", "KBAnalytics",
     "DeviceGroup", "DeviceGroupMember", "DeviceBindingHistory",
+    "PBLGroupDeviceAuthorization",
     # "InteractionLog", "InteractionStatsHourly", "InteractionStatsDaily",  # 已删除日志表
     "PromptTemplate",
     "Workflow", "WorkflowExecution"

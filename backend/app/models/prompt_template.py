@@ -7,7 +7,7 @@ from app.core.database import Base
 
 class PromptTemplate(Base):
     """提示词模板模型"""
-    __tablename__ = "aiot_prompt_templates"
+    __tablename__ = "llm_prompt_templates"
     
     id = Column(Integer, primary_key=True, index=True, comment="模板ID")
     name = Column(String(100), nullable=False, comment="模板名称")

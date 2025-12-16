@@ -8,7 +8,7 @@ from database import Base
 
 class Device(Base):
     """设备模型"""
-    __tablename__ = "aiot_core_devices"
+    __tablename__ = "device_main"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, nullable=False, index=True)
@@ -20,7 +20,7 @@ class Device(Base):
     last_seen = Column(DateTime, nullable=True)
     last_heartbeat = Column(DateTime, nullable=True)
     last_report_data = Column(JSON, nullable=True, comment="最后上报数据")
-    product_id = Column(Integer, ForeignKey("aiot_core_products.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("device_products.id"), nullable=True)
     user_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
@@ -31,7 +31,7 @@ class Device(Base):
 
 class Product(Base):
     """产品模型"""
-    __tablename__ = "aiot_core_products"
+    __tablename__ = "device_products"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)

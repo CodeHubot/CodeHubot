@@ -9,7 +9,7 @@ class Product(Base):
     产品模型 - 定义设备的传感器类型和被控端口类型
     简化的两层架构：产品直接关联设备UUID
     """
-    __tablename__ = "aiot_core_products"
+    __tablename__ = "device_products"
     
     id = Column(Integer, primary_key=True, index=True)
     product_code = Column(String(64), unique=True, index=True, nullable=False, comment="产品编码/产品标识符（如：ESP32-S3-Dev-01，与固件product_id一致）")
@@ -97,7 +97,7 @@ class Product(Base):
     
     # 产品权限控制
     is_system = Column(Boolean, default=False, comment="是否为系统内置产品")
-    creator_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=True, comment="创建者ID（用户创建的产品）")
+    creator_id = Column(Integer, ForeignKey("core_users.id"), nullable=True, comment="创建者ID（用户创建的产品）")
     is_shared = Column(Boolean, default=False, comment="是否共享给其他用户（用户创建的产品可选择共享）")
     
     # 时间戳

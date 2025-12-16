@@ -64,7 +64,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class DeviceRecord(Base):
     """设备记录"""
-    __tablename__ = "aiot_core_devices"
+    __tablename__ = "device_main"
     
     id = Column(Integer, primary_key=True, index=True)
     mac_address = Column(String(17), unique=True, index=True, nullable=False)
@@ -82,7 +82,7 @@ class DeviceRecord(Base):
 
 class FirmwareVersion(Base):
     """固件版本"""
-    __tablename__ = "aiot_core_firmware_versions"
+    __tablename__ = "device_firmware_versions"
     
     id = Column(Integer, primary_key=True, index=True)
     product_code = Column(String(64), nullable=True, index=True)  # 产品编码（与主backend保持一致）

@@ -76,6 +76,18 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
+        path: 'device-pbl-authorization',
+        name: 'DevicePBLAuthorization',
+        component: () => import('../views/DevicePBLAuthorization.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'device-pbl-authorization-management',
+        name: 'DevicePBLAuthorizationManagement',
+        component: () => import('../views/DevicePBLAuthorizationManagement.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'device/:uuid',
         name: 'DeviceDetail',
         component: () => import('../views/DeviceDetailNew.vue'),

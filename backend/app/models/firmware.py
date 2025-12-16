@@ -7,7 +7,7 @@ Base = declarative_base()
 
 class Firmware(Base):
     """固件版本模型"""
-    __tablename__ = "aiot_core_firmware_versions"
+    __tablename__ = "device_firmware_versions"
     
     id = Column(Integer, primary_key=True, index=True)
     product_code = Column(String(50), nullable=False, index=True, comment="产品代号")

@@ -342,7 +342,7 @@ def delete_product(
     
     # 检查是否有关联的设备
     device_count = db.execute(text("""
-        SELECT COUNT(*) FROM aiot_core_devices WHERE product_id = :product_id
+        SELECT COUNT(*) FROM device_main WHERE product_id = :product_id
     """), {"product_id": product_id}).scalar()
     
     if device_count > 0:
@@ -382,7 +382,7 @@ def get_product_devices(
     devices = db.execute(text("""
         SELECT id, name, uuid, is_online, is_active, 
                last_seen, location, group_name, error_count, created_at
-        FROM aiot_core_devices 
+        FROM device_main 
         WHERE product_id = :product_id
         ORDER BY created_at DESC
         LIMIT :limit OFFSET :skip

@@ -128,7 +128,7 @@ logger.info("=" * 60 + "\n")
 Base = declarative_base()
 
 class Device(Base):
-    __tablename__ = "aiot_core_devices"
+    __tablename__ = "device_main"
     
     id = Column(Integer, primary_key=True)
     uuid = Column(String(36), unique=True, nullable=False)

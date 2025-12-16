@@ -9,7 +9,7 @@ class Agent(Base):
     智能体模型 - 用于创建和管理 AI 智能体
     目前只支持提示词和插件配置
     """
-    __tablename__ = "aiot_agents"
+    __tablename__ = "agent_main"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")
@@ -23,10 +23,10 @@ class Agent(Base):
     plugin_ids = Column(JSON, default=list, comment="关联的插件 ID 列表")
     
     # 关联的大模型
-    llm_model_id = Column(Integer, ForeignKey("aiot_llm_models.id"), comment="关联的大模型ID")
+    llm_model_id = Column(Integer, ForeignKey("llm_models.id"), comment="关联的大模型ID")
     
     # 用户关联
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="创建用户 ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="创建用户 ID")
     
     # 状态
     is_active = Column(Integer, default=1, comment="是否激活（1=激活，0=禁用）")

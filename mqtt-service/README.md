@@ -176,7 +176,7 @@ SELECT
     is_online,
     last_seen,
     JSON_PRETTY(last_report_data) as last_data
-FROM aiot_core_devices
+FROM device_main
 WHERE device_id = 'test-device'
 ORDER BY last_seen DESC
 LIMIT 1;

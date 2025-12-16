@@ -31,7 +31,7 @@ class KnowledgeBase(Base):
     知识库模型
     支持四级层级：系统级 > 学校级 > 课程级 > 智能体级/个人级
     """
-    __tablename__ = "aiot_knowledge_bases"
+    __tablename__ = "kb_main"
     
     # 基础字段
     id = Column(Integer, primary_key=True, index=True, comment="知识库ID")
@@ -43,10 +43,10 @@ class KnowledgeBase(Base):
     # 层级与归属
     scope_type = Column(String(20), nullable=False, index=True, comment="作用域类型")
     scope_id = Column(Integer, nullable=True, index=True, comment="作用域ID")
-    parent_kb_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=True, comment="父知识库ID")
+    parent_kb_id = Column(Integer, ForeignKey("kb_main.id"), nullable=True, comment="父知识库ID")
     
     # 创建者与权限
-    owner_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="创建者用户ID")
+    owner_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="创建者用户ID")
     access_level = Column(String(20), default="protected", comment="访问级别")
     
     # 统计信息
@@ -58,7 +58,7 @@ class KnowledgeBase(Base):
     # 配置参数
     chunk_size = Column(Integer, default=500, comment="文本块大小")
     chunk_overlap = Column(Integer, default=50, comment="文本块重叠大小")
-    embedding_model_id = Column(Integer, ForeignKey("aiot_llm_models.id"), nullable=True, comment="Embedding模型ID")
+    embedding_model_id = Column(Integer, ForeignKey("llm_models.id"), nullable=True, comment="Embedding模型ID")
     retrieval_config = Column(JSON, comment="检索配置")
     
     # 状态与元数据
@@ -91,11 +91,11 @@ class AgentKnowledgeBase(Base):
     智能体知识库关联模型
     一个智能体可以关联多个知识库
     """
-    __tablename__ = "aiot_agent_knowledge_bases"
+    __tablename__ = "agent_knowledge_bases"
     
     id = Column(Integer, primary_key=True, index=True, comment="关联ID")
-    agent_id = Column(Integer, ForeignKey("aiot_agents.id"), nullable=False, index=True, comment="智能体ID")
-    knowledge_base_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=False, index=True, comment="知识库ID")
+    agent_id = Column(Integer, ForeignKey("agent_main.id"), nullable=False, index=True, comment="智能体ID")
+    knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="知识库ID")
     
     # 配置
     priority = Column(Integer, default=0, comment="优先级")
@@ -131,20 +131,20 @@ class KBPermission(Base):
     知识库权限模型
     支持用户级和角色级权限
     """
-    __tablename__ = "aiot_kb_permissions"
+    __tablename__ = "kb_permissions"
     
     id = Column(Integer, primary_key=True, index=True, comment="权限ID")
-    knowledge_base_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=False, index=True, comment="知识库ID")
+    knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="知识库ID")
     
     # 授权对象（二选一）
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=True, index=True, comment="用户ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=True, index=True, comment="用户ID")
     role = Column(String(50), nullable=True, index=True, comment="角色")
     
     # 权限类型
     permission_type = Column(String(20), nullable=False, comment="权限类型")
     
     # 授权者
-    granted_by = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="授权人ID")
+    granted_by = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="授权人ID")
     
     # 时间限制
     expires_at = Column(DateTime, nullable=True, comment="过期时间")
@@ -173,21 +173,21 @@ class KBSharing(Base):
     知识库共享模型
     支持共享给学校、课程或用户
     """
-    __tablename__ = "aiot_kb_sharing"
+    __tablename__ = "kb_sharing"
     
     id = Column(Integer, primary_key=True, index=True, comment="共享ID")
-    knowledge_base_id = Column(Integer, ForeignKey("aiot_knowledge_bases.id"), nullable=False, index=True, comment="知识库ID")
+    knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="知识库ID")
     
     # 共享范围（三选一）
-    school_id = Column(Integer, ForeignKey("aiot_schools.id"), nullable=True, index=True, comment="学校ID")
+    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=True, index=True, comment="学校ID")
     course_id = Column(Integer, ForeignKey("aiot_courses.id"), nullable=True, index=True, comment="课程ID")
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=True, index=True, comment="用户ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=True, index=True, comment="用户ID")
     
     # 共享类型
     share_type = Column(String(20), default="read_only", comment="共享类型")
     
     # 共享者
-    shared_by = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="共享人ID")
+    shared_by = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="共享人ID")
     
     # 时间限制
     expires_at = Column(DateTime, nullable=True, comment="过期时间")

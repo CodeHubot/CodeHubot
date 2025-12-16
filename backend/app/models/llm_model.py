@@ -8,7 +8,7 @@ class LLMModel(Base):
     大模型配置模型 - 用于管理各种大语言模型的配置
     支持国产大模型和国际主流模型
     """
-    __tablename__ = "aiot_llm_models"
+    __tablename__ = "llm_models"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")

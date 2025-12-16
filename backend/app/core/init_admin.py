@@ -116,7 +116,7 @@ def init_admin_on_startup():
         logger.error("⚠️  应用将继续启动，但管理员账号未创建！")
         logger.error("⚠️  请检查以下内容：")
         logger.error("   1. 数据库连接是否正常")
-        logger.error("   2. aiot_core_users 表是否存在")
+        logger.error("   2. core_users 表是否存在")
         logger.error("   3. ADMIN_PASSWORD 环境变量是否已设置")
         logger.error("   4. 数据库用户是否有INSERT权限")
         logger.error("=" * 60)

@@ -9,7 +9,7 @@ class Workflow(Base):
     工作流模型 - 用于创建和管理工作流
     支持可视化编辑、DAG验证、执行等功能
     """
-    __tablename__ = "aiot_workflows"
+    __tablename__ = "workflow_main"
     
     id = Column(Integer, primary_key=True, index=True, comment="工作流ID")
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")
@@ -17,7 +17,7 @@ class Workflow(Base):
     description = Column(Text, comment="工作流描述")
     
     # 用户关联
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, comment="创建用户ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="创建用户ID")
     
     # 工作流结构（JSON格式）
     nodes = Column(JSON, nullable=False, comment="节点列表（JSON数组）")

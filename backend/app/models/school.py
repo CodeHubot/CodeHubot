@@ -6,7 +6,7 @@ import uuid as uuid_lib
 
 class School(Base):
     """学校模型"""
-    __tablename__ = "aiot_schools"
+    __tablename__ = "core_schools"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID，用于外部API访问')

@@ -8,7 +8,7 @@ class DeviceBindingHistory(Base):
     设备绑定历史记录模型
     记录每个MAC地址设备被哪些用户绑定过的历史
     """
-    __tablename__ = "aiot_device_binding_history"
+    __tablename__ = "device_binding_history"
     
     id = Column(Integer, primary_key=True, index=True)
     
@@ -21,12 +21,12 @@ class DeviceBindingHistory(Base):
     device_name = Column(String(100), nullable=True, comment="设备名称")
     
     # 用户信息
-    user_id = Column(Integer, ForeignKey("aiot_core_users.id"), nullable=False, index=True, comment="绑定用户ID")
+    user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, index=True, comment="绑定用户ID")
     user_email = Column(String(255), nullable=True, comment="用户邮箱（冗余字段，便于查询）")
     user_username = Column(String(50), nullable=True, comment="用户名（冗余字段，便于查询）")
     
     # 产品信息
-    product_id = Column(Integer, ForeignKey("aiot_core_products.id"), nullable=True, comment="产品ID")
+    product_id = Column(Integer, ForeignKey("device_products.id"), nullable=True, comment="产品ID")
     product_code = Column(String(100), nullable=True, comment="产品编码")
     product_name = Column(String(200), nullable=True, comment="产品名称（冗余字段，便于查询）")
     

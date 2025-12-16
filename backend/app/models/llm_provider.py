@@ -7,7 +7,7 @@ class LLMProvider(Base):
     """
     大模型提供商信息模型
     """
-    __tablename__ = "aiot_llm_providers"
+    __tablename__ = "llm_providers"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid_lib.uuid4()), comment="唯一标识UUID")
