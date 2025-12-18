@@ -16,13 +16,66 @@ const request = axios.create({
 })
 
 // ============================================================================
+// Token 刷新机制
+// ============================================================================
+
+// 是否正在刷新 token
+let isRefreshing = false
+
+// 失败的请求队列
+let failedRequestsQueue = []
+
+/**
+ * 刷新 access token
+ * @returns {Promise<string>} 新的 access token
+ */
+async function refreshToken() {
+  const refreshToken = localStorage.getItem('refresh_token')
+  
+  if (!refreshToken) {
+    throw new Error('No refresh token available')
+  }
+
+  try {
+    // 使用原始 axios 发送刷新请求，避免触发拦截器
+    const response = await axios.post('/api/auth/refresh', {
+      refresh_token: refreshToken
+    })
+
+    const { access_token, refresh_token: newRefreshToken } = response.data.data
+
+    // 更新 token
+    localStorage.setItem('access_token', access_token)
+    if (newRefreshToken) {
+      localStorage.setItem('refresh_token', newRefreshToken)
+    }
+
+    console.log('✅ Token 刷新成功')
+    return access_token
+  } catch (error) {
+    console.error('Token 刷新失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 处理失败的请求队列
+ * @param {Error|null} error - 如果有错误则拒绝所有请求
+ */
+function processFailedRequestsQueue(error = null) {
+  failedRequestsQueue.forEach(callback => {
+    callback(error)
+  })
+  failedRequestsQueue = []
+}
+
+// ============================================================================
 // 请求拦截器 - 在发送请求之前做统一处理
 // ============================================================================
 request.interceptors.request.use(
   config => {
     // 自动添加认证令牌
-    const token = localStorage.getItem('admin_access_token') || 
-                  localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token')
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -73,10 +126,70 @@ request.interceptors.response.use(
       })
     }
   },
-  error => {
+  async error => {
     console.error('响应错误:', error)
     
-    // HTTP错误处理
+    const originalRequest = error.config
+    
+    // 处理 401 错误：尝试刷新 token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // 如果正在刷新 token，将请求加入队列
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedRequestsQueue.push((error) => {
+            if (error) {
+              reject(error)
+            } else {
+              // 使用新的 token 重试请求
+              const token = localStorage.getItem('access_token')
+              if (token) {
+                originalRequest.headers.Authorization = `Bearer ${token}`
+              }
+              resolve(request(originalRequest))
+            }
+          })
+        })
+      }
+
+      // 标记正在重试
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        // 尝试刷新 token
+        const newAccessToken = await refreshToken()
+        
+        // 更新原始请求的 token
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+        
+        // 处理队列中的请求
+        processFailedRequestsQueue(null)
+        
+        // 重试原始请求
+        return request(originalRequest)
+      } catch (refreshError) {
+        // token 刷新失败，清除所有 token 并跳转登录页
+        console.error('Token 刷新失败，需要重新登录')
+        
+        // 处理队列中的请求（都失败）
+        processFailedRequestsQueue(refreshError)
+        
+        // 清除所有 token
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        
+        // 跳转到统一登录页
+        router.push('/login')
+        
+        ElMessage.error('登录已过期，请重新登录')
+        
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
+    }
+    
+    // 其他 HTTP 错误处理
     let message = '请求失败'
     
     if (error.response) {
@@ -89,10 +202,6 @@ request.interceptors.response.use(
           break
         case 401:
           message = '未授权，请重新登录'
-          // 清除token并跳转到登录页
-          localStorage.removeItem('admin_access_token')
-          localStorage.removeItem('access_token')
-          router.push('/login')
           break
         case 403:
           message = '没有权限访问该资源'

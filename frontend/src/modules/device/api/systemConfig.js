@@ -1,69 +1,98 @@
 /**
- * 系统配置相关API
+ * 系统配置 API
  */
 import request from '@/utils/request'
 
 /**
- * 获取所有系统配置
+ * 获取平台配置（公开接口）
  */
-export const getAllConfigs = (category) => {
-  return request.get('/api/system/configs', {
-    params: { category }
+export function getPlatformConfig() {
+  return request({
+    url: '/system/platform',
+    method: 'get'
+  })
+}
+
+/**
+ * 更新平台配置（仅平台管理员）
+ */
+export function updatePlatformConfig(data) {
+  return request({
+    url: '/system/platform',
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 获取模块配置（公开接口）
+ */
+export function getModuleConfig() {
+  return request({
+    url: '/system/modules',
+    method: 'get'
+  })
+}
+
+/**
+ * 更新模块配置（仅平台管理员）
+ */
+export function updateModuleConfig(data) {
+  return request({
+    url: '/system/modules',
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 初始化系统配置（仅平台管理员）
+ */
+export function initSystemConfig() {
+  return request({
+    url: '/system/modules/init',
+    method: 'post'
+  })
+}
+
+/**
+ * 获取所有系统配置（仅平台管理员）
+ */
+export function getAllConfigs(params) {
+  return request({
+    url: '/system/configs',
+    method: 'get',
+    params
   })
 }
 
 /**
  * 获取公开的系统配置
  */
-export const getPublicConfigs = () => {
-  return request.get('/api/system/configs/public')
+export function getPublicConfigs() {
+  return request({
+    url: '/system/configs/public',
+    method: 'get'
+  })
 }
 
 /**
- * 获取单个配置项
+ * 获取协议配置（用户协议和隐私政策）- 公开接口
  */
-export const getConfig = (configKey) => {
-  return request.get(`/api/system/configs/${configKey}`)
+export function getPoliciesConfig() {
+  return request({
+    url: '/system/policies',
+    method: 'get'
+  })
 }
 
 /**
- * 创建系统配置
+ * 更新协议配置（用户协议和隐私政策）- 仅平台管理员
  */
-export const createConfig = (data) => {
-  return request.post('/api/system/configs', data)
-}
-
-/**
- * 更新系统配置
- */
-export const updateConfig = (configKey, data) => {
-  return request.put(`/api/system/configs/${configKey}`, data)
-}
-
-/**
- * 删除系统配置
- */
-export const deleteConfig = (configKey) => {
-  return request.delete(`/api/system/configs/${configKey}`)
-}
-
-/**
- * 获取模块配置
- */
-export const getModuleConfig = () => {
-  return request.get('/api/system/modules')
-}
-
-/**
- * 更新模块配置
- */
-export const updateModuleConfig = (data) => {
-  return request.put('/api/system/modules', data)
-}
-
-/**
- * 初始化模块配置
- */
-export const initModuleConfig = () => {
-  return request.post('/api/system/modules/init')
+export function updatePoliciesConfig(data) {
+  return request({
+    url: '/system/policies',
+    method: 'put',
+    data
+  })
 }

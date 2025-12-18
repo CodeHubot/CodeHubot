@@ -319,7 +319,7 @@ const loadTemplates = async () => {
     }
     
     // 使用 request 工具
-    const response = await request.get('/api/pbl/admin/courses/templates', {
+    const response = await request.get('/pbl/admin/courses/templates', {
       params
     })
     
@@ -409,13 +409,13 @@ const handleTemplateSubmit = async () => {
       if (editingTemplate.value) {
         // 更新
         await request.put(
-          `/api/pbl/admin/courses/templates/${editingTemplate.value.uuid}`,
+          `/pbl/admin/courses/templates/${editingTemplate.value.uuid}`,
           data
         )
         ElMessage.success('模板更新成功')
       } else {
         // 新建
-        await request.post('/api/pbl/admin/courses/templates', data)
+        await request.post('/pbl/admin/courses/templates', data)
         ElMessage.success('模板创建成功')
       }
       
@@ -432,7 +432,7 @@ const handleTemplateSubmit = async () => {
 // 删除模板
 const handleDelete = async (template) => {
   try {
-    await request.delete(`/api/pbl/admin/courses/templates/${template.uuid}`)
+    await request.delete(`/pbl/admin/courses/templates/${template.uuid}`)
     ElMessage.success('模板删除成功')
     loadTemplates()
   } catch (error) {

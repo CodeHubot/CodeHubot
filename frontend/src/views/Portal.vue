@@ -1,7 +1,13 @@
 <template>
   <div class="portal-container">
+    <!-- Loading 状态 -->
+    <div v-if="loading" class="portal-loading">
+      <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
+      <p>正在加载用户信息...</p>
+    </div>
+    
     <!-- 用户信息栏 -->
-    <div class="portal-user-bar">
+    <div v-else class="portal-user-bar">
       <div class="user-info">
         <el-avatar :size="36">{{ authStore.userName.charAt(0) }}</el-avatar>
         <div class="user-details">
@@ -14,12 +20,12 @@
       </div>
     </div>
     
-    <div class="portal-header">
-      <h1>CodeHubot 统一管理平台</h1>
-      <p>欢迎，{{ authStore.userName }}！请选择您要进入的系统</p>
+    <div v-if="!loading" class="portal-header">
+      <h1>{{ platformName }}</h1>
+      <p>{{ platformDescription }} - 欢迎，{{ authStore.userName }}！请选择您要进入的系统</p>
     </div>
     
-    <div class="portal-cards">
+    <div v-if="!loading" class="portal-cards">
       <!-- Device管理系统 -->
       <div v-if="canAccessDevice" class="portal-card device-card" @click="enterDevice">
         <div class="card-icon">
@@ -38,13 +44,13 @@
         </el-button>
       </div>
       
-      <!-- AI智能系统 -->
+      <!-- 智能体开发系统 -->
       <div v-if="authStore.isAuthenticated" class="portal-card ai-card" @click="enterAI">
         <div class="card-icon">
           <el-icon :size="40"><MagicStick /></el-icon>
         </div>
-        <h2>AI智能系统</h2>
-        <p class="card-description">智能对话、工作流编排、知识库管理、插件开发</p>
+        <h2>智能体开发系统</h2>
+        <p class="card-description">智能体开发、工作流编排、知识库管理、插件开发</p>
         <ul class="card-features">
           <li><el-icon><Check /></el-icon> AI对话与智能体</li>
           <li><el-icon><Check /></el-icon> 工作流编排</li>
@@ -56,66 +62,72 @@
         </el-button>
       </div>
       
-      <!-- PBL学习平台 - 学生端 -->
-      <div v-if="authStore.isStudent" class="portal-card student-card" @click="enterPBLStudent">
+      <!-- PBL学习平台 - 学习/教学入口（所有用户可见） -->
+      <div v-if="authStore.isAuthenticated" class="portal-card pbl-card" @click="enterPBLLearning">
         <div class="card-icon">
           <el-icon :size="40"><Reading /></el-icon>
         </div>
-        <h2>PBL学习平台</h2>
-        <p class="card-description">项目式学习、课程作业、学习进度跟踪</p>
+        <h2>PBL学习系统</h2>
+        <p class="card-description">项目式学习、课程管理、学习进度跟踪</p>
         <ul class="card-features">
           <li><el-icon><Check /></el-icon> 我的课程</li>
           <li><el-icon><Check /></el-icon> 项目学习</li>
-          <li><el-icon><Check /></el-icon> 作业提交</li>
+          <li><el-icon><Check /></el-icon> 作业管理</li>
           <li><el-icon><Check /></el-icon> 学习档案</li>
         </ul>
-        <el-button type="success" size="large" class="enter-btn">
-          学生入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+        <el-button type="primary" size="large" class="enter-btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none;">
+          进入系统 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
       </div>
       
-      <!-- PBL教学平台 - 教师端 -->
-      <div v-if="authStore.isTeacher" class="portal-card teacher-card" @click="enterPBLTeacher">
+      <!-- 学校管理平台 - 学校级管理（教师和学校管理员） -->
+      <div v-if="authStore.isTeacher || isSchoolAdmin" class="portal-card school-card" @click="enterSchoolManagement">
         <div class="card-icon">
-          <el-icon :size="40"><Notebook /></el-icon>
+          <el-icon :size="40"><School /></el-icon>
         </div>
-        <h2>PBL教学平台</h2>
-        <p class="card-description">课程管理、作业批改、学生进度监控</p>
+        <h2>学校管理系统</h2>
+        <p class="card-description">本校师生管理、班级管理、课程配置、数据统计</p>
         <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 课程管理</li>
-          <li><el-icon><Check /></el-icon> 作业批改</li>
-          <li><el-icon><Check /></el-icon> 数据分析</li>
+          <li><el-icon><Check /></el-icon> 教师管理</li>
+          <li><el-icon><Check /></el-icon> 学生管理</li>
           <li><el-icon><Check /></el-icon> 班级管理</li>
+          <li><el-icon><Check /></el-icon> 数据统计</li>
         </ul>
         <el-button type="warning" size="large" class="enter-btn">
-          教师入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+          管理入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
       </div>
       
-      <!-- PBL管理平台 - 管理员端 -->
-      <div v-if="isAdmin" class="portal-card admin-card" @click="enterPBLAdmin">
+      <!-- 系统管理平台 - 统一的管理后台（管理员和渠道管理员可见） -->
+      <div 
+        v-if="isAdmin || isChannelManager" 
+        class="portal-card admin-card" 
+        @click="enterManagement">
         <div class="card-icon">
           <el-icon :size="40"><User /></el-icon>
         </div>
-        <h2>PBL管理平台</h2>
-        <p class="card-description">系统管理、用户管理、课程模板配置</p>
+        <h2>平台管理系统</h2>
+        <p class="card-description">PBL系统管理、渠道管理、用户管理、数据统计</p>
         <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 用户管理</li>
-          <li><el-icon><Check /></el-icon> 课程模板</li>
-          <li><el-icon><Check /></el-icon> 学校管理</li>
-          <li><el-icon><Check /></el-icon> 数据统计</li>
+          <li><el-icon><Check /></el-icon> 用户与学校管理</li>
+          <li><el-icon><Check /></el-icon> 课程模板配置</li>
+          <li><el-icon><Check /></el-icon> 渠道商管理</li>
+          <li><el-icon><Check /></el-icon> 数据统计分析</li>
         </ul>
         <el-button type="danger" size="large" class="enter-btn">
-          管理员入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+          管理入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
       </div>
       
       <!-- 渠道商平台 -->
-      <div v-if="authStore.isChannelPartner" class="portal-card channel-card" @click="enterChannel">
+      <div 
+        v-if="authStore.isAuthenticated && authStore.isChannelPartner" 
+        class="portal-card channel-card" 
+        @click="enterChannel">
         <div class="card-icon">
           <el-icon :size="40"><Connection /></el-icon>
         </div>
-        <h2>渠道商平台</h2>
+        <h2>渠道商系统</h2>
         <p class="card-description">合作学校管理、课程监控、数据查看</p>
         <ul class="card-features">
           <li><el-icon><Check /></el-icon> 学校管理</li>
@@ -123,26 +135,12 @@
           <li><el-icon><Check /></el-icon> 数据统计</li>
           <li><el-icon><Check /></el-icon> 进度跟踪</li>
         </ul>
-        <el-button type="info" size="large" class="enter-btn">
-          渠道商入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
-      </div>
-      
-      <!-- 渠道管理平台 -->
-      <div v-if="isChannelManagerOrAdmin" class="portal-card channel-mgmt-card" @click="enterChannelManagement">
-        <div class="card-icon">
-          <el-icon :size="40"><Histogram /></el-icon>
-        </div>
-        <h2>渠道管理平台</h2>
-        <p class="card-description">渠道商管理、学校分配、业务统计</p>
-        <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 渠道商管理</li>
-          <li><el-icon><Check /></el-icon> 学校分配</li>
-          <li><el-icon><Check /></el-icon> 业务统计</li>
-          <li><el-icon><Check /></el-icon> 活动监控</li>
-        </ul>
-        <el-button type="success" size="large" class="enter-btn" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); border: none;">
-          管理入口 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+        <el-button 
+          type="info" 
+          size="large" 
+          class="enter-btn">
+          渠道商入口 
+          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
       </div>
     </div>
@@ -150,47 +148,19 @@
 </template>
 
 <script setup>
-import { computed, watch, ref, nextTick } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Setting, Reading, Notebook, User, Check, ArrowRight, SwitchButton, MagicStick, Connection, Histogram
+  Setting, Reading, User, Check, ArrowRight, SwitchButton, MagicStick, Connection, Loading, School
 } from '@element-plus/icons-vue'
+import { useAuth, getRoleText } from '@/composables/useAuth'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const { authStore, loading, isAdmin, isSchoolAdmin, isChannelManager, platformName, platformDescription } = useAuth()
 
-// 强制刷新标记
-const forceUpdate = ref(0)
-
-// 使用响应式计算属性判断是否可以访问设备系统
-const canAccessDevice = computed(() => {
-  forceUpdate.value // 依赖forceUpdate触发重新计算
-  return authStore.isAuthenticated
-})
-
-// 直接使用store的计算属性（已修复响应式问题）
-const isAdmin = computed(() => {
-  forceUpdate.value // 依赖forceUpdate触发重新计算
-  return authStore.isAdmin
-})
-
-const isChannelManagerOrAdmin = computed(() => {
-  forceUpdate.value // 依赖forceUpdate触发重新计算
-  const role = authStore.userInfo?.role
-  // 只有渠道管理员和平台管理员可以访问渠道管理平台
-  return role === 'channel_manager' || role === 'platform_admin'
-})
-
-// 监听userInfo变化，强制刷新
-watch(() => authStore.userInfo, (newVal) => {
-  if (newVal) {
-    nextTick(() => {
-      forceUpdate.value++
-    })
-  }
-}, { immediate: true, deep: true })
+// 简化计算属性
+const canAccessDevice = computed(() => authStore.isAuthenticated)
 
 // 进入不同系统
 function enterDevice() {
@@ -201,24 +171,38 @@ function enterAI() {
   router.push('/ai/dashboard')
 }
 
-function enterPBLStudent() {
-  router.push('/pbl/student/courses')
+// 进入 PBL 学习平台 - 学习/教学功能（根据角色跳转）
+function enterPBLLearning() {
+  const role = authStore.userInfo?.role
+  
+  // 根据角色跳转到学习或教学界面
+  if (role === 'teacher') {
+    // 教师 -> 教学平台
+    router.push('/pbl/teacher/dashboard')
+  } else if (role === 'student') {
+    // 学生 -> 学习平台
+    router.push('/pbl/student/courses')
+  } else {
+    // 其他角色（包括管理员）默认进入学生视角（浏览模式）
+    router.push('/pbl/student/courses')
+  }
 }
 
-function enterPBLTeacher() {
-  router.push('/pbl/teacher/dashboard')
+// 进入学校管理平台 - 学校级管理
+function enterSchoolManagement() {
+  // 教师和学校管理员都进入学校管理平台
+  // 内部通过权限控制显示不同的功能菜单
+  router.push('/pbl/school/dashboard')
 }
 
-function enterPBLAdmin() {
-  router.push('/pbl/admin/dashboard')
+// 进入系统管理平台 - 统一的管理后台
+function enterManagement() {
+  // 统一进入管理后台，内部通过侧边栏菜单和权限控制显示不同模块
+  router.push('/pbl/admin/schools')
 }
 
 function enterChannel() {
   router.push('/pbl/channel/schools')
-}
-
-function enterChannelManagement() {
-  router.push('/pbl/channel-mgmt/partners')
 }
 
 // 退出登录
@@ -235,22 +219,6 @@ function handleLogout() {
     // 取消退出
   })
 }
-
-// 获取角色显示文本
-function getRoleText(role) {
-  const roleMap = {
-    student: '学生',
-    teacher: '教师',
-    admin: '管理员',
-    super_admin: '超级管理员',
-    school_admin: '学校管理员',
-    platform_admin: '平台管理员',
-    channel_manager: '渠道管理员',
-    channel_partner: '渠道商',
-    individual: '个人用户'
-  }
-  return roleMap[role] || role
-}
 </script>
 
 <style scoped lang="scss">
@@ -259,6 +227,34 @@ function getRoleText(role) {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 0 20px 40px;
   position: relative;
+}
+
+.portal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: white;
+  
+  .loading-icon {
+    animation: rotate 1.5s linear infinite;
+    margin-bottom: 20px;
+  }
+  
+  p {
+    font-size: 18px;
+    opacity: 0.9;
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .portal-user-bar {
@@ -351,6 +347,31 @@ function getRoleText(role) {
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   }
   
+  // 禁用卡片样式
+  &.card-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    position: relative;
+    
+    &::after {
+      content: '需要相应权限';
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(245, 108, 108, 0.9);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    &:hover {
+      transform: translateY(0);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+  }
+  
   .card-icon {
     width: 80px;
     height: 80px;
@@ -413,13 +434,12 @@ function getRoleText(role) {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.student-card .card-icon {
+.pbl-card .card-icon {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
-.teacher-card .card-icon {
+.school-card .card-icon {
   background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-  color: #d35400 !important;
 }
 
 .admin-card .card-icon {
@@ -428,10 +448,6 @@ function getRoleText(role) {
 
 .channel-card .card-icon {
   background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
-}
-
-.channel-mgmt-card .card-icon {
-  background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
 }
 
 @media (max-width: 768px) {

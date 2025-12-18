@@ -319,7 +319,7 @@ const loadPermissions = async () => {
     }
     
     // 使用 request 工具，自动处理 token 和响应格式
-    const response = await request.get('/api/pbl/admin/template-permissions', {
+    const response = await request.get('/pbl/admin/template-permissions', {
       params
     })
     
@@ -347,7 +347,7 @@ const loadTemplates = async () => {
     // 循环加载所有页
     while (hasMore) {
       // 使用 request 工具
-      const response = await request.get('/api/pbl/admin/courses/templates', {
+      const response = await request.get('/pbl/admin/courses/templates', {
         params: { page, page_size: pageSize }
       })
       
@@ -372,7 +372,7 @@ const loadTemplates = async () => {
 const loadSchools = async () => {
   try {
     // 使用 request 工具
-    const response = await request.get('/api/pbl/admin/schools/list', {
+    const response = await request.get('/pbl/admin/schools/list', {
       params: { limit: 1000 }
     })
     
@@ -457,7 +457,7 @@ const handlePermissionSubmit = async () => {
       if (editingPermission.value) {
         // 更新
         await request.put(
-          `/api/pbl/admin/template-permissions/${editingPermission.value.uuid}`,
+          `/pbl/admin/template-permissions/${editingPermission.value.uuid}`,
           data
         )
         ElMessage.success('权限更新成功')
@@ -466,7 +466,7 @@ const handlePermissionSubmit = async () => {
         data.template_id = permissionForm.template_id
         data.school_id = permissionForm.school_id
         
-        await request.post('/api/pbl/admin/template-permissions', data)
+        await request.post('/pbl/admin/template-permissions', data)
         ElMessage.success('权限创建成功')
       }
       
@@ -483,7 +483,7 @@ const handlePermissionSubmit = async () => {
 // 删除权限
 const handleDelete = async (permission) => {
   try {
-    await request.delete(`/api/pbl/admin/template-permissions/${permission.uuid}`)
+    await request.delete(`/pbl/admin/template-permissions/${permission.uuid}`)
     ElMessage.success('权限删除成功')
     loadPermissions()
   } catch (error) {

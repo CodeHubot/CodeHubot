@@ -549,7 +549,7 @@ const loadTemplateDetail = async () => {
     
     // 使用 request 工具
     const response = await request.get(
-      `/api/pbl/admin/courses/templates/${templateUuid}/full-detail`
+      `/pbl/admin/courses/templates/${templateUuid}/full-detail`
     )
     
     // 简化响应处理

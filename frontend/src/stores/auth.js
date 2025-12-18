@@ -1,19 +1,22 @@
 /**
  * 认证状态管理
  * 使用Pinia管理全局的认证状态
+ * 
+ * 安全设计：
+ * - Token 存储在 localStorage（必需，用于请求认证）
+ * - 用户信息仅存储在内存中（Pinia state），页面刷新后重新获取
+ * - 不在 localStorage 存储敏感用户信息
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { 
   getToken, setToken, removeToken,
-  getUserInfo as getStoredUserInfo,
-  setUserInfo as storeUserInfo,
   clearAuth
 } from '@shared/utils/auth'
 import { getUserInfo as fetchUserInfo } from '@shared/api/auth'
 
 export const useAuthStore = defineStore('auth', () => {
-  // 状态 - 先不从localStorage读取，等init()时再读
+  // 状态 - 用户信息只存储在内存中
   const token = ref(null)
   const userInfo = ref(null)
   const loading = ref(false)
@@ -47,43 +50,47 @@ export const useAuthStore = defineStore('auth', () => {
   })
   const isAdmin = computed(() => {
     const role = userInfo.value?.role
-    return role === 'admin' || role === 'super_admin' || role === 'school_admin' || role === 'platform_admin'
+    return role === 'admin' || role === 'super_admin' || role === 'platform_admin'
+  })
+  
+  /**
+   * 是否为学校管理员
+   */
+  const isSchoolAdmin = computed(() => {
+    const role = userInfo.value?.role
+    return role === 'school_admin'
   })
 
   /**
    * 设置登录信息
    */
   function setAuth(authData) {
-    // 处理可能的多层嵌套结构 (response.data.data 或 response.data)
-    let data = authData
+    // request.js 的响应拦截器返回格式：
+    // { success: true, data: {...}, message: '', originalResponse: {...} }
+    // 
+    // 登录接口返回的 data 结构：
+    // { access_token, refresh_token, user: {...} }
     
-    // 如果响应包含 code 和 data 字段（统一响应格式），提取 data
-    if (data.code !== undefined && data.data && typeof data.data === 'object') {
-      data = data.data
-    }
-    // 如果还有嵌套的data字段
-    else if (data.data && typeof data.data === 'object' && data.data.access_token) {
-      data = data.data
-    }
+    let data = authData.data || authData
     
-    // 保存access token
+    // 保存 access token（存储在 localStorage）
     const accessToken = data.access_token || data.token
     if (accessToken) {
       token.value = accessToken
       setToken(accessToken)
     }
     
-    // 保存refresh token
+    // 保存 refresh token（存储在 localStorage）
     const refreshToken = data.refresh_token
     if (refreshToken) {
       localStorage.setItem('refresh_token', refreshToken)
     }
     
-    // 保存用户信息 (支持多种字段名: user, userInfo, admin, student, teacher)
+    // 保存用户信息（仅存储在内存中，不存储到 localStorage）
     const user = data.user || data.userInfo || data.admin || data.student || data.teacher
     if (user) {
       userInfo.value = user
-      storeUserInfo(user)
+      // 注意：不再调用 storeUserInfo(user)，用户信息只保存在内存
     }
   }
 
@@ -120,33 +127,44 @@ export const useAuthStore = defineStore('auth', () => {
     
     try {
       const response = await fetchUserInfo()
-      userInfo.value = response.user || response
-      storeUserInfo(userInfo.value)
-      return userInfo.value
+      
+      // request.js 的响应拦截器返回格式：
+      // { success: true, data: {...}, message: '', originalResponse: {...} }
+      // 
+      // 后端 /auth/user-info 返回的是 UserResponse 对象，所以：
+      // response.data 就是用户对象 { id, username, role, ... }
+      
+      const user = response.data
+      
+      if (user && user.id) {
+        userInfo.value = user
+        return userInfo.value
+      } else {
+        return null
+      }
     } catch (error) {
       return null
     }
   }
 
   /**
-   * 初始化（从localStorage恢复状态）
+   * 初始化（从localStorage恢复token，从后端获取用户信息）
    */
-  function init() {
-    // 恢复token
+  async function init() {
+    // 恢复 token（从 localStorage）
     const storedToken = getToken()
+    token.value = storedToken
     
-    // 恢复用户信息
-    let storedInfo = getStoredUserInfo()
-    
-    // 修复错误的数据格式：如果userInfo包含code和data字段，提取真实的用户数据
-    if (storedInfo && storedInfo.code !== undefined && storedInfo.data) {
-      storedInfo = storedInfo.data.user || storedInfo.data
-      storeUserInfo(storedInfo)  // 重新保存正确的格式
+    // 如果有 token，从后端获取用户信息（不从 localStorage 读取）
+    if (storedToken) {
+      try {
+        await refreshUserInfo()
+      } catch (error) {
+        // 如果获取失败，清除 token
+        logout()
+      }
     }
     
-    // 设置状态
-    token.value = storedToken
-    userInfo.value = storedInfo
     isInitialized.value = true
   }
 
@@ -163,6 +181,7 @@ export const useAuthStore = defineStore('auth', () => {
     userEmail,
     isStudent,
     isTeacher,
+    isSchoolAdmin,
     isChannelPartner,
     isChannelManager,
     isAdmin,

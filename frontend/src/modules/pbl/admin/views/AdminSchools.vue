@@ -478,7 +478,7 @@ const pagination = reactive({
 })
 
 const form = reactive({
-  school_id: null,
+  school_uuid: null,
   school_code: '',
   school_name: '',
   province: '',
@@ -544,7 +544,7 @@ const loadSchools = async () => {
       is_active: filters.isActive !== null ? filters.isActive : undefined
     }
     
-    const response = await request.get('/api/pbl/admin/schools/list', { params })
+    const response = await request.get('/pbl/admin/schools/list', { params })
     
     const data = response.data
     schools.value = data.items || []
@@ -560,7 +560,7 @@ const loadSchools = async () => {
 const handleView = async (row) => {
   try {
     loading.value = true
-    const response = await request.get(`/api/pbl/admin/schools/${row.id}`)
+    const response = await request.get(`/pbl/admin/schools/${row.uuid}`)
     
     detailData.value = response.data
     detailDialogVisible.value = true
@@ -582,7 +582,7 @@ const handleCreate = () => {
 const handleEdit = (row) => {
   dialogMode.value = 'edit'
   Object.assign(form, {
-    school_id: row.id,
+    school_uuid: row.uuid,
     school_code: row.school_code,
     school_name: row.school_name,
     province: row.province,
@@ -606,7 +606,7 @@ const handleEdit = (row) => {
 // 重置表单
 const resetForm = () => {
   Object.assign(form, {
-    school_id: null,
+    school_uuid: null,
     school_code: '',
     school_name: '',
     province: '',
@@ -643,16 +643,16 @@ const handleSubmit = async () => {
     
     const data = new FormData()
     Object.keys(form).forEach(key => {
-      if (form[key] !== null && form[key] !== '' && key !== 'school_id') {
+      if (form[key] !== null && form[key] !== '' && key !== 'school_uuid') {
         data.append(key, form[key])
       }
     })
     
     let response
     if (dialogMode.value === 'create') {
-      response = await request.post('/api/pbl/admin/schools', data)
+      response = await request.post('/pbl/admin/schools', data)
     } else {
-      response = await request.put(`/api/pbl/admin/schools/${form.school_id}`, data)
+      response = await request.put(`/pbl/admin/schools/${form.school_uuid}`, data)
     }
     
     ElMessage.success(dialogMode.value === 'create' ? '创建成功！' : '更新成功！')
@@ -674,7 +674,7 @@ const handleManageAdmin = async (row) => {
   
   try {
     loading.value = true
-    const response = await request.get(`/api/pbl/admin/schools/${row.id}/admin`)
+    const response = await request.get(`/pbl/admin/schools/${row.uuid}/admin`)
     
     adminInfo.value = response.data
     
@@ -727,7 +727,7 @@ const handleSubmitAdmin = async () => {
     if (adminForm.email) data.append('email', adminForm.email)
     
     const response = await request.post(
-      `/api/pbl/admin/schools/${currentSchool.value.id}/admin`,
+      `/pbl/admin/schools/${currentSchool.value.uuid}/admin`,
       data
     )
     
@@ -758,7 +758,7 @@ const handleToggleActive = async (row) => {
     )
     
     loading.value = true
-    const response = await request.patch(`/api/pbl/admin/schools/${row.id}/toggle-active`, {})
+    const response = await request.patch(`/pbl/admin/schools/${row.uuid}/toggle-active`, {})
     
     ElMessage.success(response.message)
     loadSchools()

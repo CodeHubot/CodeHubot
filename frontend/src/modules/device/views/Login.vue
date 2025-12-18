@@ -75,15 +75,40 @@
                 class="form-input"
                 autocomplete="off"
                 @keyup.enter="handleLogin"
+                @blur="checkLoginAttempts"
               />
+            </el-form-item>
+            
+            <!-- 验证码输入框（登录失败3次后显示） -->
+            <el-form-item v-if="needsCaptcha" prop="captchaCode">
+              <div class="captcha-container">
+                <el-input
+                  v-model="loginForm.captchaCode"
+                  placeholder="请输入验证码"
+                  size="large"
+                  prefix-icon="Key"
+                  class="captcha-input"
+                  autocomplete="off"
+                  maxlength="4"
+                  @keyup.enter="handleLogin"
+                />
+                <div class="captcha-image-wrapper" @click="refreshCaptcha">
+                  <img 
+                    v-if="captchaUrl" 
+                    :src="captchaUrl" 
+                    alt="验证码"
+                    class="captcha-image"
+                  />
+                  <el-icon class="refresh-icon" title="点击刷新验证码">
+                    <Refresh />
+                  </el-icon>
+                </div>
+              </div>
             </el-form-item>
             
             <el-form-item>
               <div class="form-options">
                 <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-                <el-link type="primary" @click="$router.push('/forgot-password')">
-                  忘记密码？
-                </el-link>
               </div>
             </el-form-item>
             
@@ -104,30 +129,95 @@
           <div class="form-footer">
             <p>还没有账户？ <el-link type="primary" @click="$router.push('/register')">立即注册</el-link></p>
           </div>
+          
+          <!-- 用户协议和隐私政策 -->
+          <div class="form-policies">
+            <span class="policy-text">登录即表示您已阅读并同意</span>
+            <el-link type="info" :underline="false" @click="showUserAgreement">
+              《用户协议》
+            </el-link>
+            <span class="policy-divider">和</span>
+            <el-link type="info" :underline="false" @click="showPrivacyPolicy">
+              《隐私政策》
+            </el-link>
+          </div>
         </div>
       </div>
     </div>
+    
+    <!-- 用户协议对话框 -->
+    <el-dialog
+      v-model="userAgreementVisible"
+      title="用户协议"
+      width="70%"
+      :close-on-click-modal="false"
+    >
+      <div class="policy-content" v-html="userAgreementContent"></div>
+      <template #footer>
+        <el-button type="primary" @click="userAgreementVisible = false">
+          我已阅读
+        </el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 隐私政策对话框 -->
+    <el-dialog
+      v-model="privacyPolicyVisible"
+      title="个人信息及隐私保护政策"
+      width="70%"
+      :close-on-click-modal="false"
+    >
+      <div class="policy-content" v-html="privacyPolicyContent"></div>
+      <template #footer>
+        <el-button type="primary" @click="privacyPolicyVisible = false">
+          我已阅读
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import { usePlatformStore } from '@/stores/platform'
 import { ElMessage } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import logger from '../utils/logger'
 import { login } from '@shared/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
+const platformStore = usePlatformStore()
 
 const loginFormRef = ref()
 const loading = ref(false)
 const rememberMe = ref(false)
 
+// 用户协议和隐私政策
+const userAgreementVisible = ref(false)
+const privacyPolicyVisible = ref(false)
+const userAgreementContent = computed(() => platformStore.userAgreement || '<p style="color: #999;">暂无用户协议内容</p>')
+const privacyPolicyContent = computed(() => platformStore.privacyPolicy || '<p style="color: #999;">暂无隐私政策内容</p>')
+
+function showUserAgreement() {
+  userAgreementVisible.value = true
+}
+
+function showPrivacyPolicy() {
+  privacyPolicyVisible.value = true
+}
+
+// 登录失败次数和验证码相关
+const loginAttempts = ref(0)
+const needsCaptcha = ref(false)
+const captchaUrl = ref('')
+
 const loginForm = reactive({
   email: '',
-  password: ''
+  password: '',
+  captchaCode: ''
 })
 
 const loginRules = {
@@ -138,7 +228,46 @@ const loginRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+  ],
+  captchaCode: [
+    { 
+      validator: (rule, value, callback) => {
+        if (needsCaptcha.value && !value) {
+          callback(new Error('请输入验证码'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
   ]
+}
+
+// 检查是否需要验证码
+const checkLoginAttempts = async () => {
+  if (!loginForm.email) return
+  
+  try {
+    const response = await fetch(`/api/auth/login-attempts/${encodeURIComponent(loginForm.email)}`)
+    const result = await response.json()
+    
+    if (result.code === 200) {
+      loginAttempts.value = result.data.attempts
+      needsCaptcha.value = result.data.needs_captcha
+      
+      if (needsCaptcha.value) {
+        refreshCaptcha()
+      }
+    }
+  } catch (error) {
+    logger.error('检查登录失败次数出错:', error)
+  }
+}
+
+// 刷新验证码
+const refreshCaptcha = () => {
+  if (!loginForm.email) return
+  captchaUrl.value = `/api/auth/captcha?identifier=${encodeURIComponent(loginForm.email)}&t=${Date.now()}`
 }
 
 const handleLogin = async () => {
@@ -150,7 +279,8 @@ const handleLogin = async () => {
       try {
         const loginData = {
           email: loginForm.email,
-          password: loginForm.password
+          password: loginForm.password,
+          captcha_code: loginForm.captchaCode
         }
         
         await userStore.login(login, loginData)
@@ -160,13 +290,32 @@ const handleLogin = async () => {
         await router.push('/device/agents')
       } catch (error) {
         logger.error('登录失败:', error)
-        ElMessage.error('登录失败，请检查用户名/邮箱和密码')
+        
+        // 检查是否需要显示验证码
+        const errorMsg = error.response?.data?.detail || error.message || '登录失败，请检查用户名/邮箱和密码'
+        
+        if (errorMsg.includes('验证码')) {
+          await checkLoginAttempts()
+        }
+        
+        ElMessage.error(errorMsg)
+        
+        // 如果显示了验证码，刷新验证码
+        if (needsCaptcha.value) {
+          refreshCaptcha()
+          loginForm.captchaCode = ''
+        }
       } finally {
         loading.value = false
       }
     }
   })
 }
+
+// 页面加载时获取平台配置
+onMounted(async () => {
+  await platformStore.loadConfig()
+})
 </script>
 
 <style scoped>
@@ -375,6 +524,119 @@ const handleLogin = async () => {
 .form-footer p {
   color: #666;
   font-size: 0.9rem;
+}
+
+.form-policies {
+  text-align: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #999;
+}
+
+.form-policies .policy-text {
+  margin-right: 5px;
+}
+
+.form-policies .policy-divider {
+  margin: 0 5px;
+}
+
+.form-policies .el-link {
+  font-size: 13px;
+}
+
+/* 验证码容器样式 */
+.captcha-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.captcha-input {
+  flex: 1;
+}
+
+.captcha-image-wrapper {
+  position: relative;
+  width: 120px;
+  height: 48px;
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.captcha-image-wrapper:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.captcha-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.captcha-image-wrapper .refresh-icon {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 4px;
+  font-size: 14px;
+  color: #409eff;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.captcha-image-wrapper:hover .refresh-icon {
+  opacity: 1;
+}
+
+.policy-content {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 20px;
+  line-height: 1.8;
+  color: #333;
+}
+
+.policy-content :deep(h1) {
+  font-size: 24px;
+  margin: 20px 0 15px;
+  color: #2c3e50;
+}
+
+.policy-content :deep(h2) {
+  font-size: 20px;
+  margin: 18px 0 12px;
+  color: #34495e;
+}
+
+.policy-content :deep(h3) {
+  font-size: 16px;
+  margin: 15px 0 10px;
+  color: #34495e;
+}
+
+.policy-content :deep(p) {
+  margin: 10px 0;
+  text-indent: 2em;
+}
+
+.policy-content :deep(ul),
+.policy-content :deep(ol) {
+  margin: 10px 0;
+  padding-left: 40px;
+}
+
+.policy-content :deep(li) {
+  margin: 5px 0;
 }
 
 /* 响应式设计 */

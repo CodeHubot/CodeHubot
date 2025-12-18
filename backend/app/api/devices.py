@@ -1694,7 +1694,7 @@ async def get_device_realtime_data(
         }
         logger.info(f"✅ 最终latest数据: {all_sensor_fields}, 时间: {latest_timestamp}")
     else:
-            logger.warning("⚠️ 没有找到任何传感器配置")
+        logger.warning("⚠️ 没有找到任何传感器配置")
         # 如果没有产品配置，使用第一条原始数据作为latest
         if sensor_data_list:
             logger.info(f"🔄 使用第一条原始数据作为latest")

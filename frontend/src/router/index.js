@@ -4,6 +4,7 @@
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePlatformStore } from '@/stores/platform'
 import { ElMessage } from 'element-plus'
 
 // 导入路由模块
@@ -59,18 +60,27 @@ const router = createRouter({
 })
 
 // 全局前置守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  const platformStore = usePlatformStore()
   
-  // 设置页面标题
-  document.title = to.meta.title ? `${to.meta.title} - CodeHubot` : 'CodeHubot'
+  // 等待 authStore 初始化完成
+  if (!authStore.isInitialized) {
+    await authStore.init()
+  }
+
+  // 加载平台配置（仅加载一次）
+  if (!platformStore.isLoaded) {
+    await platformStore.loadConfig()
+  }
+  
+  // 设置页面标题（使用平台名称）
+  document.title = to.meta.title ? `${to.meta.title} - ${platformStore.platformName}` : platformStore.platformName
   
   // 公开页面直接放行
   if (to.meta.public) {
-    // 检查实际的token，而不仅仅是store状态
-    const hasToken = localStorage.getItem('access_token') || 
-                     localStorage.getItem('admin_access_token') || 
-                     localStorage.getItem('student_access_token')
+    // 检查是否有 token
+    const hasToken = localStorage.getItem('access_token')
     
     // 如果有token且访问登录页，跳转到门户
     if (to.path === '/login' && hasToken && authStore.isAuthenticated) {
@@ -94,6 +104,11 @@ router.beforeEach((to, from, next) => {
   // 检查角色权限
   if (to.meta.roles) {
     const userRole = authStore.userRole
+    if (!userRole) {
+      ElMessage.error('无法获取用户角色信息')
+      next('/login')
+      return
+    }
     if (!to.meta.roles.includes(userRole)) {
       ElMessage.error('没有权限访问该页面')
       next('/')

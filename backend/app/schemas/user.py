@@ -84,6 +84,7 @@ class UserLogin(BaseModel):
     """用户登录Schema - 支持用户名或邮箱登录"""
     email: str = Field(..., description="用户名或邮箱")  # 改为str类型，支持用户名或邮箱
     password: str = Field(..., min_length=1, max_length=MAX_PASSWORD_LENGTH)
+    captcha_code: Optional[str] = Field(None, description="验证码（登录失败3次后必填）")
 
 class UserResponse(BaseModel):
     """用户响应Schema - 不包含敏感信息"""

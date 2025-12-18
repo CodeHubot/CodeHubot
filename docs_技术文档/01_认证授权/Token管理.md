@@ -369,44 +369,133 @@ async def refresh_token(
     return {"access_token": new_access_token, "token_type": "bearer"}
 ```
 
-### 前端自动刷新
+### 前端自动刷新机制
 
 **文件位置**: `frontend/src/utils/request.js`
 
+#### 1. 刷新状态管理
+
 ```javascript
-// 响应拦截器 - 自动刷新Token
+// 是否正在刷新 token
+let isRefreshing = false
+
+// 失败的请求队列
+let failedRequestsQueue = []
+
+/**
+ * 处理失败的请求队列
+ */
+function processFailedRequestsQueue(error = null) {
+  failedRequestsQueue.forEach(callback => {
+    callback(error)
+  })
+  failedRequestsQueue = []
+}
+```
+
+#### 2. Token 刷新函数
+
+```javascript
+/**
+ * 刷新 access token
+ * @returns {Promise<string>} 新的 access token
+ */
+async function refreshToken() {
+  const refreshToken = localStorage.getItem('refresh_token')
+  
+  if (!refreshToken) {
+    throw new Error('No refresh token available')
+  }
+
+  try {
+    // 使用原始 axios 发送刷新请求，避免触发拦截器
+    const response = await axios.post('/api/auth/refresh', {
+      refresh_token: refreshToken
+    })
+
+    const { access_token, refresh_token: newRefreshToken } = response.data.data
+
+    // 更新 token
+    localStorage.setItem('access_token', access_token)
+    if (newRefreshToken) {
+      localStorage.setItem('refresh_token', newRefreshToken)
+    }
+
+    console.log('✅ Token 刷新成功')
+    return access_token
+  } catch (error) {
+    console.error('❌ Token 刷新失败:', error)
+    throw error
+  }
+}
+```
+
+#### 3. 响应拦截器 - 自动刷新与队列管理
+
+```javascript
+// 响应拦截器 - 处理 401 错误并自动刷新 Token
 request.interceptors.response.use(
-  response => response,
+  response => response.data,
   async error => {
     const originalRequest = error.config
     
-    // Token过期且未重试过
+    // 处理 401 错误：尝试刷新 token
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
       
-      try {
-        // 获取 refresh_token
-        const refreshToken = localStorage.getItem('admin_refresh_token')
-        
-        // 请求刷新
-        const response = await axios.post('/api/auth/refresh', {
-          refresh_token: refreshToken
+      // 如果正在刷新 token，将请求加入队列
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedRequestsQueue.push((error) => {
+            if (error) {
+              reject(error)
+            } else {
+              // 使用新的 token 重试请求
+              const token = localStorage.getItem('access_token')
+              if (token) {
+                originalRequest.headers.Authorization = `Bearer ${token}`
+              }
+              resolve(request(originalRequest))
+            }
+          })
         })
+      }
+
+      // 标记正在重试
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        // 尝试刷新 token
+        const newAccessToken = await refreshToken()
         
-        // 保存新 token
-        const newAccessToken = response.data.access_token
-        localStorage.setItem('admin_access_token', newAccessToken)
-        
-        // 更新请求头
+        // 更新原始请求的 token
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
         
-        // 重试原请求
+        // 处理队列中的请求
+        processFailedRequestsQueue(null)
+        
+        // 重试原始请求
         return request(originalRequest)
+        
       } catch (refreshError) {
-        // 刷新失败，跳转登录
-        localStorage.clear()
-        router.push('/admin/login')
+        // token 刷新失败，清除所有 token 并跳转登录页
+        console.error('Token 刷新失败，需要重新登录')
+        
+        // 处理队列中的请求（都失败）
+        processFailedRequestsQueue(refreshError)
+        
+        // 清除所有 token
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        
+        // 跳转到统一登录页
+        router.push('/login')
+        
+        ElMessage.error('登录已过期，请重新登录')
+        
         return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
       }
     }
     
@@ -414,6 +503,92 @@ request.interceptors.response.use(
   }
 )
 ```
+
+#### 4. 并发请求处理
+
+当多个请求同时遇到 401 错误时：
+
+```javascript
+// 第 1 个请求触发刷新
+Request A (401) → 开始刷新 Token → isRefreshing = true
+
+// 后续请求加入队列
+Request B (401) → 加入队列，等待刷新完成
+Request C (401) → 加入队列，等待刷新完成
+Request D (401) → 加入队列，等待刷新完成
+
+// 刷新成功后，批量重试
+刷新成功 → 
+  Request A 重试 ✅
+  Request B 重试 ✅
+  Request C 重试 ✅
+  Request D 重试 ✅
+```
+
+#### 5. 完整工作流程
+
+```
+用户请求 API
+  ↓
+请求拦截器添加 Authorization: Bearer <access_token>
+  ↓
+发送请求
+  ↓
+收到 401 响应（Token 过期）
+  ↓
+检查 isRefreshing 状态
+  ↓
+├─ isRefreshing = true （正在刷新）
+│   ↓
+│   将请求加入队列 failedRequestsQueue
+│   ↓
+│   等待刷新完成
+│   ↓
+│   刷新完成后自动重试
+│
+└─ isRefreshing = false （未在刷新）
+    ↓
+    标记 isRefreshing = true
+    ↓
+    调用 POST /api/auth/refresh
+    ↓
+    ├─ 刷新成功
+    │   ↓
+    │   更新 localStorage 中的 access_token 和 refresh_token
+    │   ↓
+    │   使用新 token 重试原始请求
+    │   ↓
+    │   调用 processFailedRequestsQueue(null)
+    │   ↓
+    │   批量重试队列中的所有请求
+    │   ↓
+    │   标记 isRefreshing = false
+    │
+    └─ 刷新失败
+        ↓
+        清除所有 token (access_token + refresh_token)
+        ↓
+        调用 processFailedRequestsQueue(error)
+        ↓
+        拒绝队列中的所有请求
+        ↓
+        跳转到登录页 (/login)
+        ↓
+        显示错误提示
+        ↓
+        标记 isRefreshing = false
+```
+
+#### 6. 安全优势
+
+| 特性 | 说明 |
+|-----|------|
+| ✅ **无感刷新** | 用户无需手动重新登录，Token 自动更新 |
+| ✅ **并发安全** | 避免多个请求同时刷新，只刷新一次 |
+| ✅ **队列机制** | 刷新期间的请求自动排队，刷新后批量重试 |
+| ✅ **优雅降级** | 刷新失败时才清除 Token 并跳转登录 |
+| ✅ **统一管理** | 所有 API 请求自动享受此机制 |
+| ✅ **请求重试** | 401 错误的请求在刷新后自动重试 |
 
 ## Token 存储
 
@@ -426,28 +601,124 @@ request.interceptors.response.use(
 | **Cookie (HttpOnly)** | 防XSS攻击 | 需后端配合、有CSRF风险 | 高安全要求 |
 | **Memory (变量)** | 最安全 | 刷新页面失效 | 单页应用 |
 
-### 当前实现
+### 🔒 当前实现：安全的 localStorage 存储
 
-CodeHubot 使用 **localStorage** 存储 Token：
+CodeHubot 采用**最小化存储原则**，只在 localStorage 存储必要的 Token：
 
 ```javascript
-// 存储
-localStorage.setItem('admin_access_token', accessToken)
-localStorage.setItem('admin_refresh_token', refreshToken)
+// ✅ 只存储 Token（必需）
+localStorage.setItem('access_token', accessToken)
+localStorage.setItem('refresh_token', refreshToken)
 
-// 读取
-const token = localStorage.getItem('admin_access_token')
-
-// 清除
-localStorage.removeItem('admin_access_token')
-localStorage.removeItem('admin_refresh_token')
+// ❌ 禁止存储用户信息（不安全）
+// localStorage.setItem('userInfo', JSON.stringify(user))  // 危险！
 ```
+
+### 📋 localStorage 存储规范
+
+#### ✅ **允许存储的内容**
+
+1. **access_token** - 访问令牌（必需）
+2. **refresh_token** - 刷新令牌（必需）
+
+```javascript
+// frontend/src/shared/utils/auth.js
+export function setToken(token) {
+  localStorage.setItem('access_token', token)
+}
+
+export function setRefreshToken(token) {
+  localStorage.setItem('refresh_token', token)
+}
+```
+
+#### ❌ **禁止存储的内容**
+
+1. **用户信息** - 包含敏感数据（邮箱、手机号等）
+2. **API密钥** - 第三方服务密钥
+3. **密码** - 任何形式的密码
+
+```javascript
+// ❌ 错误示例：不要存储用户信息
+localStorage.setItem('userInfo', JSON.stringify({
+  id: 123,
+  username: "张三",
+  email: "zhangsan@example.com",  // 敏感信息
+  phone: "13800138000",            // 敏感信息
+  role: "admin"                    // 可被篡改
+}))
+```
+
+### 🔐 用户信息的正确存储方式
+
+用户信息应该：
+1. **存储在内存中**（Pinia Store）
+2. **页面刷新后从后端重新获取**
+
+```javascript
+// frontend/src/stores/auth.js
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { getToken, setToken, setRefreshToken } from '@shared/utils/auth'
+import { getUserInfo as fetchUserInfo } from '@shared/api/auth'
+
+export const useAuthStore = defineStore('auth', () => {
+  // ✅ 用户信息只存储在内存中
+  const userInfo = ref(null)
+  
+  /**
+   * 设置登录信息
+   */
+  function setAuth(authData) {
+    // 只保存 token 到 localStorage
+    setToken(authData.access_token)
+    setRefreshToken(authData.refresh_token)
+    
+    // 用户信息只保存在内存（关闭浏览器后自动清除）
+    userInfo.value = authData.user
+  }
+  
+  /**
+   * 初始化（页面刷新后从后端重新获取用户信息）
+   */
+  async function init() {
+    const token = getToken()
+    if (token) {
+      try {
+        // 从后端获取最新用户信息
+        const response = await fetchUserInfo()
+        userInfo.value = response.user
+      } catch (error) {
+        // 获取失败则清除 token
+        logout()
+      }
+    }
+  }
+  
+  return { userInfo, setAuth, init }
+})
+```
+
+### 🛡️ 安全优势
+
+| 存储方式 | access_token | refresh_token | userInfo |
+|---------|--------------|---------------|----------|
+| **localStorage** | ✅ | ✅ | ❌ **已移除** |
+| **Pinia Store (内存)** | ✅ | - | ✅ |
+| **后端 API** | - | - | ✅ 页面刷新时获取 |
+
+**优势：**
+1. 🔒 **最小化敏感信息** - localStorage 只存储 Token
+2. 🔒 **防止信息泄露** - 用户信息无法通过浏览器工具直接读取
+3. 🔒 **防止信息篡改** - 无法通过控制台修改用户角色
+4. 🔒 **数据实时性** - 页面刷新后从后端获取最新信息
+5. 🔒 **自动清理** - 关闭浏览器后用户信息自动清除
 
 ### 安全建议
 
 1. **生产环境必须使用 HTTPS**
 2. 避免在 URL 中传递 Token
-3. 定期刷新 Token
+3. 定期刷新 Token（自动刷新机制）
 4. 实施 XSS 防护（CSP、输入验证）
 5. 考虑使用 HttpOnly Cookie（防XSS）
 

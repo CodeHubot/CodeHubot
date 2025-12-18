@@ -62,3 +62,31 @@ class ModuleConfigUpdate(BaseModel):
     enable_device_module: Optional[bool] = Field(None, description="是否开启设备管理模块")
     enable_ai_module: Optional[bool] = Field(None, description="是否开启AI模块")
     enable_pbl_module: Optional[bool] = Field(None, description="是否开启PBL模块")
+
+
+class PlatformConfigResponse(BaseModel):
+    """平台配置响应Schema"""
+    platform_name: str = Field(..., description="平台名称")
+    platform_description: str = Field(..., description="平台描述")
+    enable_user_registration: bool = Field(..., description="是否开启用户注册")
+    user_agreement: str = Field(default="", description="用户协议内容")
+    privacy_policy: str = Field(default="", description="隐私政策内容")
+
+
+class PlatformConfigUpdate(BaseModel):
+    """平台配置更新Schema"""
+    platform_name: Optional[str] = Field(None, min_length=2, max_length=50, description="平台名称")
+    platform_description: Optional[str] = Field(None, max_length=200, description="平台描述")
+    enable_user_registration: Optional[bool] = Field(None, description="是否开启用户注册")
+
+
+class PoliciesConfigResponse(BaseModel):
+    """协议配置响应Schema"""
+    user_agreement: str = Field(default="", description="用户协议内容")
+    privacy_policy: str = Field(default="", description="隐私政策内容")
+
+
+class PoliciesConfigUpdate(BaseModel):
+    """协议配置更新Schema"""
+    user_agreement: Optional[str] = Field(None, description="用户协议内容")
+    privacy_policy: Optional[str] = Field(None, description="隐私政策内容")

@@ -111,6 +111,7 @@ class InstitutionLoginRequest(BaseModel):
     school_code: str = Field(..., min_length=2, max_length=50, description="学校代码")
     number: str = Field(..., min_length=1, max_length=50, description="工号或学号")
     password: str = Field(..., min_length=1, description="密码")
+    captcha_code: Optional[str] = Field(None, description="验证码（登录失败3次后必填）")
 
 class UserListResponse(BaseModel):
     """用户列表响应Schema"""

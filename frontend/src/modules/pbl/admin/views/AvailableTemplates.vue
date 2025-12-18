@@ -354,7 +354,7 @@ const loadTemplates = async () => {
       ...(filters.category && { category: filters.category })
     }
     
-    const response = await request.get('/api/pbl/admin/available-templates', { params })
+    const response = await request.get('/pbl/admin/available-templates', { params })
     
     const data = response.data
     templates.value = data.items || []
@@ -369,7 +369,7 @@ const loadTemplates = async () => {
 // 加载班级列表
 const loadClasses = async () => {
   try {
-    const response = await request.get('/api/pbl/admin/classes-groups/classes', {
+    const response = await request.get('/pbl/admin/classes-groups/classes', {
       params: { limit: 1000 }
     })
     

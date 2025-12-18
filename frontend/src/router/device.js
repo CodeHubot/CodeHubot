@@ -2,6 +2,13 @@
  * Device系统路由配置
  */
 export default [
+  // 注册页面（公开访问）
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@device/views/Register.vue'),
+    meta: { title: '用户注册', public: true }
+  },
   {
     path: '/device',
     component: () => import('@/layouts/DeviceLayout.vue'),
@@ -89,13 +96,19 @@ export default [
         path: 'system-config',
         name: 'SystemConfig',
         component: () => import('@device/views/SystemConfig.vue'),
-        meta: { title: '系统配置', requiresAdmin: true }
+        meta: { title: '系统配置（旧）', requiresPlatformAdmin: true }
+      },
+      {
+        path: 'platform-config',
+        name: 'PlatformConfig',
+        component: () => import('@device/views/PlatformConfig.vue'),
+        meta: { title: '系统配置', requiresPlatformAdmin: true }
       },
       {
         path: 'module-config',
         name: 'ModuleConfig',
         component: () => import('@device/views/ModuleConfig.vue'),
-        meta: { title: '模块配置', requiresAdmin: true }
+        meta: { title: '模块配置', requiresPlatformAdmin: true }
       },
       {
         path: 'schools',

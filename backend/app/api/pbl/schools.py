@@ -99,11 +99,11 @@ def get_schools(
             'max_students': school.max_students,
             'current_students': student_count,
             'max_devices': school.max_devices,
-            'admin_user_id': getattr(school, 'admin_user_id', None),
-            'admin_username': getattr(school, 'admin_username', None),
-            'description': getattr(school, 'description', None),
-            'video_student_view_limit': getattr(school, 'video_student_view_limit', None),
-            'video_teacher_view_limit': getattr(school, 'video_teacher_view_limit', None),
+            'admin_user_id': school.admin_user_id,
+            'admin_username': school.admin_username,
+            'description': school.description,
+            'video_student_view_limit': school.video_student_view_limit,
+            'video_teacher_view_limit': school.video_teacher_view_limit,
             'created_at': school.created_at.isoformat() if school.created_at else None,
             'updated_at': school.updated_at.isoformat() if school.updated_at else None
         })
@@ -114,9 +114,9 @@ def get_schools(
     })
 
 
-@router.get("/{school_id}")
+@router.get("/{school_uuid}")
 def get_school(
-    school_id: int,
+    school_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -124,15 +124,23 @@ def get_school(
     获取学校详情
     权限：平台管理员可查看所有，学校管理员只能查看自己的学校
     """
+    # 通过UUID获取学校
+    school = db.query(School).filter(School.uuid == school_uuid).first()
+    
+    if not school:
+        return error_response(
+            message="学校不存在",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
     # 权限检查
-    if current_admin.role == 'school_admin' and current_admin.school_id != school_id:
+    if current_admin.role == 'school_admin' and current_admin.school_id != school.id:
         return error_response(
             message="无权限查看其他学校信息",
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
-    
-    school = db.query(School).filter(School.id == school_id).first()
     
     if not school:
         return error_response(
@@ -143,19 +151,19 @@ def get_school(
     
     # 获取学校管理员信息
     admin_user = None
-    if hasattr(school, 'admin_user_id') and school.admin_user_id:
+    if school.admin_user_id:
         admin_user = db.query(User).filter(User.id == school.admin_user_id).first()
     
     # 统计当前教师和学生数
     teacher_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.school_id == school.id,
         User.role.in_(['teacher', 'school_admin']),
         User.deleted_at == None,
         User.is_active == True
     ).scalar()
     
     student_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.school_id == school.id,
         User.role == 'student',
         User.deleted_at == None,
         User.is_active == True
@@ -180,9 +188,9 @@ def get_school(
         'max_students': school.max_students,
         'current_students': student_count,
         'max_devices': school.max_devices,
-        'description': getattr(school, 'description', None),
-        'video_student_view_limit': getattr(school, 'video_student_view_limit', None),
-        'video_teacher_view_limit': getattr(school, 'video_teacher_view_limit', None),
+        'description': school.description,
+        'video_student_view_limit': school.video_student_view_limit,
+        'video_teacher_view_limit': school.video_teacher_view_limit,
         'created_at': school.created_at.isoformat() if school.created_at else None,
         'updated_at': school.updated_at.isoformat() if school.updated_at else None,
         'admin_user': None
@@ -281,18 +289,11 @@ def create_school(
         license_expire_at=license_date,
         max_teachers=max_teachers,
         max_students=max_students,
-        max_devices=max_devices
+        max_devices=max_devices,
+        description=description,
+        video_student_view_limit=video_student_view_limit,
+        video_teacher_view_limit=video_teacher_view_limit
     )
-    
-    # 如果有description字段，设置它
-    if hasattr(new_school, 'description'):
-        new_school.description = description
-    
-    # 设置视频权限
-    if hasattr(new_school, 'video_student_view_limit'):
-        new_school.video_student_view_limit = video_student_view_limit
-    if hasattr(new_school, 'video_teacher_view_limit'):
-        new_school.video_teacher_view_limit = video_teacher_view_limit
     
     db.add(new_school)
     db.flush()  # 获取school的id
@@ -331,9 +332,8 @@ def create_school(
         db.flush()
         
         # 更新学校的管理员信息
-        if hasattr(new_school, 'admin_user_id'):
-            new_school.admin_user_id = admin_user.id
-            new_school.admin_username = admin_user.username
+        new_school.admin_user_id = admin_user.id
+        new_school.admin_username = admin_user.username
     
     db.commit()
     db.refresh(new_school)
@@ -363,9 +363,9 @@ def create_school(
     )
 
 
-@router.put("/{school_id}")
+@router.put("/{school_uuid}")
 def update_school(
-    school_id: int,
+    school_uuid: str,
     school_name: Optional[str] = Form(None),
     province: Optional[str] = Form(None),
     city: Optional[str] = Form(None),
@@ -396,7 +396,7 @@ def update_school(
             status_code=status.HTTP_403_FORBIDDEN
         )
     
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     
     if not school:
         return error_response(
@@ -410,7 +410,7 @@ def update_school(
         # 检查名称是否与其他学校重复
         existing = db.query(School).filter(
             School.school_name == school_name,
-            School.id != school_id
+            School.uuid != school_uuid
         ).first()
         if existing:
             return error_response(
@@ -445,26 +445,26 @@ def update_school(
             school.license_expire_at = datetime.fromisoformat(license_expire_at).date()
         except:
             pass
-    if description is not None and hasattr(school, 'description'):
+    if description is not None:
         school.description = description
     
     # 更新视频权限
-    if video_student_view_limit is not None and hasattr(school, 'video_student_view_limit'):
+    if video_student_view_limit is not None:
         school.video_student_view_limit = video_student_view_limit
-    if video_teacher_view_limit is not None and hasattr(school, 'video_teacher_view_limit'):
+    if video_teacher_view_limit is not None:
         school.video_teacher_view_limit = video_teacher_view_limit
     
     db.commit()
     db.refresh(school)
     
-    logger.info(f"更新学校信息 - 学校: {school.school_name}, ID: {school_id}, 操作者: {current_admin.username}")
+    logger.info(f"更新学校信息 - 学校: {school.school_name}, UUID: {school_uuid}, 操作者: {current_admin.username}")
     
     return success_response(message="学校信息更新成功")
 
 
-@router.patch("/{school_id}/toggle-active")
+@router.patch("/{school_uuid}/toggle-active")
 def toggle_school_active(
-    school_id: int,
+    school_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -480,7 +480,7 @@ def toggle_school_active(
             status_code=status.HTTP_403_FORBIDDEN
         )
     
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     
     if not school:
         return error_response(
@@ -494,7 +494,7 @@ def toggle_school_active(
     db.commit()
     
     status_text = "启用" if school.is_active else "禁用"
-    logger.info(f"{status_text}学校 - 学校: {school.school_name}, ID: {school_id}, 操作者: {current_admin.username}")
+    logger.info(f"{status_text}学校 - 学校: {school.school_name}, UUID: {school_uuid}, 操作者: {current_admin.username}")
     
     return success_response(
         data={'is_active': school.is_active},
@@ -502,9 +502,9 @@ def toggle_school_active(
     )
 
 
-@router.post("/{school_id}/assign-admin")
+@router.post("/{school_uuid}/assign-admin")
 def assign_school_admin(
-    school_id: int,
+    school_uuid: str,
     user_id: int = Form(...),
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
@@ -522,7 +522,7 @@ def assign_school_admin(
         )
     
     # 检查学校是否存在
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     if not school:
         return error_response(
             message="学校不存在",
@@ -548,7 +548,7 @@ def assign_school_admin(
         )
     
     # 更新用户的学校ID
-    user.school_id = school_id
+    user.school_id = school.id
     user.school_name = school.school_name
     
     # 更新学校的管理员信息
@@ -562,9 +562,9 @@ def assign_school_admin(
     return success_response(message="学校管理员分配成功")
 
 
-@router.get("/{school_id}/admin")
+@router.get("/{school_uuid}/admin")
 def get_school_admin(
-    school_id: int,
+    school_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -581,7 +581,7 @@ def get_school_admin(
         )
     
     # 检查学校是否存在
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     if not school:
         return error_response(
             message="学校不存在",
@@ -591,7 +591,7 @@ def get_school_admin(
     
     # 获取学校管理员
     admin_user = None
-    if hasattr(school, 'admin_user_id') and school.admin_user_id:
+    if school.admin_user_id:
         admin_user = db.query(User).filter(User.id == school.admin_user_id).first()
     
     result = {
@@ -613,9 +613,9 @@ def get_school_admin(
     return success_response(data=result)
 
 
-@router.post("/{school_id}/admin")
+@router.post("/{school_uuid}/admin")
 def create_or_update_school_admin(
-    school_id: int,
+    school_uuid: str,
     teacher_number: str = Form(...),
     password: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
@@ -639,7 +639,7 @@ def create_or_update_school_admin(
         )
     
     # 检查学校是否存在
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     if not school:
         return error_response(
             message="学校不存在",
@@ -652,7 +652,7 @@ def create_or_update_school_admin(
     
     # 检查是否已有管理员
     existing_admin = None
-    if hasattr(school, 'admin_user_id') and school.admin_user_id:
+    if school.admin_user_id:
         existing_admin = db.query(User).filter(User.id == school.admin_user_id).first()
     
     if existing_admin:
@@ -755,9 +755,9 @@ def create_or_update_school_admin(
         )
 
 
-@router.delete("/{school_id}")
+@router.delete("/{school_uuid}")
 def delete_school(
-    school_id: int,
+    school_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -773,7 +773,7 @@ def delete_school(
             status_code=status.HTTP_403_FORBIDDEN
         )
     
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     
     if not school:
         return error_response(
@@ -784,7 +784,7 @@ def delete_school(
     
     # 检查是否有关联的用户
     user_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.school_id == school.id,
         User.deleted_at == None
     ).scalar()
     
@@ -799,14 +799,14 @@ def delete_school(
     db.delete(school)
     db.commit()
     
-    logger.info(f"删除学校 - 学校: {school.school_name}, ID: {school_id}, 操作者: {current_admin.username}")
+    logger.info(f"删除学校 - 学校: {school.school_name}, UUID: {school_uuid}, 操作者: {current_admin.username}")
     
     return success_response(message="学校删除成功")
 
 
-@router.get("/{school_id}/statistics")
+@router.get("/{school_uuid}/statistics")
 def get_school_statistics(
-    school_id: int,
+    school_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -814,16 +814,8 @@ def get_school_statistics(
     获取学校统计信息
     权限：平台管理员可查看所有，学校管理员只能查看自己的学校
     """
-    # 权限检查
-    if current_admin.role == 'school_admin' and current_admin.school_id != school_id:
-        return error_response(
-            message="无权限查看其他学校信息",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
-    
     # 检查学校是否存在
-    school = db.query(School).filter(School.id == school_id).first()
+    school = db.query(School).filter(School.uuid == school_uuid).first()
     if not school:
         return error_response(
             message="学校不存在",
@@ -831,9 +823,17 @@ def get_school_statistics(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
+    # 权限检查
+    if current_admin.role == 'school_admin' and current_admin.school_id != school.id:
+        return error_response(
+            message="无权限查看其他学校信息",
+            code=403,
+            status_code=status.HTTP_403_FORBIDDEN
+        )
+    
     # 统计教师数
     teacher_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.school_id == school.id,
         User.role == 'teacher',
         User.deleted_at == None,
         User.is_active == True
@@ -841,7 +841,7 @@ def get_school_statistics(
     
     # 统计学生数
     student_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.school_id == school.id,
         User.role == 'student',
         User.deleted_at == None,
         User.is_active == True
@@ -849,14 +849,15 @@ def get_school_statistics(
     
     # 统计学校管理员数
     admin_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.school_id == school.id,
         User.role == 'school_admin',
         User.deleted_at == None,
         User.is_active == True
     ).scalar()
     
     result = {
-        'school_id': school_id,
+        'school_id': school.id,
+        'school_uuid': school.uuid,
         'school_name': school.school_name,
         'teacher_count': teacher_count,
         'max_teachers': school.max_teachers,

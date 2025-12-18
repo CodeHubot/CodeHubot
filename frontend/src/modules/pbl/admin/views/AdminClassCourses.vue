@@ -235,7 +235,7 @@ const viewCourseMembers = async (course) => {
   courseMembersDialogVisible.value = true
   
   try {
-    const response = await request.get(`/api/pbl/admin/enrollments/course/${course.id}/students`)
+    const response = await request.get(`/pbl/admin/enrollments/course/${course.id}/students`)
     courseMembers.value = response.data || []
   } catch (error) {
     console.error('加载课程成员失败:', error)

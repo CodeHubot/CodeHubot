@@ -1,21 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from jose import JWTError
 from datetime import timedelta, datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Union
 import logging
 from app.core.database import get_db
 from app.models.user import User
-from app.models.school import School
 from app.utils.timezone import get_beijing_time_naive
 from app.schemas.user import (
     UserCreate, UserLogin, UserResponse, LoginResponse,
     PasswordResetRequest, PasswordResetConfirm,
     ChangePasswordRequest, UpdateProfileRequest
 )
-from app.schemas.user_management import InstitutionLoginRequest
 from app.core.security import (
     verify_password, get_password_hash, 
     create_access_token, create_refresh_token, verify_token,
@@ -28,16 +27,36 @@ from app.core.constants import (
 )
 from app.core.config import settings
 from app.services.email import send_welcome_email, send_password_reset_email
+from app.utils.captcha import captcha_store, create_captcha
 
 logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 router = APIRouter()
 
+# 验证码相关的常量
+LOGIN_ATTEMPT_THRESHOLD = 3  # 登录失败次数阈值，超过此次数需要验证码
+BLOCK_THRESHOLD = 5  # 登录失败次数阈值，超过此次数临时禁用账户
+BLOCK_DURATION_MINUTES = 30  # 账户禁用时长（分钟）
+
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """用户注册 - 增强输入验证和事务管理（邮箱可选）"""
     try:
+        # ===== 检查是否开启用户注册功能 =====
+        from app.models.system_config import SystemConfig
+        registration_config = db.query(SystemConfig).filter(
+            SystemConfig.config_key == "enable_user_registration"
+        ).first()
+        
+        # 如果配置存在且为 false，则禁止注册
+        if registration_config and registration_config.config_value.lower() in ('false', '0', 'no'):
+            logger.warning(f"注册失败：用户注册功能已关闭")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="用户注册功能已关闭，请联系管理员"
+            )
+        
         # 检查邮箱是否已存在（如果提供了邮箱）
         if user_data.email:
             existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -95,11 +114,54 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=LoginResponse)
 async def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    """用户登录 - 支持用户名或邮箱登录"""
+    """用户登录 - 支持用户名或邮箱登录，失败3次后需要验证码，失败5次后临时禁用30分钟"""
     try:
         # 查找用户（支持用户名或邮箱）
         login_identifier = login_data.email  # 这个字段现在可以是用户名或邮箱
         
+        # 0. 检查账户是否被临时禁用
+        if captcha_store.is_account_blocked(login_identifier, BLOCK_DURATION_MINUTES):
+            remaining_seconds = captcha_store.get_block_remaining_time(login_identifier, BLOCK_DURATION_MINUTES)
+            remaining_minutes = remaining_seconds // 60
+            logger.warning(f"登录失败：账户已被临时禁用 - {login_identifier}，剩余 {remaining_minutes} 分钟")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"由于多次登录失败，账户已被临时禁用。请在 {remaining_minutes} 分钟后重试"
+            )
+        
+        # 1. 检查是否需要验证码，如果需要则先验证验证码
+        login_attempts = captcha_store.get_login_attempts(login_identifier)
+        if login_attempts >= LOGIN_ATTEMPT_THRESHOLD:
+            # 需要验证码
+            if not login_data.captcha_code:
+                logger.warning(f"登录失败：需要验证码 - {login_identifier}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="请输入验证码"
+                )
+            
+            # 先验证验证码（验证码错误也要记录失败次数）
+            if not captcha_store.verify_captcha(login_identifier, login_data.captcha_code):
+                # 验证码错误，记录失败次数
+                captcha_store.record_login_attempt(login_identifier)
+                current_attempts = captcha_store.get_login_attempts(login_identifier)
+                logger.warning(f"登录失败：验证码错误 - {login_identifier} (失败次数: {current_attempts})")
+                
+                # 检查是否达到禁用阈值
+                if current_attempts >= BLOCK_THRESHOLD:
+                    captcha_store.block_account(login_identifier)
+                    logger.error(f"⚠️ 账户已被临时禁用: {login_identifier}，禁用时长: {BLOCK_DURATION_MINUTES}分钟")
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"由于多次登录失败，账户已被临时禁用 {BLOCK_DURATION_MINUTES} 分钟"
+                    )
+                
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"验证码错误（还有{BLOCK_THRESHOLD - current_attempts}次机会后将被禁用{BLOCK_DURATION_MINUTES}分钟）"
+                )
+        
+        # 2. 验证码通过（或不需要验证码），再查找用户并验证密码
         # 先尝试按邮箱查找
         user = db.query(User).filter(User.email == login_identifier).first()
         
@@ -107,15 +169,36 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
         if not user:
             user = db.query(User).filter(User.username == login_identifier).first()
         
-        # 验证用户和密码
+        # 3. 验证用户和密码
         if not user or not verify_password(login_data.password, user.password_hash):
-            logger.warning(f"登录失败：用户名/邮箱或密码错误 - {login_identifier}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户名/邮箱或密码错误"
-            )
+            # 记录登录失败次数
+            captcha_store.record_login_attempt(login_identifier)
+            current_attempts = captcha_store.get_login_attempts(login_identifier)
+            
+            logger.warning(f"登录失败：用户名/邮箱或密码错误 - {login_identifier} (失败次数: {current_attempts})")
+            
+            # 检查是否达到禁用阈值
+            if current_attempts >= BLOCK_THRESHOLD:
+                captcha_store.block_account(login_identifier)
+                logger.error(f"⚠️ 账户已被临时禁用: {login_identifier}，禁用时长: {BLOCK_DURATION_MINUTES}分钟")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"由于多次登录失败，账户已被临时禁用 {BLOCK_DURATION_MINUTES} 分钟"
+                )
+            
+            # 如果失败次数达到验证码阈值，提示需要验证码
+            if current_attempts >= LOGIN_ATTEMPT_THRESHOLD:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"用户名/邮箱或密码错误（还有{BLOCK_THRESHOLD - current_attempts}次机会后将被禁用{BLOCK_DURATION_MINUTES}分钟）"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"用户名/邮箱或密码错误（还有{LOGIN_ATTEMPT_THRESHOLD - current_attempts}次机会需要输入验证码）"
+                )
         
-        # 检查账户状态
+        # 4. 检查账户状态
         if not user.is_active:
             logger.warning(f"登录失败：账户已禁用 - {login_identifier}")
             raise HTTPException(
@@ -123,11 +206,15 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
                 detail=ErrorMessages.ACCOUNT_DISABLED
             )
         
-        # 更新最后登录时间
+        # 5. 登录成功，重置失败次数和解除禁用
+        captcha_store.reset_login_attempts(login_identifier)
+        captcha_store.unblock_account(login_identifier)
+        
+        # 6. 更新最后登录时间
         user.last_login = get_beijing_time_naive()
         db.commit()
         
-        # 生成访问令牌和刷新令牌
+        # 7. 生成访问令牌和刷新令牌
         token_data = {"sub": str(user.id)}
         access_token = create_access_token(data=token_data)
         refresh_token = create_refresh_token(data=token_data)
@@ -187,6 +274,54 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         )
     
     return user
+
+
+@router.get("/captcha")
+async def get_captcha(identifier: str):
+    """获取验证码图片
+    
+    Args:
+        identifier: 用户标识（用户名或邮箱）
+        
+    Returns:
+        验证码图片（PNG格式）
+    """
+    try:
+        _, image = create_captcha(identifier)
+        return StreamingResponse(image, media_type="image/png")
+    except Exception as e:
+        logger.error(f"❌ 生成验证码失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="生成验证码失败"
+        )
+
+
+@router.get("/login-attempts/{identifier}")
+async def get_login_attempts(identifier: str):
+    """查询登录失败次数
+    
+    Args:
+        identifier: 用户标识（用户名或邮箱）
+        
+    Returns:
+        登录失败次数和是否需要验证码
+    """
+    try:
+        attempts = captcha_store.get_login_attempts(identifier)
+        needs_captcha = attempts >= LOGIN_ATTEMPT_THRESHOLD
+        
+        return success_response(data={
+            "attempts": attempts,
+            "needs_captcha": needs_captcha,
+            "threshold": LOGIN_ATTEMPT_THRESHOLD
+        })
+    except Exception as e:
+        logger.error(f"❌ 查询登录失败次数失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="查询失败"
+        )
 
 
 async def verify_internal_or_user(
@@ -425,87 +560,6 @@ async def refresh_access_token(request: RefreshTokenRequest, db: Session = Depen
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token刷新失败，请稍后重试"
-        )
-
-@router.post("/institution-login", response_model=LoginResponse)
-async def institution_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_db)):
-    """机构登录 - 学校代码+工号/学号+密码登录"""
-    try:
-        # 1. 查找学校
-        school = db.query(School).filter(
-            School.school_code == login_data.school_code.upper()
-        ).first()
-        
-        if not school:
-            logger.warning(f"机构登录失败：学校不存在 - {login_data.school_code}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="学校不存在"
-            )
-        
-        if not school.is_active:
-            logger.warning(f"机构登录失败：学校已禁用 - {login_data.school_code}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="学校已禁用"
-            )
-        
-        # 2. 查找用户（通过工号或学号）
-        user = db.query(User).filter(
-            User.school_id == school.id,
-            (User.teacher_number == login_data.number) | (User.student_number == login_data.number)
-        ).first()
-        
-        if not user:
-            logger.warning(f"机构登录失败：用户不存在 - {login_data.school_code}/{login_data.number}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="工号/学号或密码错误"
-            )
-        
-        # 3. 验证密码
-        if not verify_password(login_data.password, user.password_hash):
-            logger.warning(f"机构登录失败：密码错误 - {login_data.school_code}/{login_data.number}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="工号/学号或密码错误"
-            )
-        
-        # 4. 检查账户状态
-        if not user.is_active:
-            logger.warning(f"机构登录失败：账户已禁用 - {login_data.school_code}/{login_data.number}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ErrorMessages.ACCOUNT_DISABLED
-            )
-        
-        # 5. 更新最后登录时间
-        user.last_login = get_beijing_time_naive()
-        db.commit()
-        
-        # 6. 生成访问令牌和刷新令牌
-        token_data = {"sub": str(user.id)}
-        access_token = create_access_token(data=token_data)
-        refresh_token = create_refresh_token(data=token_data)
-        
-        logger.info(f"✅ 机构用户登录成功: {user.username} ({user.role}) - {school.school_name} (ID: {user.id})")
-        
-        return LoginResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            expires_in=settings.access_token_expire_minutes * 60,  # 转换为秒
-            user=UserResponse.model_validate(user)
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"❌ 机构登录失败: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ErrorMessages.OPERATION_FAILED
         )
 
 @router.get("/user-info", response_model=UserResponse)

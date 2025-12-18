@@ -20,11 +20,6 @@
         >
           <!-- 平台管理员菜单 -->
           <template v-if="isPlatformAdmin">
-            <el-menu-item index="/pbl/admin">
-              <el-icon><HomeFilled /></el-icon>
-              <template #title>概览</template>
-            </el-menu-item>
-            
             <!-- 学校管理 -->
             <el-menu-item index="/pbl/admin/schools">
               <el-icon><OfficeBuilding /></el-icon>
@@ -59,11 +54,6 @@
           
           <!-- 学校管理员菜单 -->
           <template v-else-if="isSchoolAdmin">
-            <el-menu-item index="/pbl/admin">
-              <el-icon><HomeFilled /></el-icon>
-              <template #title>概览</template>
-            </el-menu-item>
-            
             <!-- 用户管理 -->
             <el-menu-item index="/pbl/admin/school-user-management">
               <el-icon><UserFilled /></el-icon>
@@ -97,6 +87,28 @@
               <el-menu-item index="/pbl/admin/template-permissions">
                 <el-icon><Key /></el-icon>
                 <span>课程模板授权</span>
+              </el-menu-item>
+            </el-sub-menu>
+          </template>
+          
+          <!-- 渠道管理 - 平台管理员和渠道管理员 -->
+          <template v-if="isPlatformAdmin || isChannelManager">
+            <el-sub-menu index="channel-management">
+              <template #title>
+                <el-icon><Connection /></el-icon>
+                <span>渠道管理</span>
+              </template>
+              <el-menu-item index="/pbl/admin/channel/partners">
+                <el-icon><UserFilled /></el-icon>
+                <span>渠道商管理</span>
+              </el-menu-item>
+              <el-menu-item index="/pbl/admin/channel/school-assignment">
+                <el-icon><OfficeBuilding /></el-icon>
+                <span>学校分配</span>
+              </el-menu-item>
+              <el-menu-item index="/pbl/admin/channel/statistics">
+                <el-icon><DataAnalysis /></el-icon>
+                <span>渠道统计</span>
               </el-menu-item>
             </el-sub-menu>
           </template>
@@ -260,7 +272,8 @@ import {
   OfficeBuilding,
   UserFilled,
   Setting,
-  Key
+  Key,
+  Connection
 } from '@element-plus/icons-vue'
 import { getCurrentAdmin } from '@/api/admin'
 
@@ -285,10 +298,15 @@ const isTeacher = computed(() => {
   return adminInfo.value?.role === 'teacher'
 })
 
+const isChannelManager = computed(() => {
+  return adminInfo.value?.role === 'channel_manager'
+})
+
 const userRoleText = computed(() => {
   if (isPlatformAdmin.value) return '平台管理员'
   if (isSchoolAdmin.value) return '学校管理员'
   if (isTeacher.value) return '教师'
+  if (isChannelManager.value) return '渠道管理员'
   return '管理员'
 })
 
@@ -299,7 +317,7 @@ const pageTitle = computed(() => {
   }
   
   const titles = {
-    '/pbl/admin': '概览',
+    '/pbl/admin': '管理后台',
     '/pbl/admin/schools': '学校管理',
     '/pbl/admin/courses': '课程管理',
     '/pbl/admin/course-templates': '课程模板管理',
@@ -310,8 +328,17 @@ const pageTitle = computed(() => {
     '/pbl/admin/resources': '资料管理',
     '/pbl/admin/tasks': '任务管理',
     '/pbl/admin/school-user-management': '用户管理',
-    '/pbl/admin/classes': '项目式课程管理'
+    '/pbl/admin/classes': '项目式课程管理',
+    '/pbl/admin/channel/partners': '渠道商管理',
+    '/pbl/admin/channel/school-assignment': '学校分配',
+    '/pbl/admin/channel/statistics': '渠道统计'
   }
+  
+  // 处理渠道商详情页面
+  if (route.path.startsWith('/pbl/admin/channel/partners/')) {
+    return '渠道商详情'
+  }
+  
   return titles[route.path] || '管理后台'
 })
 

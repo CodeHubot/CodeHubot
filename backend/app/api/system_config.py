@@ -15,7 +15,11 @@ from app.schemas.system_config import (
     SystemConfigInDB,
     SystemConfigPublic,
     ModuleConfigResponse,
-    ModuleConfigUpdate
+    ModuleConfigUpdate,
+    PlatformConfigResponse,
+    PlatformConfigUpdate,
+    PoliciesConfigResponse,
+    PoliciesConfigUpdate
 )
 from app.core.deps import get_current_user
 from app.models.user import User
@@ -281,10 +285,12 @@ async def init_module_config(
         )
     
     default_configs = [
-        ("enable_user_registration", "true", "boolean", "是否开启用户注册", "module", True),
+        ("enable_user_registration", "false", "boolean", "是否开启用户注册", "module", True),
         ("enable_device_module", "true", "boolean", "是否开启设备管理模块", "module", True),
         ("enable_ai_module", "true", "boolean", "是否开启AI模块", "module", True),
         ("enable_pbl_module", "true", "boolean", "是否开启PBL模块", "module", True),
+        ("platform_name", "CodeHubot", "string", "平台名称", "system", True),
+        ("platform_description", "智能物联网管理平台", "string", "平台描述", "system", True),
     ]
     
     created_count = 0
@@ -308,3 +314,126 @@ async def init_module_config(
         message=f"模块配置初始化完成，创建了 {created_count} 个配置项",
         data={"created_count": created_count}
     )
+
+
+# ==================== 平台配置专用接口 ====================
+
+@router.get("/platform", response_model=PlatformConfigResponse)
+async def get_platform_config(db: Session = Depends(get_db)):
+    """
+    获取平台配置（公开接口，无需认证）
+    返回平台名称、描述、注册开关、用户协议和隐私政策等基础信息
+    """
+    def get_string_config(key: str, default: str = "") -> str:
+        value = get_config_value(db, key, default)
+        return value if value else default
+    
+    def get_bool_config(key: str, default: bool = False) -> bool:
+        value = get_config_value(db, key, str(default).lower())
+        return value.lower() in ('true', '1', 'yes') if value else default
+    
+    return PlatformConfigResponse(
+        platform_name=get_string_config("platform_name", "CodeHubot"),
+        platform_description=get_string_config("platform_description", "智能物联网管理平台"),
+        enable_user_registration=get_bool_config("enable_user_registration", False),
+        user_agreement=get_string_config("user_agreement", ""),
+        privacy_policy=get_string_config("privacy_policy", "")
+    )
+
+
+@router.put("/platform", response_model=PlatformConfigResponse)
+async def update_platform_config(
+    platform_config: PlatformConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    更新平台配置（仅平台管理员）
+    """
+    if not is_platform_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有平台管理员可以更新平台配置"
+        )
+    
+    update_data = platform_config.model_dump(exclude_unset=True)
+    
+    config_mapping = {
+        "platform_name": ("平台名称", "system", "string"),
+        "platform_description": ("平台描述", "system", "string"),
+        "enable_user_registration": ("是否开启用户注册", "module", "boolean")
+    }
+    
+    for key, value in update_data.items():
+        description, category, config_type = config_mapping[key]
+        # boolean 类型转换为字符串 "true" 或 "false"
+        if config_type == "boolean":
+            value = str(value).lower()
+        set_config_value(
+            db=db,
+            key=key,
+            value=str(value),
+            config_type=config_type,
+            description=description,
+            category=category,
+            is_public=True
+        )
+    
+    # 返回更新后的配置
+    return await get_platform_config(db)
+
+
+# ==================== 协议配置专用接口 ====================
+
+@router.get("/policies", response_model=PoliciesConfigResponse)
+async def get_policies_config(db: Session = Depends(get_db)):
+    """
+    获取协议配置（公开接口，无需认证）
+    返回用户协议和隐私政策内容
+    """
+    def get_text_config(key: str, default: str = "") -> str:
+        value = get_config_value(db, key, default)
+        return value if value else default
+    
+    return PoliciesConfigResponse(
+        user_agreement=get_text_config("user_agreement", ""),
+        privacy_policy=get_text_config("privacy_policy", "")
+    )
+
+
+@router.put("/policies", response_model=PoliciesConfigResponse)
+async def update_policies_config(
+    policies_config: PoliciesConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    更新协议配置（仅平台管理员）
+    """
+    if not is_platform_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有平台管理员可以更新协议配置"
+        )
+    
+    update_data = policies_config.model_dump(exclude_unset=True)
+    
+    config_mapping = {
+        "user_agreement": ("用户协议内容", "policy", "text"),
+        "privacy_policy": ("隐私政策内容", "policy", "text")
+    }
+    
+    for key, value in update_data.items():
+        description, category, config_type = config_mapping[key]
+        set_config_value(
+            db=db,
+            key=key,
+            value=str(value) if value else "",
+            config_type=config_type,
+            description=description,
+            category=category,
+            is_public=True
+        )
+    
+    # 返回更新后的配置
+    return await get_policies_config(db)

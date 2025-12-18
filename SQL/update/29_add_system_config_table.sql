@@ -86,7 +86,7 @@ INSERT IGNORE INTO `core_system_config` (
     `is_public`
 ) VALUES (
     'enable_user_registration',
-    'true',
+    'false',
     'boolean',
     '是否开启用户注册',
     'module',

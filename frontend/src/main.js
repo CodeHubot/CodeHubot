@@ -20,9 +20,8 @@ const app = createApp(App)
 const pinia = createPinia()
 app.use(pinia)
 
-// 初始化认证store
-const authStore = useAuthStore()
-authStore.init()
+// 注意：authStore.init() 已移至路由守卫中异步调用
+// 这样可以确保在路由跳转前用户信息已经加载完成
 
 // 使用路由
 app.use(router)

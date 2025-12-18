@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date, Text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.utils.timezone import get_beijing_time_naive
@@ -26,6 +26,20 @@ class School(Base):
     max_teachers = Column(Integer, default=100, comment='最大教师数')
     max_students = Column(Integer, default=1000, comment='最大学生数')
     max_devices = Column(Integer, default=500, comment='最大设备数')
+    
+    # 学校管理员信息
+    admin_user_id = Column(Integer, comment='学校管理员用户ID')
+    admin_username = Column(String(100), comment='学校管理员用户名')
+    
+    # 视频权限控制
+    video_student_view_limit = Column(Integer, comment='学生视频观看次数限制（NULL表示不限制）')
+    video_teacher_view_limit = Column(Integer, comment='教师视频观看次数限制（NULL表示不限制）')
+    
+    # 注意：current_teachers 和 current_students 字段存在于数据库表中，
+    # 但我们在代码中使用实时查询而不是存储的值，所以这里不定义这两个字段
+    
+    # 学校描述
+    description = Column(Text, comment='学校描述')
     
     # 时间戳 - 使用北京时间
     created_at = Column(DateTime, default=get_beijing_time_naive, nullable=False)
