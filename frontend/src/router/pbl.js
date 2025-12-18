@@ -112,6 +112,15 @@ const adminRoutes = {
       }
     },
     {
+      path: 'course-templates/:uuid',
+      name: 'CourseTemplateDetail',
+      component: () => import('@pbl/admin/views/CourseTemplateDetail.vue'),
+      meta: { 
+        title: '课程模板详情',
+        roles: ['platform_admin']
+      }
+    },
+    {
       path: 'template-permissions',
       name: 'TemplatePermissions',
       component: () => import('@pbl/admin/views/TemplatePermissions.vue'),
@@ -307,7 +316,7 @@ const adminRoutes = {
       component: () => import('@pbl/admin/views/AdminTemplateDetail.vue'),
       meta: {
         title: '模板详情',
-        roles: ['school_admin', 'teacher']
+        roles: ['platform_admin', 'school_admin', 'teacher']
       }
     },
     // 教师专用路由

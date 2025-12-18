@@ -1,7 +1,7 @@
 /**
  * 设备分组管理API
  */
-import request from './request'
+import request from '@/utils/request'
 
 // ============================================================================
 // 设备分组管理

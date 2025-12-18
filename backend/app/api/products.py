@@ -15,6 +15,7 @@ from app.schemas.product import (
 )
 from app.api.auth import get_current_user
 from app.models.user import User
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -73,8 +74,7 @@ def can_edit_product(product: Product, user: User) -> bool:
     return product.creator_id == user.id
 
 
-@router.post("/", response_model=ProductResponse)
-@router.post("", response_model=ProductResponse)  # 支持不带尾部斜杠的URL
+@router.post("", response_model=ProductResponse)
 def create_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
@@ -129,8 +129,7 @@ def create_product(
     return db_product
 
 
-@router.get("/", response_model=List[ProductList])
-@router.get("", response_model=List[ProductList])  # 支持不带尾部斜杠的URL
+@router.get("", response_model=List[ProductList])
 def get_products(
     skip: int = Query(0, ge=0, description="跳过的记录数"),
     limit: int = Query(100, ge=1, le=1000, description="返回的记录数"),
@@ -261,7 +260,10 @@ def get_product_categories(
         ORDER BY count DESC, category
     """)).fetchall()
     
-    return [{"category": cat[0], "count": cat[1]} for cat in categories]
+    return success_response(data=[
+        {"category": cat[0], "count": cat[1]} 
+        for cat in categories
+    ])
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -363,7 +365,7 @@ def delete_product(
     db.delete(product)
     db.commit()
     
-    return {"message": "产品删除成功"}
+    return success_response(message="产品删除成功")
 
 
 @router.get("/{product_id}/devices")
@@ -398,4 +400,4 @@ def get_product_devices(
     """), {"product_id": product_id, "limit": limit, "skip": skip}).fetchall()
     
     # 将 Row 对象转换为字典
-    return [dict(device._mapping) for device in devices]
+    return success_response(data=[dict(device._mapping) for device in devices])

@@ -359,22 +359,14 @@ const loadTemplates = async () => {
     
     const response = await getAvailableTemplatesList(params)
     
-    console.log('=== 模板库响应 ===')
-    console.log('完整响应:', response)
-    console.log('response.data:', response.data)
-    console.log('response.data.data:', response.data.data)
-    console.log('response.data.data.items:', response.data.data?.items)
-    console.log('===================')
+    // 简化处理：如果 getAvailableTemplatesList 使用了 request 工具
+    // response 已经是标准格式：{ success: true, data: {...} }
+    const data = response.data
+    templates.value = data.items || []
+    pagination.total = data.total || 0
     
-    if (response.data && response.data.data) {
-      templates.value = response.data.data.items || []
-      pagination.total = response.data.data.total || 0
-      console.log('templates.value 已设置:', templates.value)
-      console.log('pagination.total:', pagination.total)
-    }
   } catch (error) {
     console.error('加载模板失败:', error)
-    ElMessage.error(error.message || '加载模板失败')
   } finally {
     loading.value = false
   }

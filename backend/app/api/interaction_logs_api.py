@@ -13,6 +13,7 @@ from ..services.interaction_log_service import (
     LogEntry
 )
 from ..core.auth import get_current_user
+from ..core.response import success_response
 from ..schemas.user import User
 
 router = APIRouter(prefix="/api/interaction-logs", tags=["交互日志"])
@@ -87,11 +88,10 @@ async def create_interaction_log(
             log_entry
         )
         
-        return {
-            "success": True,
-            "message": "日志记录请求已提交",
-            "log_id": f"pending_{datetime.utcnow().timestamp()}"
-        }
+        return success_response(
+            data={"log_id": f"pending_{datetime.utcnow().timestamp()}"},
+            message="日志记录请求已提交"
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"记录日志失败: {str(e)}")
@@ -126,17 +126,18 @@ async def get_interaction_logs(
             offset=offset
         )
         
-        return {
-            "success": True,
-            "data": result['logs'],
-            "total": result['total'],
-            "from_cache": result.get('from_cache', False),
-            "pagination": {
-                "limit": limit,
-                "offset": offset,
-                "has_more": result['total'] > offset + limit
+        return success_response(
+            data={
+                "logs": result['logs'],
+                "total": result['total'],
+                "from_cache": result.get('from_cache', False),
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": result['total'] > offset + limit
+                }
             }
-        }
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"查询日志失败: {str(e)}")
@@ -171,17 +172,18 @@ async def get_interaction_stats(
             group_by=group_by
         )
         
-        return {
-            "success": True,
-            "data": result['stats'],
-            "summary": result['summary'],
-            "query_params": {
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "device_id": device_id,
-                "group_by": group_by
+        return success_response(
+            data={
+                "stats": result['stats'],
+                "summary": result['summary'],
+                "query_params": {
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "device_id": device_id,
+                    "group_by": group_by
+                }
             }
-        }
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
@@ -217,18 +219,19 @@ async def get_device_logs(
             offset=0
         )
         
-        return {
-            "success": True,
-            "device_id": device_id,
-            "data": result['logs'],
-            "total": result['total'],
-            "from_cache": result.get('from_cache', False),
-            "time_range": {
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "hours": hours
+        return success_response(
+            data={
+                "device_id": device_id,
+                "logs": result['logs'],
+                "total": result['total'],
+                "from_cache": result.get('from_cache', False),
+                "time_range": {
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "hours": hours
+                }
             }
-        }
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取设备日志失败: {str(e)}")
@@ -259,17 +262,18 @@ async def get_device_stats(
             group_by=group_by
         )
         
-        return {
-            "success": True,
-            "device_id": device_id,
-            "data": result['stats'],
-            "summary": result['summary'],
-            "time_range": {
-                "start_time": start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "days": days
+        return success_response(
+            data={
+                "device_id": device_id,
+                "stats": result['stats'],
+                "summary": result['summary'],
+                "time_range": {
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "days": days
+                }
             }
-        }
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取设备统计失败: {str(e)}")
@@ -315,11 +319,10 @@ async def create_batch_logs(
         
         background_tasks.add_task(batch_log_task)
         
-        return {
-            "success": True,
-            "message": f"批量日志记录请求已提交，共{len(logs)}条",
-            "batch_id": f"batch_{datetime.utcnow().timestamp()}"
-        }
+        return success_response(
+            data={"batch_id": f"batch_{datetime.utcnow().timestamp()}"},
+            message=f"批量日志记录请求已提交，共{len(logs)}条"
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量记录日志失败: {str(e)}")
@@ -345,10 +348,9 @@ async def cleanup_old_logs(
             days_to_keep
         )
         
-        return {
-            "success": True,
-            "message": f"旧日志清理任务已启动，将保留最近{days_to_keep}天的数据"
-        }
+        return success_response(
+            message=f"旧日志清理任务已启动，将保留最近{days_to_keep}天的数据"
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"启动清理任务失败: {str(e)}")

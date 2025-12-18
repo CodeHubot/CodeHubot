@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 工作流管理API
 

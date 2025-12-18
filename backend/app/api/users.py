@@ -10,6 +10,7 @@ from app.schemas.user import UserResponse, UserCreate, UserUpdate
 from app.api.auth import get_current_user
 from app.core.security import verify_password, get_password_hash
 from app.core.constants import ErrorMessages, SuccessMessages
+from app.core.response import success_response
 from datetime import datetime, timedelta
 import logging
 
@@ -52,7 +53,7 @@ async def update_profile(
     db.commit()
     db.refresh(current_user)
     
-    return {"message": "个人信息更新成功", "data": current_user}
+    return success_response(data=current_user, message="个人信息更新成功")
 
 @router.put("/change-password")
 async def change_password(
@@ -72,7 +73,7 @@ async def change_password(
     current_user.password_hash = get_password_hash(password_data.new_password)
     db.commit()
     
-    return {"message": "密码修改成功", "data": {"success": True}}
+    return success_response(data={"success": True}, message="密码修改成功")
 
 @router.get("/stats")
 async def get_user_stats(
@@ -94,13 +95,11 @@ async def get_user_stats(
     else:
         login_days = 1
     
-    return {
-        "data": {
-            "device_count": total_devices,
-            "online_count": online_devices,
-            "login_days": login_days
-        }
-    }
+    return success_response(data={
+        "device_count": total_devices,
+        "online_count": online_devices,
+        "login_days": login_days
+    })
 
 # ==================== 用户管理接口（仅管理员） ====================
 
@@ -153,12 +152,12 @@ async def get_users(
     # 转换为UserResponse格式，去除password_hash
     user_responses = [UserResponse.model_validate(user) for user in users]
     
-    return {
-        "data": user_responses,
+    return success_response(data={
+        "items": user_responses,
         "total": total,
         "skip": skip,
         "limit": limit
-    }
+    })
 
 @router.post("/", response_model=UserResponse)
 async def create_user(
@@ -309,7 +308,7 @@ async def delete_user(
     
     logger.info(f"✅ 管理员 {current_user.username} 删除用户: {user.email} (ID: {user_id})")
     
-    return {"message": SuccessMessages.DELETE_SUCCESS}
+    return success_response(message=SuccessMessages.DELETE_SUCCESS)
 
 @router.put("/{user_id}/toggle-status", response_model=UserResponse)
 async def toggle_user_status(
@@ -389,4 +388,4 @@ async def reset_user_password(
     
     logger.info(f"✅ 管理员 {current_user.username} 重置用户密码: {user.email} (ID: {user_id})")
     
-    return {"message": "密码重置成功"}
+    return success_response(message="密码重置成功")

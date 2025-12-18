@@ -26,6 +26,7 @@ from app.schemas.pbl_group_device_authorization import (
 )
 from app.api.auth import get_current_user
 from app.core.constants import ErrorMessages, SuccessMessages
+from app.core.response import success_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["设备PBL授权"])
@@ -337,7 +338,7 @@ async def revoke_pbl_device_authorization(
     db.delete(authorization)
     db.commit()
     
-    return {"message": "授权已撤销"}
+    return success_response(message="授权已撤销")
 
 
 @router.delete("/{device_uuid}/pbl-authorizations")
@@ -381,7 +382,7 @@ async def revoke_pbl_device_authorizations_batch(
     
     db.commit()
     
-    return {"message": f"已撤销 {len(authorizations)} 个授权"}
+    return success_response(message=f"已撤销 {len(authorizations)} 个授权")
 
 
 @router.get("/authorizable-groups", response_model=PBLAuthorizableGroupsResponse)

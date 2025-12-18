@@ -1,5 +1,5 @@
 // 管理员相关API
-import request from './request'
+import request from '@/utils/request'
 import { API_ENDPOINTS, createApiUrl, handleApiError } from './config'
 
 /**

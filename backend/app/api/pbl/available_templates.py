@@ -34,7 +34,7 @@ def check_school_admin(current_user: Admin):
     return current_user
 
 
-@router.get("/available-templates", response_model=dict)
+@router.get("", response_model=dict)
 async def list_available_templates(
     difficulty: Optional[str] = Query(None, description="难度筛选"),
     category: Optional[str] = Query(None, description="类别筛选"),
@@ -154,7 +154,7 @@ async def list_available_templates(
     })
 
 
-@router.get("/available-templates/{template_uuid}", response_model=dict)
+@router.get("/{template_uuid}", response_model=dict)
 async def get_available_template_detail(
     template_uuid: str,
     db: Session = Depends(get_db),
@@ -298,7 +298,7 @@ async def get_available_template_detail(
     })
 
 
-@router.post("/available-templates/{template_uuid}/create-course", response_model=dict)
+@router.post("/{template_uuid}/create-course", response_model=dict)
 async def create_course_from_template(
     template_uuid: str,
     title: Optional[str] = None,

@@ -1,7 +1,7 @@
 /**
  * 社团班课程系统API
  */
-import request from './request'
+import request from '@/utils/request'
 
 // ===== 班级管理 =====
 

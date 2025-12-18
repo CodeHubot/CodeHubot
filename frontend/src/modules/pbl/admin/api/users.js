@@ -1,7 +1,7 @@
 /**
  * PBL用户管理API
  */
-import request from './request'
+import request from '@/utils/request'
 
 /**
  * 获取用户列表

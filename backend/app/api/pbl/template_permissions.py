@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 
 from ...core.deps import get_db, get_current_admin
+from ...core.response import success_response
 from ...models.pbl import PBLTemplateSchoolPermission, PBLCourseTemplate
 from ...models.admin import Admin
 from ...models.school import School
@@ -81,16 +82,15 @@ async def create_template_permission(
     db.commit()
     db.refresh(permission)
     
-    return {
-        "success": True,
-        "message": f"已成功将课程模板「{template.title}」开放给「{school.school_name}」",
-        "data": {
+    return success_response(
+        data={
             "id": permission.id,
             "uuid": permission.uuid,
             "template_title": template.title,
             "school_name": school.school_name
-        }
-    }
+        },
+        message=f"已成功将课程模板「{template.title}」开放给「{school.school_name}」"
+    )
 
 
 @router.get("/template-permissions", response_model=dict)
@@ -154,15 +154,12 @@ async def list_template_permissions(
             "updated_at": perm.updated_at
         })
     
-    return {
-        "success": True,
-        "data": {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "items": result
-        }
-    }
+    return success_response(data={
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": result
+    })
 
 
 @router.get("/template-permissions/{permission_uuid}", response_model=dict)
@@ -187,36 +184,33 @@ async def get_template_permission(
     ).first()
     school = db.query(School).filter(School.id == permission.school_id).first()
     
-    return {
-        "success": True,
-        "data": {
-            "id": permission.id,
-            "uuid": permission.uuid,
-            "template": {
-                "id": template.id,
-                "title": template.title,
-                "description": template.description,
-                "difficulty": template.difficulty,
-                "cover_image": template.cover_image
-            } if template else None,
-            "school": {
-                "id": school.id,
-                "name": school.school_name,
-                "code": school.school_code
-            } if school else None,
-            "is_active": permission.is_active,
-            "can_customize": permission.can_customize,
-            "max_instances": permission.max_instances,
-            "current_instances": permission.current_instances,
-            "valid_from": permission.valid_from,
-            "valid_until": permission.valid_until,
-            "granted_by": permission.granted_by,
-            "granted_at": permission.granted_at,
-            "remarks": permission.remarks,
-            "created_at": permission.created_at,
-            "updated_at": permission.updated_at
-        }
-    }
+    return success_response(data={
+        "id": permission.id,
+        "uuid": permission.uuid,
+        "template": {
+            "id": template.id,
+            "title": template.title,
+            "description": template.description,
+            "difficulty": template.difficulty,
+            "cover_image": template.cover_image
+        } if template else None,
+        "school": {
+            "id": school.id,
+            "name": school.school_name,
+            "code": school.school_code
+        } if school else None,
+        "is_active": permission.is_active,
+        "can_customize": permission.can_customize,
+        "max_instances": permission.max_instances,
+        "current_instances": permission.current_instances,
+        "valid_from": permission.valid_from,
+        "valid_until": permission.valid_until,
+        "granted_by": permission.granted_by,
+        "granted_at": permission.granted_at,
+        "remarks": permission.remarks,
+        "created_at": permission.created_at,
+        "updated_at": permission.updated_at
+    })
 
 
 @router.put("/template-permissions/{permission_uuid}", response_model=dict)
@@ -244,14 +238,13 @@ async def update_template_permission(
     db.commit()
     db.refresh(permission)
     
-    return {
-        "success": True,
-        "message": "权限更新成功",
-        "data": {
+    return success_response(
+        data={
             "id": permission.id,
             "uuid": permission.uuid
-        }
-    }
+        },
+        message="权限更新成功"
+    )
 
 
 @router.delete("/template-permissions/{permission_uuid}", response_model=dict)
@@ -280,10 +273,7 @@ async def delete_template_permission(
     db.delete(permission)
     db.commit()
     
-    return {
-        "success": True,
-        "message": "权限删除成功"
-    }
+    return success_response(message="权限删除成功")
 
 
 @router.post("/template-permissions/batch-grant", response_model=dict)
@@ -355,13 +345,12 @@ async def batch_grant_permissions(
     
     db.commit()
     
-    return {
-        "success": True,
-        "message": f"成功开放给 {success_count} 个学校",
-        "data": {
+    return success_response(
+        data={
             "template_title": template.title,
             "success_count": success_count,
             "failed_count": len(failed_schools),
             "failed_schools": failed_schools
-        }
-    }
+        },
+        message=f"成功开放给 {success_count} 个学校"
+    )

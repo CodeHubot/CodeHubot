@@ -264,7 +264,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh, Plus } from '@element-plus/icons-vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -306,13 +306,6 @@ const permissionRules = {
   can_customize: [{ required: true, message: '请选择是否允许自定义', trigger: 'change' }]
 }
 
-// API请求头
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('admin_access_token') || 
-                localStorage.getItem('access_token')
-  return { Authorization: `Bearer ${token}` }
-}
-
 // 加载权限列表
 const loadPermissions = async () => {
   try {
@@ -325,18 +318,19 @@ const loadPermissions = async () => {
       ...(filters.is_active !== null && { is_active: filters.is_active })
     }
     
-    const response = await axios.get('/api/pbl/admin/template-permissions', {
-      params,
-      headers: getAuthHeaders()
+    // 使用 request 工具，自动处理 token 和响应格式
+    const response = await request.get('/api/pbl/admin/template-permissions', {
+      params
     })
     
-    if (response.data && response.data.success) {
-      permissions.value = response.data.data.items || []
-      pagination.total = response.data.data.total || 0
-    }
+    // 简化响应处理，直接使用 data
+    const data = response.data
+    permissions.value = data.items || []
+    pagination.total = data.total || 0
+    
   } catch (error) {
+    // 错误已在 request 中统一处理
     console.error('加载权限列表失败:', error)
-    ElMessage.error(error.response?.data?.message || '加载权限列表失败')
   } finally {
     loading.value = false
   }
@@ -352,23 +346,20 @@ const loadTemplates = async () => {
     
     // 循环加载所有页
     while (hasMore) {
-      const response = await axios.get('/api/pbl/admin/courses/templates', {
-        params: { page, page_size: pageSize },
-        headers: getAuthHeaders()
+      // 使用 request 工具
+      const response = await request.get('/api/pbl/admin/courses/templates', {
+        params: { page, page_size: pageSize }
       })
       
-      if (response.data && response.data.success) {
-        const data = response.data.data
-        const items = data.items || []
-        allItems.push(...items)
-        
-        // 检查是否还有更多数据
-        const total = data.total || 0
-        hasMore = allItems.length < total
-        page++
-      } else {
-        hasMore = false
-      }
+      // 简化响应处理
+      const data = response.data
+      const items = data.items || []
+      allItems.push(...items)
+      
+      // 检查是否还有更多数据
+      const total = data.total || 0
+      hasMore = allItems.length < total
+      page++
     }
     
     allTemplates.value = allItems
@@ -380,14 +371,15 @@ const loadTemplates = async () => {
 // 加载学校列表
 const loadSchools = async () => {
   try {
-    const response = await axios.get('/api/pbl/admin/schools/list', {
-      params: { limit: 1000 },
-      headers: getAuthHeaders()
+    // 使用 request 工具
+    const response = await request.get('/api/pbl/admin/schools/list', {
+      params: { limit: 1000 }
     })
     
-    if (response.data && response.data.success) {
-      schools.value = response.data.data.items || []
-    }
+    // 简化响应处理
+    const data = response.data
+    schools.value = data.items || []
+    
   } catch (error) {
     console.error('加载学校列表失败:', error)
   }
@@ -464,10 +456,9 @@ const handlePermissionSubmit = async () => {
       
       if (editingPermission.value) {
         // 更新
-        await axios.put(
+        await request.put(
           `/api/pbl/admin/template-permissions/${editingPermission.value.uuid}`,
-          data,
-          { headers: getAuthHeaders() }
+          data
         )
         ElMessage.success('权限更新成功')
       } else {
@@ -475,11 +466,7 @@ const handlePermissionSubmit = async () => {
         data.template_id = permissionForm.template_id
         data.school_id = permissionForm.school_id
         
-        await axios.post(
-          '/api/pbl/admin/template-permissions',
-          data,
-          { headers: getAuthHeaders() }
-        )
+        await request.post('/api/pbl/admin/template-permissions', data)
         ElMessage.success('权限创建成功')
       }
       
@@ -487,7 +474,6 @@ const handlePermissionSubmit = async () => {
       loadPermissions()
     } catch (error) {
       console.error('操作失败:', error)
-      ElMessage.error(error.response?.data?.message || '操作失败')
     } finally {
       submitting.value = false
     }
@@ -497,15 +483,11 @@ const handlePermissionSubmit = async () => {
 // 删除权限
 const handleDelete = async (permission) => {
   try {
-    await axios.delete(
-      `/api/pbl/admin/template-permissions/${permission.uuid}`,
-      { headers: getAuthHeaders() }
-    )
+    await request.delete(`/api/pbl/admin/template-permissions/${permission.uuid}`)
     ElMessage.success('权限删除成功')
     loadPermissions()
   } catch (error) {
     console.error('删除失败:', error)
-    ElMessage.error(error.response?.data?.message || '删除失败')
   }
 }
 

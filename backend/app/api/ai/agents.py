@@ -14,6 +14,7 @@ from app.schemas.agent import (
 )
 from app.api.auth import get_current_user
 from app.models.user import User
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -43,7 +44,6 @@ def can_edit_agent(agent: Agent, user: User) -> bool:
     return agent.user_id == user.id
 
 
-@router.post("/", response_model=AgentResponse)
 @router.post("", response_model=AgentResponse)
 def create_agent(
     agent: AgentCreate,
@@ -86,7 +86,6 @@ def create_agent(
     return AgentResponse(**agent_dict)
 
 
-@router.get("/", response_model=AgentList)
 @router.get("", response_model=AgentList)
 def get_agents(
     skip: int = Query(0, ge=0, description="跳过的记录数"),
@@ -246,5 +245,5 @@ def delete_agent(
     db.delete(agent)
     db.commit()
     
-    return {"message": "智能体已删除"}
+    return success_response(message="智能体已删除")
 

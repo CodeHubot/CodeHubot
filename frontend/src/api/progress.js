@@ -1,5 +1,5 @@
 // 学习进度相关API
-import request from './request'
+import request from '@/utils/request'
 import { handleApiError } from './config'
 
 // ===== 学生端学习进度 =====

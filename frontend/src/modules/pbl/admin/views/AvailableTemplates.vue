@@ -306,7 +306,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh, Plus, View, Clock, Document, Picture } from '@element-plus/icons-vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 const router = useRouter()
 
@@ -342,13 +342,6 @@ const courseRules = {
   title: [{ required: true, message: '请输入课程名称', trigger: 'blur' }]
 }
 
-// API请求
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('admin_access_token') || 
-                localStorage.getItem('access_token')
-  return { Authorization: `Bearer ${token}` }
-}
-
 // 加载可用模板
 const loadTemplates = async () => {
   try {
@@ -361,18 +354,13 @@ const loadTemplates = async () => {
       ...(filters.category && { category: filters.category })
     }
     
-    const response = await axios.get('/api/pbl/admin/available-templates', {
-      params,
-      headers: getAuthHeaders()
-    })
+    const response = await request.get('/api/pbl/admin/available-templates', { params })
     
-    if (response.data && response.data.success) {
-      templates.value = response.data.data.items || []
-      pagination.total = response.data.data.total || 0
-    }
+    const data = response.data
+    templates.value = data.items || []
+    pagination.total = data.total || 0
   } catch (error) {
     console.error('加载模板失败:', error)
-    ElMessage.error(error.response?.data?.message || '加载模板失败')
   } finally {
     loading.value = false
   }
@@ -381,14 +369,12 @@ const loadTemplates = async () => {
 // 加载班级列表
 const loadClasses = async () => {
   try {
-    const response = await axios.get('/api/pbl/admin/classes-groups/classes', {
-      params: { limit: 1000 },
-      headers: getAuthHeaders()
+    const response = await request.get('/api/pbl/admin/classes-groups/classes', {
+      params: { limit: 1000 }
     })
     
-    if (response.data && response.data.success) {
-      classes.value = response.data.data.items || []
-    }
+    const data = response.data
+    classes.value = data.items || []
   } catch (error) {
     console.error('加载班级列表失败:', error)
   }
@@ -433,24 +419,20 @@ const handleCreateSubmit = async () => {
     try {
       submitting.value = true
       
-      const response = await axios.post(
+      const response = await request.post(
         `/api/pbl/admin/available-templates/${currentTemplate.value.uuid}/create-course`,
         {
           title: courseForm.title,
           description: courseForm.description,
           class_id: courseForm.class_id
-        },
-        { headers: getAuthHeaders() }
+        }
       )
       
-      if (response.data && response.data.success) {
-        ElMessage.success('课程创建成功')
-        createDialogVisible.value = false
-        loadTemplates() // 刷新列表
-      }
+      ElMessage.success('课程创建成功')
+      createDialogVisible.value = false
+      loadTemplates() // 刷新列表
     } catch (error) {
       console.error('创建失败:', error)
-      ElMessage.error(error.response?.data?.message || '创建失败')
     } finally {
       submitting.value = false
     }

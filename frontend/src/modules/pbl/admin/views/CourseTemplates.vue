@@ -252,7 +252,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh, Plus, FolderOpened } from '@element-plus/icons-vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 const router = useRouter()
 
@@ -306,13 +306,6 @@ const difficultyMap = {
   'advanced': '高级'
 }
 
-// API请求头
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('admin_access_token') || 
-                localStorage.getItem('access_token')
-  return { Authorization: `Bearer ${token}` }
-}
-
 // 加载模板列表
 const loadTemplates = async () => {
   try {
@@ -325,19 +318,18 @@ const loadTemplates = async () => {
       ...(filters.is_public !== null && { is_public: filters.is_public })
     }
     
-    const response = await axios.get('/api/pbl/admin/courses/templates', {
-      params,
-      headers: getAuthHeaders()
+    // 使用 request 工具
+    const response = await request.get('/api/pbl/admin/courses/templates', {
+      params
     })
     
-    if (response.data && response.data.success) {
-      const data = response.data.data
-      templates.value = data.items || []
-      pagination.total = data.total || 0
-    }
+    // 简化响应处理
+    const data = response.data
+    templates.value = data.items || []
+    pagination.total = data.total || 0
+    
   } catch (error) {
     console.error('加载模板列表失败:', error)
-    ElMessage.error(error.response?.data?.message || '加载模板列表失败')
   } finally {
     loading.value = false
   }
@@ -355,7 +347,7 @@ const resetFilters = () => {
 
 // 管理内容 - 跳转到详情页
 const handleManageContent = (template) => {
-  router.push(`/admin/course-templates/${template.uuid}`)
+  router.push(`/pbl/admin/course-templates/${template.uuid}`)
 }
 
 // 打开创建对话框
@@ -416,19 +408,14 @@ const handleTemplateSubmit = async () => {
       
       if (editingTemplate.value) {
         // 更新
-        await axios.put(
+        await request.put(
           `/api/pbl/admin/courses/templates/${editingTemplate.value.uuid}`,
-          data,
-          { headers: getAuthHeaders() }
+          data
         )
         ElMessage.success('模板更新成功')
       } else {
         // 新建
-        await axios.post(
-          '/api/pbl/admin/courses/templates',
-          data,
-          { headers: getAuthHeaders() }
-        )
+        await request.post('/api/pbl/admin/courses/templates', data)
         ElMessage.success('模板创建成功')
       }
       
@@ -436,7 +423,6 @@ const handleTemplateSubmit = async () => {
       loadTemplates()
     } catch (error) {
       console.error('操作失败:', error)
-      ElMessage.error(error.response?.data?.message || '操作失败')
     } finally {
       submitting.value = false
     }
@@ -446,15 +432,11 @@ const handleTemplateSubmit = async () => {
 // 删除模板
 const handleDelete = async (template) => {
   try {
-    await axios.delete(
-      `/api/pbl/admin/courses/templates/${template.uuid}`,
-      { headers: getAuthHeaders() }
-    )
+    await request.delete(`/api/pbl/admin/courses/templates/${template.uuid}`)
     ElMessage.success('模板删除成功')
     loadTemplates()
   } catch (error) {
     console.error('删除失败:', error)
-    ElMessage.error(error.response?.data?.message || '删除失败')
   }
 }
 

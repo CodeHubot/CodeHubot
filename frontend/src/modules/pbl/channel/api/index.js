@@ -1,7 +1,7 @@
 /**
  * 渠道商API接口
  */
-import request from '@shared/api/request'
+import request from '@/utils/request'
 
 /**
  * 获取渠道商负责的所有学校列表

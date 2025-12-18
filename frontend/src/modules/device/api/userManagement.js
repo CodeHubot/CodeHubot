@@ -1,7 +1,7 @@
 /**
  * 用户管理模块API
  */
-import request from './request'
+import request from '@/utils/request'
 
 // ===== 学校管理员 =====
 

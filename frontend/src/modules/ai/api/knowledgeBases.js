@@ -1,7 +1,7 @@
 /**
  * 知识库管理API
  */
-import request from './request'
+import request from '@/utils/request'
 
 // ============================================================================
 // 知识库CRUD

@@ -2,7 +2,7 @@
  * 统一的认证API
  * 支持多种登录方式
  */
-import request from './request'
+import request from '@/utils/request'
 
 /**
  * 通用登录（用户名/邮箱 + 密码）

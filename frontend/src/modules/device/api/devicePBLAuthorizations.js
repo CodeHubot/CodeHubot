@@ -1,7 +1,7 @@
 /**
  * PBL小组设备授权API
  */
-import request from './request'
+import request from '@/utils/request'
 
 // ============================================================================
 // PBL小组设备授权管理

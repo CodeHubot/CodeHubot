@@ -1,5 +1,5 @@
 // 班级和小组管理相关API
-import request from './request'
+import request from '@/utils/request'
 import { handleApiError } from './config'
 
 // ===== 班级管理 =====

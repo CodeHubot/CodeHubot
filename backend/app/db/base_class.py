@@ -5,3 +5,4 @@ SQLAlchemy Base类
 from app.core.database import Base
 
 __all__ = ['Base']
+

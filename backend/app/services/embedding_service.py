@@ -387,7 +387,7 @@ async def embed_document(
         db.commit()
         
         # 读取文件内容
-        from app.api.kb_documents import read_file_from_disk
+        from app.api.ai.kb_documents import read_file_from_disk
         logger.info(f"读取文档文件: {doc.file_url}")
         file_content = read_file_from_disk(doc.file_url)
         logger.info(f"文件读取成功，大小: {len(file_content)} bytes")

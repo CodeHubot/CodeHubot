@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 获取设备列表
 export function getDevices(params) {

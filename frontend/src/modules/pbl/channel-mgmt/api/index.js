@@ -1,7 +1,7 @@
 /**
  * 渠道管理API接口
  */
-import request from '@shared/api/request'
+import request from '@/utils/request'
 
 /**
  * 获取所有渠道商列表

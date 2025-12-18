@@ -53,7 +53,7 @@ MAX_FILE_SIZE = 1 * 1024 * 1024
 def check_kb_write_permission(user: User, kb: KnowledgeBase, db: Session) -> bool:
     """检查用户对知识库的写入权限（简化版）"""
     # 导入权限检查函数
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     return check_kb_permission(user, kb, 'write', db)
 
 
@@ -467,7 +467,7 @@ async def list_documents(
         return error_response(message="知识库不存在", code=404)
     
     # 权限检查
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     if not check_kb_permission(current_user, kb, 'read', db):
         return error_response(message="无权查看该知识库", code=403)
     
@@ -549,7 +549,7 @@ async def get_document(
         return error_response(message="文档不存在", code=404)
     
     # 权限检查
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     if not check_kb_permission(current_user, kb, 'read', db):
         return error_response(message="无权查看该文档", code=403)
     
@@ -767,7 +767,7 @@ async def list_document_chunks(
         return error_response(message="文档不存在", code=404)
     
     # 权限检查
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     if not check_kb_permission(current_user, kb, 'read', db):
         return error_response(message="无权查看该文档", code=403)
     
@@ -826,7 +826,7 @@ async def download_document(
         raise HTTPException(status_code=404, detail="文档不存在")
     
     # 权限检查
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     if not check_kb_permission(current_user, kb, 'read', db):
         raise HTTPException(status_code=403, detail="无权下载该文档")
     
@@ -878,7 +878,7 @@ async def search_knowledge_base(
         return error_response(message="知识库不存在", code=404)
     
     # 权限检查
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     if not check_kb_permission(current_user, kb, 'read', db):
         return error_response(message="无权访问该知识库", code=403)
     

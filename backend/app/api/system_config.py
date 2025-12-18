@@ -19,6 +19,7 @@ from app.schemas.system_config import (
 )
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -201,7 +202,7 @@ async def delete_config(
     
     db.delete(config)
     db.commit()
-    return {"message": f"配置项 {config_key} 已删除"}
+    return success_response(message=f"配置项 {config_key} 已删除")
 
 
 # ==================== 模块配置专用接口 ====================
@@ -303,7 +304,7 @@ async def init_module_config(
     
     db.commit()
     
-    return {
-        "message": f"模块配置初始化完成，创建了 {created_count} 个配置项",
-        "created_count": created_count
-    }
+    return success_response(
+        message=f"模块配置初始化完成，创建了 {created_count} 个配置项",
+        data={"created_count": created_count}
+    )

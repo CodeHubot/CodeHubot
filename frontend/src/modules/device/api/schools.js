@@ -1,7 +1,7 @@
 /**
  * 学校管理API
  */
-import request from './request'
+import request from '@/utils/request'
 
 /**
  * 创建学校

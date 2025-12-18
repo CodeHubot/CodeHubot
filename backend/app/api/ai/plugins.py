@@ -13,6 +13,7 @@ from app.schemas.plugin import (
 )
 from app.api.auth import get_current_user
 from app.models.user import User
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -67,7 +68,6 @@ def validate_openapi_spec(openapi_spec: dict) -> bool:
     return True
 
 
-@router.post("/", response_model=PluginResponse)
 @router.post("", response_model=PluginResponse)
 def create_plugin(
     plugin: PluginCreate,
@@ -95,7 +95,6 @@ def create_plugin(
     return db_plugin
 
 
-@router.get("/", response_model=PluginList)
 @router.get("", response_model=PluginList)
 def get_plugins(
     skip: int = Query(0, ge=0, description="跳过的记录数"),
@@ -228,5 +227,5 @@ def delete_plugin(
     db.delete(plugin)
     db.commit()
     
-    return {"message": "插件已删除"}
+    return success_response(message="插件已删除")
 

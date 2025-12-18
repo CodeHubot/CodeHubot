@@ -1,7 +1,7 @@
 /**
  * 系统配置相关API
  */
-import request from './request'
+import request from '@/utils/request'
 
 /**
  * 获取所有系统配置

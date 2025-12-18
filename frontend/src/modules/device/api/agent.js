@@ -1,4 +1,4 @@
-import request from './request'
+import request from '@/utils/request'
 
 // 智能体管理API
 

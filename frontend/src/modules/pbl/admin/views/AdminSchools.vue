@@ -446,7 +446,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, View, User } from '@element-plus/icons-vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -533,19 +533,6 @@ const getAdminRules = () => {
 
 const adminRules = computed(() => getAdminRules())
 
-// API请求
-const getAuthHeaders = () => {
-  // 尝试多个可能的token key
-  const token = localStorage.getItem('admin_access_token') || 
-                localStorage.getItem('access_token')
-  
-  if (!token || token === 'null' || token === 'undefined') {
-    // Token无效，跳转到登录页
-    window.location.href = '/login'
-  }
-  return { Authorization: `Bearer ${token}` }
-}
-
 // 加载学校列表
 const loadSchools = async () => {
   try {
@@ -557,19 +544,13 @@ const loadSchools = async () => {
       is_active: filters.isActive !== null ? filters.isActive : undefined
     }
     
-    const response = await axios.get('/api/pbl/admin/schools/list', {
-      params,
-      headers: getAuthHeaders()
-    })
+    const response = await request.get('/api/pbl/admin/schools/list', { params })
     
-    // 后端返回 code: 200 或 code: 0 都视为成功
-    if (response.data && (response.data.code === 200 || response.data.code === 0 || response.data.success)) {
-      schools.value = response.data.data.items || []
-      pagination.total = response.data.data.total || 0
-    }
+    const data = response.data
+    schools.value = data.items || []
+    pagination.total = data.total || 0
   } catch (error) {
     console.error('加载学校列表失败:', error)
-    ElMessage.error(error.response?.data?.message || '加载数据失败')
   } finally {
     loading.value = false
   }
@@ -579,17 +560,12 @@ const loadSchools = async () => {
 const handleView = async (row) => {
   try {
     loading.value = true
-    const response = await axios.get(`/api/pbl/admin/schools/${row.id}`, {
-      headers: getAuthHeaders()
-    })
+    const response = await request.get(`/api/pbl/admin/schools/${row.id}`)
     
-    if (response.data && (response.data.code === 200 || response.data.code === 0 || response.data.success)) {
-      detailData.value = response.data.data
-      detailDialogVisible.value = true
-    }
+    detailData.value = response.data
+    detailDialogVisible.value = true
   } catch (error) {
     console.error('获取学校详情失败:', error)
-    ElMessage.error(error.response?.data?.message || '获取详情失败')
   } finally {
     loading.value = false
   }
@@ -674,26 +650,19 @@ const handleSubmit = async () => {
     
     let response
     if (dialogMode.value === 'create') {
-      response = await axios.post('/api/pbl/admin/schools', data, {
-        headers: getAuthHeaders()
-      })
+      response = await request.post('/api/pbl/admin/schools', data)
     } else {
-      response = await axios.put(`/api/pbl/admin/schools/${form.school_id}`, data, {
-        headers: getAuthHeaders()
-      })
+      response = await request.put(`/api/pbl/admin/schools/${form.school_id}`, data)
     }
     
-    if (response.data && response.data.success) {
-      ElMessage.success(dialogMode.value === 'create' ? '创建成功！' : '更新成功！')
-      dialogVisible.value = false
-      loadSchools()
-    }
+    ElMessage.success(dialogMode.value === 'create' ? '创建成功！' : '更新成功！')
+    dialogVisible.value = false
+    loadSchools()
   } catch (error) {
     if (error.errors) {
       return
     }
     console.error('提交失败:', error)
-    ElMessage.error(error.response?.data?.message || '操作失败')
   } finally {
     submitting.value = false
   }
@@ -705,39 +674,34 @@ const handleManageAdmin = async (row) => {
   
   try {
     loading.value = true
-    const response = await axios.get(`/api/pbl/admin/schools/${row.id}/admin`, {
-      headers: getAuthHeaders()
-    })
+    const response = await request.get(`/api/pbl/admin/schools/${row.id}/admin`)
     
-    if (response.data && (response.data.code === 200 || response.data.code === 0 || response.data.success)) {
-      adminInfo.value = response.data.data
-      
-      // 如果已有管理员，填充表单
-      if (adminInfo.value.has_admin && adminInfo.value.admin_user) {
-        const admin = adminInfo.value.admin_user
-        Object.assign(adminForm, {
-          teacher_number: admin.teacher_number || '',
-          password: '', // 密码不回显
-          name: admin.name || '',
-          phone: admin.phone || '',
-          email: admin.email || ''
-        })
-      } else {
-        // 重置表单
-        Object.assign(adminForm, {
-          teacher_number: '',
-          password: '',
-          name: '',
-          phone: '',
-          email: ''
-        })
-      }
-      
-      adminDialogVisible.value = true
+    adminInfo.value = response.data
+    
+    // 如果已有管理员，填充表单
+    if (adminInfo.value.has_admin && adminInfo.value.admin_user) {
+      const admin = adminInfo.value.admin_user
+      Object.assign(adminForm, {
+        teacher_number: admin.teacher_number || '',
+        password: '', // 密码不回显
+        name: admin.name || '',
+        phone: admin.phone || '',
+        email: admin.email || ''
+      })
+    } else {
+      // 重置表单
+      Object.assign(adminForm, {
+        teacher_number: '',
+        password: '',
+        name: '',
+        phone: '',
+        email: ''
+      })
     }
+    
+    adminDialogVisible.value = true
   } catch (error) {
     console.error('获取管理员信息失败:', error)
-    ElMessage.error(error.response?.data?.message || '获取管理员信息失败')
   } finally {
     loading.value = false
   }
@@ -762,23 +726,19 @@ const handleSubmitAdmin = async () => {
     if (adminForm.phone) data.append('phone', adminForm.phone)
     if (adminForm.email) data.append('email', adminForm.email)
     
-    const response = await axios.post(
+    const response = await request.post(
       `/api/pbl/admin/schools/${currentSchool.value.id}/admin`,
-      data,
-      { headers: getAuthHeaders() }
+      data
     )
     
-    if (response.data && response.data.success) {
-      ElMessage.success(response.data.message)
-      adminDialogVisible.value = false
-      loadSchools() // 刷新学校列表以显示新的管理员信息
-    }
+    ElMessage.success(response.message)
+    adminDialogVisible.value = false
+    loadSchools() // 刷新学校列表以显示新的管理员信息
   } catch (error) {
     if (error.errors) {
       return
     }
     console.error('提交失败:', error)
-    ElMessage.error(error.response?.data?.message || '操作失败')
   } finally {
     adminSubmitting.value = false
   }
@@ -798,20 +758,15 @@ const handleToggleActive = async (row) => {
     )
     
     loading.value = true
-    const response = await axios.patch(`/api/pbl/admin/schools/${row.id}/toggle-active`, {}, {
-      headers: getAuthHeaders()
-    })
+    const response = await request.patch(`/api/pbl/admin/schools/${row.id}/toggle-active`, {})
     
-    if (response.data && response.data.success) {
-      ElMessage.success(response.data.message)
-      loadSchools()
-    }
+    ElMessage.success(response.message)
+    loadSchools()
   } catch (error) {
     if (error === 'cancel') {
       return
     }
     console.error('操作失败:', error)
-    ElMessage.error(error.response?.data?.message || '操作失败')
   } finally {
     loading.value = false
   }

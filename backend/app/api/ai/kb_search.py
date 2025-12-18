@@ -23,7 +23,7 @@ router = APIRouter()
 
 def get_accessible_kb_ids(user: User, db: Session) -> List[int]:
     """获取用户可访问的知识库ID列表"""
-    from app.api.knowledge_bases import check_kb_permission
+    from app.api.ai.knowledge_bases import check_kb_permission
     
     # 平台管理员可访问所有
     if user.role == 'platform_admin':
@@ -187,7 +187,7 @@ async def search_knowledge(
         kb_ids = [kb.id for kb in kbs]
         
         # 权限检查
-        from app.api.knowledge_bases import check_kb_permission
+        from app.api.ai.knowledge_bases import check_kb_permission
         for kb in kbs:
             if not check_kb_permission(current_user, kb, 'read', db):
                 return error_response(message=f"无权访问知识库：{kb.name}", code=403)

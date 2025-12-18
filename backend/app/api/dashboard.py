@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.device import Device
 from app.models.product import Product
 from app.api.auth import get_current_user
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -83,14 +84,14 @@ async def get_dashboard_stats(
         for product_type, count in product_types
     ]
     
-    return {
+    return success_response(data={
         "total_devices": total_devices,
         "online_devices": online_devices,
         "offline_devices": offline_devices,
         "today_devices": today_devices,
         "product_types": product_type_stats,
         "alerts": 0  # 暂时设为0，后续可以添加告警逻辑
-    }
+    })
 
 @router.get("/recent-devices")
 async def get_recent_devices(

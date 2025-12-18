@@ -1,7 +1,7 @@
 /**
  * 提示词模板API
  */
-import request from './request'
+import request from '@/utils/request'
 
 /**
  * 获取提示词模板列表

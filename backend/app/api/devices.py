@@ -21,6 +21,7 @@ from app.schemas.device import (
 from app.services.device_product_service import DeviceProductService
 from app.api.auth import get_current_user, verify_internal_or_user
 from app.core.constants import ErrorMessages, SuccessMessages
+from app.core.response import success_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -174,7 +175,6 @@ def create_device(
     return db_device
 
 @router.get("", response_model=List[DeviceList])
-@router.get("/", response_model=List[DeviceList])
 def get_devices(
     skip: int = Query(0, ge=0, description="跳过的记录数"),
     limit: int = Query(100, ge=1, le=1000, description="返回的记录数"),
@@ -572,7 +572,10 @@ def set_device_school(
     db.refresh(device)
     
     message = "设备已设置为学校设备" if school_id else "设备已设置为个人设备"
-    return {"code": 200, "message": message, "data": {"device_uuid": device_uuid, "school_id": school_id}}
+    return success_response(
+        message=message,
+        data={"device_uuid": device_uuid, "school_id": school_id}
+    )
 
 
 @router.delete("/{device_uuid}")
@@ -597,7 +600,7 @@ def delete_device(
     db.delete(device)
     db.commit()
     
-    return {"message": "设备删除成功"}
+    return success_response(message="设备删除成功")
 
 
 @router.get("/statistics/overview")
@@ -631,30 +634,30 @@ def get_devices_statistics(
             """), {"user_id": current_user.id}).fetchone()
         
         if stats:
-            return {
+            return success_response(data={
                 "total_devices": int(stats.total_devices or 0),
                 "active_devices": int(stats.active_devices or 0),
                 "online_devices": int(stats.online_devices or 0),
                 "error_devices": int(stats.error_devices or 0),
                 "avg_error_count": float(stats.avg_error_count or 0)
-            }
+            })
         else:
-            return {
+            return success_response(data={
                 "total_devices": 0,
                 "active_devices": 0,
                 "online_devices": 0,
                 "error_devices": 0,
                 "avg_error_count": 0.0
-            }
+            })
     except Exception as e:
         logger.error(f"获取设备统计失败: {e}", exc_info=True)
-        return {
+        return success_response(data={
             "total_devices": 0,
             "active_devices": 0,
             "online_devices": 0,
             "error_devices": 0,
             "avg_error_count": 0.0
-        }
+        })
 
 
 @router.get("/by-product/{product_id}")
@@ -694,11 +697,11 @@ def get_devices_by_product(
             FROM device_main d
             WHERE d.product_id = :product_id AND d.user_id = :user_id
             ORDER BY d.created_at DESC
-            LIMIT :limit OFFSET :skip
-        """), {"product_id": product_id, "user_id": current_user.id, "limit": limit, "skip": skip}).fetchall()
+        LIMIT :limit OFFSET :skip
+    """), {"product_id": product_id, "user_id": current_user.id, "limit": limit, "skip": skip}).fetchall()
     
     # 将 Row 对象转换为字典
-    return [dict(device._mapping) for device in devices]
+    return success_response(data=[dict(device._mapping) for device in devices])
 
 
 @router.post("/{device_uuid}/activate")
@@ -727,7 +730,7 @@ def activate_device(
     device.is_active = True
     db.commit()
     
-    return {"message": "设备激活成功"}
+    return success_response(message="设备激活成功")
 
 
 @router.post("/{device_uuid}/deactivate")
@@ -756,7 +759,7 @@ def deactivate_device(
     device.is_active = False
     db.commit()
     
-    return {"message": "设备停用成功"}
+    return success_response(message="设备停用成功")
 
 
 @router.get("/{device_uuid}/product-info")
@@ -793,7 +796,7 @@ def get_device_product_info(
         raise HTTPException(status_code=404, detail="设备信息不存在")
     
     # 将 Row 对象转换为字典
-    return dict(device_info._mapping)
+    return success_response(data=dict(device_info._mapping))
 
 @router.post("/{device_uuid}/heartbeat")
 async def device_heartbeat(
@@ -819,7 +822,7 @@ async def device_heartbeat(
     
     db.commit()
     
-    return {"message": "心跳更新成功"}
+    return success_response(message="心跳更新成功")
 
 @router.post("/pre-register", response_model=DeviceResponseWithStatus)
 async def pre_register_device(
@@ -1121,7 +1124,7 @@ async def get_device_config(
     device_settings = device.device_settings or {}
     device_preset_commands = device_settings.get("preset_commands", [])
     
-    return {
+    return success_response(data={
         "device_sensor_config": device.device_sensor_config or {},
         "device_control_config": device.device_control_config or {},
         "device_preset_commands": device_preset_commands,
@@ -1130,7 +1133,7 @@ async def get_device_config(
         "product_sensor_types": device.product.sensor_types if device.product else {},
         "product_control_ports": device.product.control_ports if device.product else {},
         "device_capabilities": device.product.device_capabilities if device.product else {}
-    }
+    })
 
 @router.get("/{device_uuid}/full-config")
 async def get_device_full_config(
@@ -1265,7 +1268,7 @@ async def update_device_config(
     db.commit()
     db.refresh(device)
     
-    return {"message": "设备配置更新成功"}
+    return success_response(message="设备配置更新成功")
 
 @router.post("/data/upload")
 async def upload_device_data(
@@ -1298,12 +1301,14 @@ async def upload_device_data(
     # 这里可以添加传感器数据存储逻辑
     # 目前只是简单返回成功消息
     
-    return {
-        "message": "数据上传成功",
-        "device_id": data.device_id,
-        "timestamp": format_datetime_beijing(get_beijing_now()),
-        "sensors_count": len(data.sensors) if data.sensors else 0
-    }
+    return success_response(
+        message="数据上传成功",
+        data={
+            "device_id": data.device_id,
+            "timestamp": format_datetime_beijing(get_beijing_now()),
+            "sensors_count": len(data.sensors) if data.sensors else 0
+        }
+    )
 
 @router.post("/status/update")
 async def update_device_status(
@@ -1335,12 +1340,14 @@ async def update_device_status(
     
     db.commit()
     
-    return {
-        "message": "设备状态更新成功",
-        "device_id": status_data.device_id,
-        "status": status_data.status,
-        "timestamp": format_datetime_beijing(get_beijing_now())
-    }
+    return success_response(
+        message="设备状态更新成功",
+        data={
+            "device_id": status_data.device_id,
+            "status": status_data.status,
+            "timestamp": format_datetime_beijing(get_beijing_now())
+        }
+    )
 
 @router.post("/product/report")
 async def report_product_info(
@@ -1375,15 +1382,17 @@ async def report_product_info(
         
         db.commit()
         
-        return {
-            "message": "产品信息上报成功",
-            "device_id": device.device_id,
-            "product_id": result["product_id"],
-            "product_name": result["product_name"],
-            "binding_type": result["binding_type"],  # "existing", "auto_created", "switched"
-            "device_status": device.device_status.value,
-            "updated_at": get_beijing_now()
-        }
+        return success_response(
+            message="产品信息上报成功",
+            data={
+                "device_id": device.device_id,
+                "product_id": result["product_id"],
+                "product_name": result["product_name"],
+                "binding_type": result["binding_type"],
+                "device_status": device.device_status.value,
+                "updated_at": get_beijing_now()
+            }
+        )
         
     except Exception as e:
         db.rollback()
@@ -1426,16 +1435,18 @@ async def switch_product(
         
         db.commit()
         
-        return {
-            "message": "产品切换成功",
-            "device_id": device.device_id,
-            "old_product_id": result["old_product_id"],
-            "new_product_id": result["new_product_id"],
-            "new_product_name": result["new_product_name"],
-            "switch_count": device.product_switch_count,
-            "device_status": device.device_status.value,
-            "switched_at": get_beijing_now()
-        }
+        return success_response(
+            message="产品切换成功",
+            data={
+                "device_id": device.device_id,
+                "old_product_id": result["old_product_id"],
+                "new_product_id": result["new_product_id"],
+                "new_product_name": result["new_product_name"],
+                "switch_count": device.product_switch_count,
+                "device_status": device.device_status.value,
+                "switched_at": get_beijing_now()
+            }
+        )
         
     except Exception as e:
         db.rollback()
@@ -1479,7 +1490,7 @@ async def get_device_product_history(
     result = db.execute(history_query, {"device_id": device.id})
     history = result.fetchall()
     
-    return {
+    return success_response(data={
         "device_id": device.id,
         "device_uuid": device.uuid,
         "device_name": device.name,
@@ -1499,7 +1510,7 @@ async def get_device_product_history(
             }
             for row in history
         ]
-    }
+    })
 
 @router.get("/{device_uuid}/realtime-data")
 async def get_device_realtime_data(
@@ -1683,19 +1694,19 @@ async def get_device_realtime_data(
         }
         logger.info(f"✅ 最终latest数据: {all_sensor_fields}, 时间: {latest_timestamp}")
     else:
-        logger.warning("⚠️ 没有找到任何传感器配置")
+            logger.warning("⚠️ 没有找到任何传感器配置")
         # 如果没有产品配置，使用第一条原始数据作为latest
         if sensor_data_list:
             logger.info(f"🔄 使用第一条原始数据作为latest")
             latest_data = sensor_data_list[0]  # sensor_data_list已经按时间倒序排列
     
-    return {
+    return success_response(data={
         "device_uuid": device_uuid,
         "device_name": device.name,
-        "latest": latest_data,  # 最新数据
-        "data": sensor_data_list,  # 历史数据列表
+        "latest": latest_data,
+        "data": sensor_data_list,
         "count": len(sensor_data_list)
-    }
+    })
 
 
 @router.get("/{device_uuid}/presets")
@@ -1967,14 +1978,15 @@ async def control_device(
                     logger.info(f"✅ 预设序列已提交到Celery: task_id={task.id}, steps={len(steps)}")
                     
                     # 立即返回，不等待执行完成
-                    return {
-                        "success": True,
-                        "message": "预设序列已提交，正在后台执行",
-                        "device_uuid": device_uuid,
-                        "task_id": task.id,  # 可用于查询执行状态
-                        "total_steps": len(steps),
-                        "status_url": f"/api/devices/tasks/{task.id}/status"
-                    }
+                    return success_response(
+                        message="预设序列已提交，正在后台执行",
+                        data={
+                            "device_uuid": device_uuid,
+                            "task_id": task.id,
+                            "total_steps": len(steps),
+                            "status_url": f"/api/devices/tasks/{task.id}/status"
+                        }
+                    )
                     
                 except ValueError as e:
                     raise HTTPException(
@@ -2005,13 +2017,15 @@ async def control_device(
                     result = mqtt_service.client.publish(control_topic, message, qos=1)
                     if result.rc == 0:
                         logger.info(f"✅ 预设指令发送成功 - 设备: {device_uuid}, 预设: {target_preset.get('name')}")
-                        return {
-                            "message": "预设指令发送成功",
-                            "device_uuid": device_uuid,
-                            "preset_key": preset_key,
-                            "preset_name": target_preset.get("name"),
-                            "topic": control_topic
-                        }
+                        return success_response(
+                            message="预设指令发送成功",
+                            data={
+                                "device_uuid": device_uuid,
+                                "preset_key": preset_key,
+                                "preset_name": target_preset.get("name"),
+                                "topic": control_topic
+                            }
+                        )
                     else:
                         raise HTTPException(
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -2041,14 +2055,15 @@ async def control_device(
                 logger.info(f"✅ 自定义序列已提交到Celery: task_id={task.id}, steps={len(steps)}")
                 
                 # 立即返回，不等待执行完成
-                return {
-                    "success": True,
-                    "message": "序列指令已提交，正在后台执行",
-                    "device_uuid": device_uuid,
-                    "task_id": task.id,  # 可用于查询执行状态
-                    "total_steps": len(steps),
-                    "status_url": f"/api/devices/tasks/{task.id}/status"
-                }
+                return success_response(
+                    message="序列指令已提交，正在后台执行",
+                    data={
+                        "device_uuid": device_uuid,
+                        "task_id": task.id,
+                        "total_steps": len(steps),
+                        "status_url": f"/api/devices/tasks/{task.id}/status"
+                    }
+                )
                 
             except ValueError as e:
                 raise HTTPException(
@@ -2081,13 +2096,14 @@ async def control_device(
                 
                 if result.rc == 0:
                     logger.info(f"控制命令发送成功 - 设备: {device_uuid}, 命令: {control_data}")
-                    return {
-                        "success": True,
-                        "message": "控制命令发送成功",
-                        "device_uuid": device_uuid,
-                        "command": control_data,
-                        "topic": control_topic
-                    }
+                    return success_response(
+                        message="控制命令发送成功",
+                        data={
+                            "device_uuid": device_uuid,
+                            "command": control_data,
+                            "topic": control_topic
+                        }
+                    )
                 else:
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -2134,7 +2150,7 @@ async def get_device_product_config(
         
         # 查询产品配置
         if not device.product_id:
-            return {
+            return success_response(data={
                 "device_id": device.id,
                 "device_name": device.name,
                 "device_uuid": device.uuid,
@@ -2143,7 +2159,7 @@ async def get_device_product_config(
                 "sensor_types": {},
                 "control_ports": {},
                 "message": "设备未绑定产品"
-            }
+            })
         
         product = db.query(Product).filter(Product.id == device.product_id).first()
         if not product:
@@ -2152,7 +2168,7 @@ async def get_device_product_config(
                 detail="产品不存在"
             )
         
-        return {
+        return success_response(data={
             "device_id": device.id,
             "device_name": device.name,
             "device_uuid": device.uuid,
@@ -2163,7 +2179,7 @@ async def get_device_product_config(
             "control_ports": product.control_ports or {},
             "device_capabilities": product.device_capabilities or {},
             "message": "获取成功"
-        }
+        })
         
     except HTTPException:
         raise
@@ -2267,14 +2283,16 @@ async def unbind_device(
             f"- 已清除所有历史数据"
         )
         
-        return {
-            "message": "设备解绑成功，所有历史数据已清除",
-            "device_uuid": device_uuid,
-            "device_name": device_name,
-            "device_id": device_id,
-            "data_cleared": True,
-            "unbind_time": format_datetime_beijing(get_beijing_now())
-        }
+        return success_response(
+            message="设备解绑成功，所有历史数据已清除",
+            data={
+                "device_uuid": device_uuid,
+                "device_name": device_name,
+                "device_id": device_id,
+                "data_cleared": True,
+                "unbind_time": format_datetime_beijing(get_beijing_now())
+            }
+        )
         
     except HTTPException:
         raise
@@ -2344,7 +2362,7 @@ async def get_device_binding_history(
         if current_user_obj:
             current_user_email = current_user_obj.email
     
-    return {
+    return success_response(data={
         "mac_address": mac_address,
         "total_bindings": bind_count,
         "total_unbindings": unbind_count,
@@ -2372,7 +2390,7 @@ async def get_device_binding_history(
             }
             for h in history_list
         ]
-    }
+    })
 
 @router.get("/binding-history")
 async def list_all_binding_history(
@@ -2407,11 +2425,11 @@ async def list_all_binding_history(
     total = query.count()
     history_list = query.order_by(desc(DeviceBindingHistory.action_time)).offset(skip).limit(limit).all()
     
-    return {
+    return success_response(data={
         "total": total,
         "skip": skip,
         "limit": limit,
-        "data": [
+        "items": [
             {
                 "id": h.id,
                 "mac_address": h.mac_address,
@@ -2431,7 +2449,7 @@ async def list_all_binding_history(
             }
             for h in history_list
         ]
-    }
+    })
 
 
 @router.get("/tasks/{task_id}/status", summary="查询任务执行状态")

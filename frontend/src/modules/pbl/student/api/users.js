@@ -1,5 +1,5 @@
 // 用户管理相关API
-import request from './request'
+import request from '@/utils/request'
 import { handleApiError } from './config'
 
 /**

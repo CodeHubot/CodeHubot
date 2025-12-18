@@ -2,7 +2,7 @@
  * 课程管理API
  * 提供课程、选课、教师-课程、分组管理的API接口
  */
-import request from './request'
+import request from '@/utils/request'
 
 // ============================================================================
 // 课程管理

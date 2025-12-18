@@ -12,6 +12,7 @@ from app.models.llm_model import LLMModel
 from app.models.llm_provider import LLMProvider
 from app.api.auth import get_current_user
 from app.models.user import User
+from app.core.response import success_response
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -121,7 +122,6 @@ class LLMProviderResponse(BaseModel):
 # API Endpoints
 # ============================================================================
 
-@router.post("/", response_model=LLMModelResponse)
 @router.post("", response_model=LLMModelResponse)
 def create_llm_model(
     model_data: LLMModelCreate,
@@ -150,7 +150,6 @@ def create_llm_model(
     return db_model
 
 
-@router.get("/", response_model=LLMModelList)
 @router.get("", response_model=LLMModelList)
 def get_llm_models(
     skip: int = Query(0, ge=0),
@@ -328,7 +327,7 @@ def delete_llm_model(
     db.delete(db_model)
     db.commit()
     
-    return {"message": "删除成功"}
+    return success_response(message="删除成功")
 
 
 @router.post("/{model_id}/set-default", response_model=LLMModelResponse)

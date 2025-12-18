@@ -17,6 +17,7 @@ from app.schemas.firmware import (
     OTACheckRequest, OTACheckResponse
 )
 from app.api.auth import get_current_user
+from app.core.response import success_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -408,7 +409,7 @@ def delete_firmware(
         db.commit()
         
         logger.info(f"删除固件版本成功: ID={firmware_id}")
-        return {"message": "固件版本删除成功"}
+        return success_response(message="固件版本删除成功")
         
     except HTTPException:
         raise

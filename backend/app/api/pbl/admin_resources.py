@@ -174,14 +174,14 @@ async def upload_resource_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@router.get("/{resource_id}")
+@router.get("/{resource_uuid}")
 def get_resource(
-    resource_id: int,
+    resource_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
     """获取资料详情"""
-    resource = db.query(PBLResource).filter(PBLResource.id == resource_id).first()
+    resource = db.query(PBLResource).filter(PBLResource.uuid == resource_uuid).first()
     if not resource:
         return error_response(
             message="资料不存在",
@@ -191,15 +191,15 @@ def get_resource(
     
     return success_response(data=serialize_resource(resource))
 
-@router.put("/{resource_id}")
+@router.put("/{resource_uuid}")
 def update_resource(
-    resource_id: int,
+    resource_uuid: str,
     resource_data: ResourceUpdate,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
     """更新资料"""
-    resource = db.query(PBLResource).filter(PBLResource.id == resource_id).first()
+    resource = db.query(PBLResource).filter(PBLResource.uuid == resource_uuid).first()
     if not resource:
         return error_response(
             message="资料不存在",
@@ -216,14 +216,14 @@ def update_resource(
     
     return success_response(data=serialize_resource(resource), message="资料更新成功")
 
-@router.delete("/{resource_id}")
+@router.delete("/{resource_uuid}")
 def delete_resource(
-    resource_id: int,
+    resource_uuid: str,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
     """删除资料"""
-    resource = db.query(PBLResource).filter(PBLResource.id == resource_id).first()
+    resource = db.query(PBLResource).filter(PBLResource.uuid == resource_uuid).first()
     if not resource:
         return error_response(
             message="资料不存在",

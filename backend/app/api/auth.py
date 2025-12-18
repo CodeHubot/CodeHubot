@@ -21,6 +21,7 @@ from app.core.security import (
     create_access_token, create_refresh_token, verify_token,
     verify_internal_api_key
 )
+from app.core.response import success_response
 from app.core.constants import (
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES,
     ErrorMessages, SuccessMessages
@@ -250,9 +251,9 @@ async def request_password_reset(
         # 不暴露用户是否存在（安全最佳实践）
         if not user:
             logger.info(f"密码重置请求：用户不存在 - {reset_request.email}")
-            return {
-                "message": "如果该邮箱已注册，重置链接将发送到您的邮箱"
-            }
+            return success_response(
+                message="如果该邮箱已注册，重置链接将发送到您的邮箱"
+            )
         
         # 生成重置令牌（30分钟有效）
         reset_token = create_access_token(
@@ -275,10 +276,12 @@ async def request_password_reset(
                 detail="发送重置邮件失败，请稍后重试"
             )
         
-        return {
-            "message": "密码重置链接已发送到您的邮箱",
-            "expires_in": PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
-        }
+        return success_response(
+            data={
+                "expires_in": PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+            },
+            message="密码重置链接已发送到您的邮箱"
+        )
         
     except HTTPException:
         raise
@@ -334,9 +337,9 @@ async def reset_password(
         
         logger.info(f"✅ 密码重置成功: {user.email} (ID: {user.id})")
         
-        return {
-            "message": SuccessMessages.PASSWORD_RESET_SUCCESS
-        }
+        return success_response(
+            message=SuccessMessages.PASSWORD_RESET_SUCCESS
+        )
         
     except HTTPException:
         raise
@@ -406,12 +409,14 @@ async def refresh_access_token(request: RefreshTokenRequest, db: Session = Depen
         
         logger.info(f"🔄 Token刷新成功: {user.username} ({user.email}) (ID: {user.id})")
         
-        return {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
-            "token_type": "bearer",
-            "expires_in": settings.access_token_expire_minutes * 60  # 转换为秒
-        }
+        return success_response(
+            data={
+                "access_token": new_access_token,
+                "refresh_token": new_refresh_token,
+                "token_type": "bearer",
+                "expires_in": settings.access_token_expire_minutes * 60  # 转换为秒
+            }
+        )
         
     except HTTPException:
         raise
@@ -530,9 +535,7 @@ async def change_password(
         
         logger.info(f"✅ 密码修改成功: {current_user.username} (ID: {current_user.id})")
         
-        return {
-            "message": "密码修改成功"
-        }
+        return success_response(message="密码修改成功")
         
     except HTTPException:
         raise

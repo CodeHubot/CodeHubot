@@ -180,7 +180,7 @@ import {
   ArrowLeft, Plus, User, View, Search
 } from '@element-plus/icons-vue'
 import { getClubClassDetail } from '@pbl/admin/api/club'
-import axios from 'axios'
+import request from '@/utils/request'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -212,13 +212,6 @@ const filteredCourseMembers = computed(() => {
   )
 })
 
-// API请求
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('admin_access_token') || 
-                localStorage.getItem('access_token')
-  return { Authorization: `Bearer ${token}` }
-}
-
 // 加载班级课程列表
 const loadClassCourses = async () => {
   loading.value = true
@@ -242,16 +235,10 @@ const viewCourseMembers = async (course) => {
   courseMembersDialogVisible.value = true
   
   try {
-    const response = await axios.get(`/api/pbl/admin/enrollments/course/${course.id}/students`, {
-      headers: getAuthHeaders()
-    })
-    
-    if (response.data && response.data.success) {
-      courseMembers.value = response.data.data || []
-    }
+    const response = await request.get(`/api/pbl/admin/enrollments/course/${course.id}/students`)
+    courseMembers.value = response.data || []
   } catch (error) {
     console.error('加载课程成员失败:', error)
-    ElMessage.error(error.response?.data?.message || '加载课程成员失败')
   } finally {
     courseMembersLoading.value = false
   }
@@ -282,24 +269,20 @@ const submitAddCourseMembers = async () => {
   
   addingCourseMembers.value = true
   try {
-    const response = await axios.post(
+    const response = await request.post(
       `/api/pbl/admin/enrollments/course/${currentCourseId.value}/batch-enroll`,
-      { student_ids: ids },
-      { headers: getAuthHeaders() }
+      { student_ids: ids }
     )
     
-    if (response.data && response.data.success) {
-      const enrolledCount = response.data.data.enrolled_count || 0
-      ElMessage.success(`成功为 ${enrolledCount} 名学生选课`)
-      addCourseMemberDialogVisible.value = false
-      // 刷新课程成员列表
-      viewCourseMembers({ id: currentCourseId.value, title: currentCourseName.value })
-      // 刷新班级课程列表（更新选课人数）
-      loadClassCourses()
-    }
+    const enrolledCount = response.data.enrolled_count || 0
+    ElMessage.success(`成功为 ${enrolledCount} 名学生选课`)
+    addCourseMemberDialogVisible.value = false
+    // 刷新课程成员列表
+    viewCourseMembers({ id: currentCourseId.value, title: currentCourseName.value })
+    // 刷新班级课程列表（更新选课人数）
+    loadClassCourses()
   } catch (error) {
     console.error('添加成员失败:', error)
-    ElMessage.error(error.response?.data?.message || '添加成员失败')
   } finally {
     addingCourseMembers.value = false
   }
