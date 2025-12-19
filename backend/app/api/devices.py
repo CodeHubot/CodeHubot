@@ -1966,7 +1966,8 @@ async def get_device_presets(
             ]
         })
     
-    return presets
+    # 统一响应格式
+    return success_response(data={"presets": presets})
 
 
 @router.post("/{device_uuid}/control")

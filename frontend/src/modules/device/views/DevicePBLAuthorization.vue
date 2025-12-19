@@ -203,7 +203,7 @@ const groupTreeRef = ref(null)
 // 数据
 const myDevices = ref([])
 const devicesLoading = ref(false)
-const groupTreeData = ref([])
+const rawGroupData = ref([])
 const selectedGroups = ref([])
 const deviceAuthorizations = ref([])
 const authorizationsLoading = ref(false)
@@ -238,8 +238,8 @@ const rules = {
 }
 
 // 计算属性：将小组数据转换为树形结构
-const groupTreeDataComputed = computed(() => {
-  const classes = groupTreeData.value || []
+const groupTreeData = computed(() => {
+  const classes = rawGroupData.value || []
   return classes.map(cls => ({
     id: `class_${cls.class_id}`,
     name: cls.class_name,
@@ -257,12 +257,6 @@ const groupTreeDataComputed = computed(() => {
     })) || []
   }))
 })
-
-// 监听计算属性变化，更新树数据
-import { watch } from 'vue'
-watch(groupTreeDataComputed, (newVal) => {
-  groupTreeData.value = newVal
-}, { immediate: true })
 
 // 禁用过去的日期
 const disabledDate = (time) => {
@@ -289,7 +283,7 @@ const loadMyDevices = async () => {
 const loadAuthorizableGroups = async () => {
   try {
     const response = await getAuthorizableGroups()
-    groupTreeData.value = response.data?.classes || response.classes || []
+    rawGroupData.value = response.data?.classes || response.classes || []
   } catch (error) {
     console.error('加载可授权小组列表失败:', error)
     ElMessage.error('加载可授权小组列表失败')
