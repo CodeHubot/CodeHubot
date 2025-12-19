@@ -151,7 +151,7 @@ services:
     container_name: codehubot-mqtt-service
     environment:
       # MQTT Broker配置
-      MQTT_BROKER: mqtt
+      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
       MQTT_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
@@ -269,7 +269,7 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
       DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
       # MQTT配置
-      MQTT_BROKER: mqtt
+      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
       MQTT_PORT: 1883
       # 后端服务地址（用于内部调用）
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
