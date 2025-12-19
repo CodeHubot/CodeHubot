@@ -135,7 +135,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
-import request from '@pbl/student/api/request'
+import request from '@/utils/request'
 
 const loading = ref(false)
 const tasks = ref([])

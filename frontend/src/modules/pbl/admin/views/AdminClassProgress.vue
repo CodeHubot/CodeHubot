@@ -68,7 +68,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getClubClassDetail } from '@pbl/admin/api/club'
-import request from '@pbl/admin/api/request'
+import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()

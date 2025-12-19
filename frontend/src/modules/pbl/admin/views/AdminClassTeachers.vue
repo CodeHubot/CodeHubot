@@ -168,7 +168,7 @@ import {
 } from '@element-plus/icons-vue'
 import { getClubClassDetail } from '@pbl/admin/api/club'
 import dayjs from 'dayjs'
-import request from '@pbl/admin/api/request'
+import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()

@@ -323,7 +323,7 @@ import {
   ArrowLeft, Edit, View
 } from '@element-plus/icons-vue'
 import { getClubClassDetail } from '@pbl/admin/api/club'
-import request from '@pbl/admin/api/request'
+import request from '@/utils/request'
 import dayjs from 'dayjs'
 
 const route = useRoute()
