@@ -359,12 +359,48 @@ async def get_sensor_data(device_uuid: str, sensor: str):
         # 从 last_report_data 获取传感器数据
         last_data = device.last_report_data
         logger.info(f"📦 last_report_data 内容: {last_data}")
-        sensors = last_data.get("sensors", {})
+        
+        # 兼容两种数据格式
+        sensors = {}
+        
+        # 格式1：新格式 - 包含 sensors 字段（多传感器）
+        if "sensors" in last_data:
+            sensors = last_data["sensors"]
+            logger.info(f"🔍 检测到新格式数据，可用传感器: {list(sensors.keys())}")
+        
+        # 格式2：旧格式 - 直接包含 sensor 字段（单传感器）
+        elif "sensor" in last_data:
+            sensor_type = last_data.get("sensor", "").upper()
+            logger.info(f"🔍 检测到旧格式数据，传感器类型: {sensor_type}")
+            
+            # 转换旧格式到新格式
+            if sensor_type == "RAIN_SENSOR":
+                sensors["rain"] = {
+                    "value": last_data.get("is_raining", False),
+                    "unit": "",
+                    "level": last_data.get("level", 0)
+                }
+            elif "TEMPERATURE" in sensor_type or "DHT" in sensor_type:
+                if "temperature" in last_data:
+                    sensors["temperature"] = {
+                        "value": last_data.get("temperature"),
+                        "unit": "°C"
+                    }
+                if "humidity" in last_data:
+                    sensors["humidity"] = {
+                        "value": last_data.get("humidity"),
+                        "unit": "%"
+                    }
+            elif "DS18B20" in sensor_type:
+                sensors["ds18b20"] = {
+                    "value": last_data.get("temperature"),
+                    "unit": "°C"
+                }
+            
+            logger.info(f"✅ 已转换为新格式，传感器: {list(sensors.keys())}")
         
         if not sensors:
             raise HTTPException(status_code=404, detail="设备暂无传感器数据")
-        
-        logger.info(f"🔍 可用传感器: {list(sensors.keys())}")
         
         # 映射传感器名称（支持中文和英文）
         sensor_map = {
