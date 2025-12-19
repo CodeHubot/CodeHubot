@@ -121,11 +121,11 @@ services:
       dockerfile: Dockerfile
     container_name: codehubot-mqtt-service
     environment:
-      # MQTT Broker配置
-      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
-      MQTT_PORT: 1883
-      MQTT_USERNAME: ${MQTT_USERNAME:-}
-      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # MQTT Broker配置（mqtt-service连接到Broker）
+      MQTT_SERVICE_BROKER: mqtt
+      MQTT_SERVICE_PORT: 1883
+      MQTT_SERVICE_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_SERVICE_PASSWORD: ${MQTT_PASSWORD:-}
       # 数据库配置 - 使用外部MySQL
       DB_HOST: ${EXTERNAL_DB_HOST}
       DB_PORT: ${EXTERNAL_DB_PORT:-3306}

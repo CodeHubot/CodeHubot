@@ -353,10 +353,12 @@ async def get_sensor_data(device_uuid: str, sensor: str):
         
         # 检查是否有上报数据
         if not device.last_report_data:
+            logger.warning(f"⚠️ 设备 {device.name} 的 last_report_data 为空")
             raise HTTPException(status_code=404, detail="设备尚未上报数据")
         
         # 从 last_report_data 获取传感器数据
         last_data = device.last_report_data
+        logger.info(f"📦 last_report_data 内容: {last_data}")
         sensors = last_data.get("sensors", {})
         
         if not sensors:
