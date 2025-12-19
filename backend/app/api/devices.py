@@ -1089,6 +1089,7 @@ async def register_device(
 @router.get("/{device_uuid}/config")
 async def get_device_config(
     device_uuid: str,
+    limit: int = Query(20, ge=1, le=200, description="返回最近的传感器数据条数"),
     user_or_internal = Depends(verify_internal_or_user),
     db: Session = Depends(get_db)
 ):
