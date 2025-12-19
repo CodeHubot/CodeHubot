@@ -139,8 +139,8 @@
         <span>💡 拖拽节点到画布添加 | 拖动节点间圆点连线 | 单击节点配置 | 悬停显示删除 ✕</span>
       </div>
 
-      <!-- 右侧执行面板 (Fixed Panel) -->
-      <transition name="slide-fade">
+      <!-- 右侧执行面板 (暂时禁用) -->
+      <!-- <transition name="slide-fade">
         <div v-if="showExecutionPanel" class="execution-panel-wrapper">
           <ExecutionPanel
             :nodes="nodes"
@@ -151,7 +151,7 @@
             @run="confirmRun"
           />
         </div>
-      </transition>
+      </transition> -->
     </div>
 
     <!-- 右侧配置抽屉 -->
@@ -1109,7 +1109,7 @@ import {
 import { getActiveLLMModels } from '@/api/llm-model'
 import { getKnowledgeBases } from '@/api/knowledgeBases'
 import { getAgents } from '@/api/agent'
-import ExecutionPanel from '../components/workflow/ExecutionPanel.vue'
+// import ExecutionPanel from '../components/workflow/ExecutionPanel.vue' // 组件暂时不可用
 
 const route = useRoute()
 const router = useRouter()
@@ -2183,11 +2183,12 @@ const handleRun = async () => {
   startNodeParams.value = startNode.data.parameters || []
   runResult.value = null // 重置结果
   
-  showExecutionPanel.value = true
+  // 使用对话框而不是执行面板
+  showRunDialog.value = true
 }
 
 // 确认运行
-const confirmRun = async (params) => {
+const confirmRun = async () => {
   // 检查工作流是否已保存
   if (!workflowUuid.value) {
     ElMessage.error('工作流尚未保存，无法执行')
@@ -2196,7 +2197,7 @@ const confirmRun = async (params) => {
   
   // 验证必填参数
   for (const param of startNodeParams.value) {
-    if (param.required && !params[param.name] && params[param.name] !== 0 && params[param.name] !== false) {
+    if (param.required && !runParams.value[param.name] && runParams.value[param.name] !== 0 && runParams.value[param.name] !== false) {
       ElMessage.warning(`请输入 ${param.name}`)
       return
     }
@@ -2213,7 +2214,7 @@ const confirmRun = async (params) => {
   
   try {
     const res = await executeWorkflow(workflowUuid.value, {
-      input: params
+      input: runParams.value
     })
     
     runResult.value = res.data
@@ -2222,6 +2223,10 @@ const confirmRun = async (params) => {
     if (runResult.value?.node_executions) {
       highlightExecutionPath(runResult.value.node_executions)
     }
+    
+    // 关闭运行对话框，显示结果对话框
+    showRunDialog.value = false
+    showResultDialog.value = true
     
     ElMessage.success('执行完成')
   } catch (error) {
@@ -2232,6 +2237,11 @@ const confirmRun = async (params) => {
       execution_time: 0,
       node_executions: []
     }
+    
+    // 关闭运行对话框，显示结果对话框
+    showRunDialog.value = false
+    showResultDialog.value = true
+    
     ElMessage.error('执行失败: ' + (error.response?.data?.message || error.message))
   } finally {
     running.value = false

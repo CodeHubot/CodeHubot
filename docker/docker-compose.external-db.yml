@@ -45,9 +45,9 @@ services:
       context: ../backend
       dockerfile: Dockerfile
       args:
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
-        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+        USE_CHINA_MIRROR: "${USE_CHINA_MIRROR:-true}"
+        PIP_INDEX_URL: "${PIP_INDEX_URL:-}"
+        PIP_TRUSTED_HOST: "${PIP_TRUSTED_HOST:-}"
     container_name: codehubot-backend
     environment:
       # 数据库配置 - 使用外部MySQL
@@ -219,9 +219,9 @@ services:
       context: ../service/config-service
       dockerfile: Dockerfile
       args:
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
-        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+        USE_CHINA_MIRROR: "${USE_CHINA_MIRROR:-true}"
+        PIP_INDEX_URL: "${PIP_INDEX_URL:-}"
+        PIP_TRUSTED_HOST: "${PIP_TRUSTED_HOST:-}"
     container_name: codehubot-config-service
     environment:
       # 数据库配置 - 使用外部MySQL
@@ -277,9 +277,9 @@ services:
       context: ../service/plugin-service
       dockerfile: Dockerfile
       args:
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
-        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+        USE_CHINA_MIRROR: "${USE_CHINA_MIRROR:-true}"
+        PIP_INDEX_URL: "${PIP_INDEX_URL:-}"
+        PIP_TRUSTED_HOST: "${PIP_TRUSTED_HOST:-}"
     container_name: codehubot-plugin-service
     environment:
       # 服务配置
@@ -291,11 +291,11 @@ services:
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
       BACKEND_API_KEY: ${INTERNAL_API_KEY}
       # 安全配置
-      CORS_ENABLED: ${PLUGIN_CORS_ENABLED:-true}
-      CORS_ORIGINS: ${PLUGIN_CORS_ORIGINS:-*}
+      CORS_ENABLED: "${PLUGIN_CORS_ENABLED:-true}"
+      CORS_ORIGINS: "${PLUGIN_CORS_ORIGINS:-*}"
       # 其他配置
-      REQUEST_TIMEOUT: ${PLUGIN_REQUEST_TIMEOUT:-30}
-      DEBUG_MODE: ${PLUGIN_DEBUG_MODE:-false}
+      REQUEST_TIMEOUT: "${PLUGIN_REQUEST_TIMEOUT:-30}"
+      DEBUG_MODE: "${PLUGIN_DEBUG_MODE:-false}"
     ports:
       - "${PLUGIN_SERVICE_PORT:-9000}:9000"
     networks:
