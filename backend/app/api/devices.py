@@ -9,6 +9,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.models.device import Device
 from app.models.product import Product
+from app.models.device_sensor import DeviceSensor
 from app.models.user import User
 from app.models.device_binding_history import DeviceBindingHistory
 from sqlalchemy import or_, func, desc, func, desc
@@ -1119,6 +1120,34 @@ async def get_device_config(
     else:
         # 内部API调用：跳过权限检查
         logger.info(f"🔓 内部API调用，跳过权限检查: device_uuid={device_uuid}")
+
+    # 直接从 device_sensors 表获取最新数据（按时间倒序，limit 条）
+    sensor_rows = db.query(DeviceSensor).filter(
+        DeviceSensor.device_uuid == device_uuid
+    ).order_by(DeviceSensor.timestamp.desc()).limit(limit).all()
+
+    if sensor_rows:
+        data_list = []
+        latest_by_sensor = {}
+        for row in sensor_rows:
+            item = {
+                "sensor_name": row.sensor_name,
+                "value": row.sensor_value,
+                "unit": row.sensor_unit or "",
+                "sensor_type": row.sensor_type or "",
+                "timestamp": row.timestamp.isoformat() if row.timestamp else None
+            }
+            data_list.append(item)
+            if row.sensor_name not in latest_by_sensor:
+                latest_by_sensor[row.sensor_name] = item
+
+        return success_response(data={
+            "device_uuid": device_uuid,
+            "device_name": device.name,
+            "latest": latest_by_sensor,
+            "logs": data_list,
+            "count": len(data_list)
+        })
     
     # 从 device_settings 中获取用户自定义的预设指令
     device_settings = device.device_settings or {}
@@ -2215,6 +2244,7 @@ async def control_device(
             # 单指令控制 - 直接连接MQTT Broker发送控制指令
             import paho.mqtt.client as mqtt
             import json
+            import time
             from app.core.config import settings
             
             # 构建控制主题
@@ -2222,10 +2252,16 @@ async def control_device(
             
             try:
                 # 创建临时MQTT客户端
-                mqtt_client = mqtt.Client(
-                    client_id=f"control_client_{device_uuid}_{int(__import__('time').time())}",
-                    protocol=mqtt.MQTTv311
-                )
+                client_kwargs = {
+                    "client_id": f"control_client_{device_uuid}_{int(time.time())}",
+                    "protocol": mqtt.MQTTv311,
+                    "transport": "tcp"
+                }
+                callback_api_version = getattr(mqtt, "CallbackAPIVersion", None)
+                if callback_api_version:
+                    client_kwargs["callback_api_version"] = callback_api_version.VERSION1
+
+                mqtt_client = mqtt.Client(**client_kwargs)
                 
                 # 设置认证
                 if settings.mqtt_username and settings.mqtt_password:
