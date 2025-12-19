@@ -1716,12 +1716,13 @@ async def get_device_realtime_data(
     else:
         logger.warning("⚠️ 设备没有关联产品或产品没有传感器配置")
     
-    # 从 device_sensors 表获取最新的传感器数据（倒序 + limit）
+    # 表对 device_uuid + sensor_name 有唯一约束，一个传感器只保留一条最新数据
+    # 因此直接全量按时间倒序抓取该设备的所有传感器记录
     sensor_rows = db.query(DeviceSensor).filter(
         DeviceSensor.device_uuid == device_uuid
-    ).order_by(DeviceSensor.timestamp.desc()).limit(limit).all()
+    ).order_by(DeviceSensor.timestamp.desc()).all()
     
-    logger.info(f"🔍 从 device_sensors 取到 {len(sensor_rows)} 条数据 (limit={limit})")
+    logger.info(f"🔍 从 device_sensors 取到 {len(sensor_rows)} 条数据 (device_uuid={device_uuid}, requested_limit={limit})")
     
     if not sensor_rows:
         return success_response(data={
@@ -1734,6 +1735,7 @@ async def get_device_realtime_data(
         })
     
     # 构造返回数据
+    # data 列表只返回用户请求的数量；latest 计算使用 fetch_limit 结果
     sensor_data_list = []
     raw_latest_map = {}
     latest_timestamp = None
@@ -1744,13 +1746,14 @@ async def get_device_realtime_data(
         if row_time and row_time.tzinfo is None:
             row_time = row_time.replace(tzinfo=beijing_tz)
         
-        # 用于列表展示（保持旧格式兼容）
-        sensor_data_list.append({
-            "timestamp": row_time.isoformat() if row_time else None,
-            "data": {row.sensor_name: value},
-            "unit": row.sensor_unit or "",
-            "sensor_type": row.sensor_type or ""
-        })
+        # 用于列表展示（保持旧格式兼容），仅保留前 limit 条
+        if len(sensor_data_list) < limit:
+            sensor_data_list.append({
+                "timestamp": row_time.isoformat() if row_time else None,
+                "data": {row.sensor_name: value},
+                "unit": row.sensor_unit or "",
+                "sensor_type": row.sensor_type or ""
+            })
         
         # 汇总 latest
         if row.sensor_name not in raw_latest_map:
