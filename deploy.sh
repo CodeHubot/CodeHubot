@@ -241,6 +241,9 @@ build_images() {
     log_info "构建前端服务镜像..."
     docker-compose -f "${COMPOSE_FILE}" build frontend
     
+    log_info "构建插件后端服务镜像..."
+    docker-compose -f "${COMPOSE_FILE}" build plugin-backend-service
+    
     log_info "构建插件服务镜像..."
     docker-compose -f "${COMPOSE_FILE}" build plugin-service
     
@@ -339,6 +342,7 @@ start_services() {
     log_info "  - Backend (HTTP API)"
     log_info "  - Config Service (配置服务)"
     log_info "  - Frontend (前端)"
+    log_info "  - Plugin Backend Service (插件后端服务)"
     log_info "  - Plugin Service (插件服务)"
     log_info "  - MQTT Service (设备消息处理)"
     log_info "  - Celery Worker (异步任务)"
@@ -350,6 +354,7 @@ start_services() {
             backend \
             config-service \
             frontend \
+            plugin-backend-service \
             plugin-service \
             mqtt-service \
             celery_worker \
@@ -361,6 +366,7 @@ start_services() {
             backend \
             config-service \
             frontend \
+            plugin-backend-service \
             plugin-service \
             mqtt-service \
             celery_worker \
@@ -406,6 +412,13 @@ check_services() {
         log_info "前端服务: ✓ 健康"
     else
         log_warn "前端服务: ✗ 未响应（可能需要等待服务完全启动）"
+    fi
+    
+    # 检查插件后端服务（内部服务，不对外暴露）
+    if docker-compose -f "${COMPOSE_FILE}" exec -T plugin-backend-service python -c "import urllib.request; urllib.request.urlopen('http://localhost:9002/health')" >/dev/null 2>&1; then
+        log_info "插件后端服务: ✓ 健康"
+    else
+        log_warn "插件后端服务: ✗ 未响应（可能需要等待服务完全启动）"
     fi
     
     # 检查插件服务
@@ -485,15 +498,18 @@ show_info() {
     log_info "  插件服务:      http://localhost:${PLUGIN_SERVICE_PORT:-9000}"
     log_info "  Flower监控:    http://localhost:${FLOWER_PORT:-5555}/flower"
     log_info "                (默认账号: admin / 密码: admin)"
+    log_info ""
+    log_info "内部服务（仅容器内访问）："
+    log_info "  插件后端服务:  http://plugin-backend-service:9002"
     
     if [ "${DEPLOY_MODE}" != "external-db" ]; then
         log_info "  phpMyAdmin:    http://localhost:${PHPMYADMIN_PORT:-8081}"
     fi
     
     log_info ""
-    log_info "后台服务（无HTTP接口）："
-    log_info "  MQTT服务:      处理设备消息"
-    log_info "  Celery Worker: 处理异步任务"
+    log_info "后台服务："
+    log_info "  MQTT服务:      处理设备消息（无HTTP接口）"
+    log_info "  Celery Worker: 处理异步任务（无HTTP接口）"
     log_info ""
     log_info "基础服务："
     
