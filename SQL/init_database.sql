@@ -224,6 +224,28 @@ INSERT INTO `core_system_config` (`config_key`, `config_value`, `config_type`, `
 ('user_agreement', '', 'text', '用户协议内容', 'policy', 1),
 ('privacy_policy', '', 'text', '隐私政策内容', 'policy', 1);
 
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `aiot_access_logs`
+-- 访问日志表：记录设备配置服务的访问日志，用于速率限制和安全审计
+--
+
+CREATE TABLE IF NOT EXISTS `aiot_access_logs` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `ip_address` VARCHAR(45) NOT NULL COMMENT '访问IP地址（支持IPv4和IPv6）',
+  `endpoint` VARCHAR(128) NOT NULL COMMENT '访问的端点路径',
+  `mac_address` VARCHAR(17) DEFAULT NULL COMMENT '设备MAC地址（如果有）',
+  `success` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '请求是否成功（1=成功，0=失败）',
+  `timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '访问时间',
+  `user_agent` VARCHAR(256) DEFAULT NULL COMMENT '用户代理字符串',
+  
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_address` (`ip_address`),
+  KEY `idx_timestamp` (`timestamp`),
+  KEY `idx_mac_address` (`mac_address`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='访问日志表（用于速率限制和安全审计）';
+
 
 -- ========================================== 
 -- 设备模块（Device）
