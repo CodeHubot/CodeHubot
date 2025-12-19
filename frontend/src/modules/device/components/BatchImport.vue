@@ -120,7 +120,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document, Download, Upload, UploadFilled, InfoFilled } from '@element-plus/icons-vue'
-import request from '@device/api/request'
+import request from '@/utils/request'
 
 const props = defineProps({
   modelValue: {
