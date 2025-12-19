@@ -9,14 +9,29 @@
     <!-- 用户信息栏 -->
     <div v-else class="portal-user-bar">
       <div class="user-info">
-        <el-avatar :size="36">{{ authStore.userName.charAt(0) }}</el-avatar>
-        <div class="user-details">
-          <span class="user-name">{{ authStore.userName }}</span>
-          <span class="user-role">{{ getRoleText(authStore.userRole) }}</span>
-        </div>
-        <el-button type="text" @click="handleLogout" class="logout-btn">
-          <el-icon><SwitchButton /></el-icon> 退出登录
-        </el-button>
+        <el-dropdown @command="handleUserCommand" trigger="click">
+          <div class="user-info-trigger">
+            <el-avatar :size="36">{{ authStore.userName.charAt(0) }}</el-avatar>
+            <div class="user-details">
+              <span class="user-name">{{ authStore.userName }}</span>
+              <span class="user-role">{{ getRoleText(authStore.userRole) }}</span>
+            </div>
+            <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">
+                <el-icon><User /></el-icon> 个人信息
+              </el-dropdown-item>
+              <el-dropdown-item command="changePassword">
+                <el-icon><Lock /></el-icon> 修改密码
+              </el-dropdown-item>
+              <el-dropdown-item divided command="logout">
+                <el-icon><SwitchButton /></el-icon> 退出登录
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
     
@@ -144,23 +159,52 @@
         </el-button>
       </div>
     </div>
+    
+    <!-- 个人信息和修改密码对话框 -->
+    <UserProfileDialog
+      v-model="profileDialogVisible"
+      :default-tab="profileDialogTab"
+      :force-change-password="forceChangePassword"
+      @password-changed="handlePasswordChanged"
+      @profile-updated="handleProfileUpdated"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Setting, Reading, User, Check, ArrowRight, SwitchButton, MagicStick, Connection, Loading, School
+  Setting, Reading, User, Check, ArrowRight, SwitchButton, MagicStick, Connection, Loading, School, Lock, ArrowDown
 } from '@element-plus/icons-vue'
 import { useAuth, getRoleText } from '@/composables/useAuth'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 
 const router = useRouter()
 const { authStore, loading, isAdmin, isSchoolAdmin, isChannelManager, platformName, platformDescription } = useAuth()
 
+// 对话框状态
+const profileDialogVisible = ref(false)
+const profileDialogTab = ref('profile')
+const forceChangePassword = ref(false)
+
 // 简化计算属性
 const canAccessDevice = computed(() => authStore.isAuthenticated)
+
+// 检查是否需要强制修改密码
+onMounted(() => {
+  checkForceChangePassword()
+})
+
+function checkForceChangePassword() {
+  if (authStore.userInfo?.need_change_password) {
+    forceChangePassword.value = true
+    profileDialogVisible.value = true
+    profileDialogTab.value = 'password'
+    ElMessage.warning('检测到您是首次登录，请先修改密码')
+  }
+}
 
 // 进入不同系统
 function enterDevice() {
@@ -205,6 +249,24 @@ function enterChannel() {
   router.push('/pbl/channel/schools')
 }
 
+// 用户下拉菜单命令处理
+function handleUserCommand(command) {
+  switch (command) {
+    case 'profile':
+      profileDialogTab.value = 'profile'
+      profileDialogVisible.value = true
+      break
+    case 'changePassword':
+      profileDialogTab.value = 'password'
+      forceChangePassword.value = false
+      profileDialogVisible.value = true
+      break
+    case 'logout':
+      handleLogout()
+      break
+  }
+}
+
 // 退出登录
 function handleLogout() {
   ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -218,6 +280,17 @@ function handleLogout() {
   }).catch(() => {
     // 取消退出
   })
+}
+
+// 密码修改成功回调
+function handlePasswordChanged() {
+  forceChangePassword.value = false
+  ElMessage.success('密码修改成功，欢迎使用系统')
+}
+
+// 个人信息更新成功回调
+function handleProfileUpdated() {
+  ElMessage.success('个人信息更新成功')
 }
 </script>
 
@@ -264,42 +337,45 @@ function handleLogout() {
   z-index: 10;
   
   .user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
     background: rgba(255, 255, 255, 0.95);
-    padding: 10px 20px;
     border-radius: 50px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     backdrop-filter: blur(10px);
     
-    .user-details {
+    .user-info-trigger {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      
-      .user-name {
-        color: #2c3e50;
-        font-weight: 600;
-        font-size: 14px;
-      }
-      
-      .user-role {
-        color: #999;
-        font-size: 12px;
-        margin-top: 2px;
-      }
-    }
-    
-    .logout-btn {
-      margin-left: 10px;
-      color: #f56c6c;
-      padding: 8px 12px;
-      font-size: 13px;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all 0.3s;
       
       &:hover {
-        color: #f56c6c;
-        background: rgba(245, 108, 108, 0.1);
+        background: rgba(0, 0, 0, 0.03);
+      }
+      
+      .user-details {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        
+        .user-name {
+          color: #2c3e50;
+          font-weight: 600;
+          font-size: 14px;
+        }
+        
+        .user-role {
+          color: #999;
+          font-size: 12px;
+          margin-top: 2px;
+        }
+      }
+      
+      .dropdown-icon {
+        color: #999;
+        font-size: 12px;
+        transition: transform 0.3s;
       }
     }
   }

@@ -82,8 +82,15 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon> 个人信息
+                </el-dropdown-item>
+                <el-dropdown-item command="changePassword">
+                  <el-icon><Lock /></el-icon> 修改密码
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon> 退出登录
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -98,17 +105,26 @@
         </router-view>
       </el-main>
     </el-container>
+    
+    <!-- 个人信息和修改密码对话框 -->
+    <UserProfileDialog
+      v-model="profileDialogVisible"
+      :default-tab="profileDialogTab"
+      :force-change-password="forceChangePassword"
+      @password-changed="handlePasswordChanged"
+    />
   </el-container>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  School, HomeFilled, User, UserFilled, Notebook, Document, TrendCharts, Grid
+  School, HomeFilled, User, UserFilled, Notebook, Document, TrendCharts, Grid, Lock, SwitchButton
 } from '@element-plus/icons-vue'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -116,24 +132,58 @@ const authStore = useAuthStore()
 
 const activeMenu = computed(() => route.path)
 
+// 对话框状态
+const profileDialogVisible = ref(false)
+const profileDialogTab = ref('profile')
+const forceChangePassword = ref(false)
+
+// 检查是否需要强制修改密码
+onMounted(() => {
+  checkForceChangePassword()
+})
+
+function checkForceChangePassword() {
+  if (authStore.userInfo?.need_change_password) {
+    forceChangePassword.value = true
+    profileDialogVisible.value = true
+    profileDialogTab.value = 'password'
+    ElMessage.warning('检测到您是首次登录，请先修改密码')
+  }
+}
+
 function backToPortal() {
   router.push('/')
 }
 
 function handleCommand(command) {
-  if (command === 'logout') {
-    ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }).then(() => {
-      authStore.logout()
-      router.push('/login')
-      ElMessage.success('已退出登录')
-    })
-  } else if (command === 'profile') {
-    ElMessage.info('个人中心功能开发中...')
+  switch (command) {
+    case 'profile':
+      profileDialogTab.value = 'profile'
+      forceChangePassword.value = false
+      profileDialogVisible.value = true
+      break
+    case 'changePassword':
+      profileDialogTab.value = 'password'
+      forceChangePassword.value = false
+      profileDialogVisible.value = true
+      break
+    case 'logout':
+      ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        authStore.logout()
+        router.push('/login')
+        ElMessage.success('已退出登录')
+      })
+      break
   }
+}
+
+function handlePasswordChanged() {
+  forceChangePassword.value = false
+  ElMessage.success('密码修改成功')
 }
 </script>
 

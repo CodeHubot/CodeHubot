@@ -170,6 +170,11 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
             user = db.query(User).filter(User.username == login_identifier).first()
         
         # 3. 验证用户和密码
+        logger.info(f"🔍 开始验证密码 - 用户: {login_identifier}")
+        if user:
+            logger.debug(f"找到用户: {user.username} (ID: {user.id})")
+            logger.debug(f"密码哈希前缀: {user.password_hash[:20]}...")
+        
         if not user or not verify_password(login_data.password, user.password_hash):
             # 记录登录失败次数
             captcha_store.record_login_attempt(login_identifier)
@@ -576,6 +581,9 @@ async def change_password(
     """修改密码 - 需要验证旧密码"""
     try:
         # 验证旧密码
+        logger.info(f"🔍 开始验证旧密码 - 用户: {current_user.username} (ID: {current_user.id})")
+        logger.debug(f"密码哈希前缀: {current_user.password_hash[:20]}...")
+        
         if not verify_password(password_data.old_password, current_user.password_hash):
             logger.warning(f"修改密码失败：旧密码错误 - 用户ID: {current_user.id}")
             raise HTTPException(
@@ -585,6 +593,12 @@ async def change_password(
         
         # 更新密码
         current_user.password_hash = get_password_hash(password_data.new_password)
+        
+        # 清除强制修改密码标志
+        if current_user.need_change_password:
+            current_user.need_change_password = False
+            logger.info(f"✅ 清除首次登录修改密码标志: {current_user.username} (ID: {current_user.id})")
+        
         db.commit()
         
         logger.info(f"✅ 密码修改成功: {current_user.username} (ID: {current_user.id})")

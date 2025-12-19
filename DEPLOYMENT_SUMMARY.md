@@ -16,18 +16,19 @@
 git clone https://github.com/CodeHubot/CodeHubot.git CodeHubot
 cd CodeHubot
 
-# 2. 配置环境变量（使用新架构配置）
+# 2. 配置环境变量
 cd docker
 cp .env.example .env
 nano .env  # 设置 MYSQL_PASSWORD, SECRET_KEY 等（首次部署建议设置 ADMIN_PASSWORD）
 
-# 3. 一键部署（包含新的 plugin-backend-service）
-docker-compose -f docker-compose.plugin.yml up -d
-
-# 或使用旧配置（不推荐）
-cp .env.example .env
+# 3. 一键部署
 cd ..
 ./deploy.sh deploy
+
+# 或使用外部数据库模式（如果你已有 MySQL 服务）
+cp docker/.env.external-db.example docker/.env
+nano docker/.env  # 配置外部数据库信息
+./deploy.sh deploy-external-db
 ```
 
 ### 部署完成后访问
@@ -35,17 +36,17 @@ cd ..
 部署完成后，可以通过以下地址访问系统：
 
 - **前端**: http://localhost:80
-- **后端 API**: http://localhost/api (通过nginx反向代理，8000端口不对外暴露)
-- **API 文档**: http://localhost/api/docs (通过nginx访问)
-- **Plugin Service**: http://localhost:9000 (插件对外接口)
-- **Plugin Backend**: http://localhost:9002 (插件内部服务)
+- **后端 API**: http://localhost:8000
+- **API 文档**: http://localhost:8000/docs
+- **Celery 监控**: http://localhost:5555/flower (默认 admin/admin)
+- **Plugin Service**: http://localhost:9000 (插件服务)
 
 ### 相关部署文档
 
 📖 **详细部署文档**：
-- [完整部署指南](deploy/DEPLOYMENT_COMPLETE_GUIDE.md) ⭐ 推荐
-- [快速开始](deploy/QUICK_START_PLUGIN_BACKEND.md)
-- [Docker 部署](deploy/docs/docker-deployment.md)
+- [Docker 部署（推荐）](docker/README.md) ⭐
+- [外部数据库部署](docker/EXTERNAL_DB_SETUP.md)
+- [快速开始](docker/EXTERNAL_DB_QUICK_START.md)
 
 ---
 
@@ -153,14 +154,16 @@ cd ..
 
 | 服务 | 容器名 | 端口 | 说明 |
 |------|--------|------|------|
-| MySQL | codehubot-mysql | 3306 | 数据库 |
-| Redis | codehubot-redis | 6379 | 缓存 |
+| MySQL | codehubot-mysql | 3306 (内部) | 数据库 |
+| Redis | codehubot-redis | 6379 (内部) | 缓存 |
 | MQTT | codehubot-mqtt | 1883, 9001 | 消息代理 |
 | Backend | codehubot-backend | 8000 | 后端 API |
 | Config-Service | codehubot-config-service | 8001 | 配置服务 |
 | Frontend | codehubot-frontend | 80 | 前端 Web |
-| Plugin-Service | codehubot-plugin-service | 9000 | 插件服务（对外接口） |
-| **Plugin-Backend-Service** | **codehubot-plugin-backend** | **9001** | **插件后端服务（直接访问数据库和MQTT）** |
+| Plugin-Service | codehubot-plugin-service | 9000 | 插件服务 |
+| MQTT-Service | codehubot-mqtt-service | - | MQTT 消息处理 |
+| Celery-Worker | codehubot-celery-worker | - | 异步任务处理 |
+| Flower | codehubot-flower | 5555 | Celery 监控 |
 
 ## 🔧 配置要点
 
@@ -347,12 +350,10 @@ DEFAULT_PRODUCT_NAME=标准开发板
 
 ## ⚠️ 注意事项
 
-1. **新架构**: plugin-backend-service (端口9001) 为新增服务，直接访问数据库和MQTT
-2. **插件服务**: plugin-service (端口9000) 调用 plugin-backend-service，不再直接调用 backend
-3. **数据持久化**: 所有数据存储在 Docker 数据卷中
-4. **端口冲突**: 确保所需端口未被占用（特别是新增的 9001 端口）
-5. **资源要求**: 建议至少 4GB RAM
-6. **服务依赖**: plugin-backend-service 依赖 MySQL 和 MQTT，确保这两个服务先启动
+1. **数据持久化**: 所有数据存储在 Docker 数据卷中
+2. **端口冲突**: 确保所需端口未被占用
+3. **资源要求**: 建议至少 4GB RAM
+4. **部署模式**: 支持标准模式（Docker MySQL）和外部数据库模式
 
 ## 🗑️ 删除持久化数据
 

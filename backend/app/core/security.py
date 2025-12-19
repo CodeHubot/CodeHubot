@@ -44,13 +44,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         # 先预处理密码，然后验证
         preprocessed = _preprocess_password(plain_password)
-        # 同时尝试预处理后的密码和原始密码（兼容旧密码）
+        
+        # 方案1: 先尝试预处理后的密码（新密码）
         if pwd_context.verify(preprocessed, hashed_password):
+            logger.debug(f"✅ 密码验证成功（使用预处理）")
             return True
-        # 如果预处理后的密码不匹配，尝试原始密码（兼容旧数据）
-        return pwd_context.verify(plain_password, hashed_password)
+        
+        # 方案2: 尝试原始密码（兼容旧数据）
+        if pwd_context.verify(plain_password, hashed_password):
+            logger.debug(f"✅ 密码验证成功（使用原始密码）")
+            return True
+        
+        logger.debug(f"❌ 密码验证失败（两种方式都不匹配）")
+        return False
     except Exception as e:
-        logger.error(f"密码验证失败: {e}", exc_info=True)
+        logger.error(f"密码验证异常: {e}", exc_info=True)
         return False
 
 def get_password_hash(password: str) -> str:

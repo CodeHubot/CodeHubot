@@ -179,6 +179,51 @@ CREATE TABLE `core_schools` (
   `updated_at` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=1;
 
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `core_system_config`
+-- 系统配置表：用于管理系统级配置项，包括模块开关、平台信息、用户协议等
+--
+
+CREATE TABLE IF NOT EXISTS `core_system_config` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '配置ID',
+    `config_key` VARCHAR(100) NOT NULL COMMENT '配置键',
+    `config_value` TEXT NULL DEFAULT NULL COMMENT '配置值',
+    `config_type` VARCHAR(20) NOT NULL DEFAULT 'string' COMMENT '配置类型: string, boolean, integer, json, text',
+    `description` VARCHAR(500) NULL DEFAULT NULL COMMENT '配置描述',
+    `category` VARCHAR(50) NOT NULL DEFAULT 'system' COMMENT '配置分类: system, module, feature, policy等',
+    `is_public` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否公开（前端可见）',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_config_key` (`config_key`),
+    KEY `idx_category` (`category`),
+    KEY `idx_is_public` (`is_public`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置表';
+
+--
+-- 初始化系统配置数据
+--
+
+-- 平台基础配置
+INSERT INTO `core_system_config` (`config_key`, `config_value`, `config_type`, `description`, `category`, `is_public`) VALUES
+('platform_name', 'CodeHubot', 'string', '平台名称', 'system', 1),
+('platform_description', '智能物联网管理平台', 'string', '平台描述', 'system', 1);
+
+-- 模块开关配置
+INSERT INTO `core_system_config` (`config_key`, `config_value`, `config_type`, `description`, `category`, `is_public`) VALUES
+('enable_user_registration', 'false', 'boolean', '是否开启用户注册', 'module', 1),
+('enable_device_module', 'true', 'boolean', '是否开启设备管理模块', 'module', 1),
+('enable_ai_module', 'true', 'boolean', '是否开启AI模块', 'module', 1),
+('enable_pbl_module', 'true', 'boolean', '是否开启PBL模块', 'module', 1);
+
+-- 用户协议和隐私政策
+INSERT INTO `core_system_config` (`config_key`, `config_value`, `config_type`, `description`, `category`, `is_public`) VALUES
+('user_agreement', '', 'text', '用户协议内容', 'policy', 1),
+('privacy_policy', '', 'text', '隐私政策内容', 'policy', 1);
+
 
 -- ========================================== 
 -- 设备模块（Device）

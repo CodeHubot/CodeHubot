@@ -1,0 +1,322 @@
+services:
+  # Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: codehubot-redis
+    # 不暴露端口到外部,仅在Docker网络内部访问（安全考虑）
+    # ports:
+    #   - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - aiot-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # MQTT服务
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: codehubot-mqtt
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_WS_PORT:-9001}:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+      - mqtt_logs:/mosquitto/log
+    networks:
+      - aiot-network
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health/check", "-m", "ping", "-i", "health-check-client"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # 后端服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      args:
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+    container_name: codehubot-backend
+    environment:
+      # 数据库配置 - 使用外部MySQL
+      DB_HOST: ${EXTERNAL_DB_HOST}
+      DB_PORT: ${EXTERNAL_DB_PORT:-3306}
+      DB_USER: ${EXTERNAL_DB_USER}
+      DB_PASSWORD: ${EXTERNAL_DB_PASSWORD}
+      DB_NAME: ${EXTERNAL_DB_NAME}
+      # Redis配置
+      REDIS_URL: redis://redis:6379
+      # 阿里云API密钥（向量化需要）
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      # 服务器配置
+      SERVER_BASE_URL: ${SERVER_BASE_URL:-http://localhost:8000}
+      # JWT配置
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-120}
+      REFRESH_TOKEN_EXPIRE_MINUTES: ${REFRESH_TOKEN_EXPIRE_MINUTES:-10080}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 内部API密钥
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      # 环境配置
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # 文件存储路径（与共享卷挂载路径一致）
+      KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
+      # 管理员账号配置（可选,用于自动创建管理员账号）
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # 默认大模型配置（通义千问）
+      QWEN_API_KEY: ${QWEN_API_KEY:-${DASHSCOPE_API_KEY:-}}
+      QWEN_API_BASE: ${QWEN_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL_NAME: ${QWEN_MODEL_NAME:-qwen-turbo}
+      QWEN_DISPLAY_NAME: ${QWEN_DISPLAY_NAME:-通义千问-Turbo}
+      QWEN_MAX_TOKENS: ${QWEN_MAX_TOKENS:-8192}
+      QWEN_TEMPERATURE: ${QWEN_TEMPERATURE:-0.20}
+      QWEN_TOP_P: ${QWEN_TOP_P:-0.90}
+      # 默认产品配置（ESP32-S3开发板）
+      DEFAULT_PRODUCT_CODE: ${DEFAULT_PRODUCT_CODE:-ESP-32-S3-01}
+      DEFAULT_PRODUCT_NAME: ${DEFAULT_PRODUCT_NAME:-标准开发板}
+    # 不暴露端口到外部,仅通过nginx反向代理访问（安全考虑）
+    # ports:
+    #   - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - aiot-network
+    depends_on:
+      - redis
+      - mqtt
+    volumes:
+      # 共享文件存储卷（知识库文档）- 统一使用backend路径
+      - knowledge_bases_data:/app/backend/data/knowledge-bases
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # MQTT服务 - 设备消息处理（独立服务）
+  mqtt-service:
+    build:
+      context: ../service/mqtt-service
+      dockerfile: Dockerfile
+    container_name: codehubot-mqtt-service
+    environment:
+      # MQTT Broker配置
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 数据库配置 - 使用外部MySQL
+      DB_HOST: ${EXTERNAL_DB_HOST}
+      DB_PORT: ${EXTERNAL_DB_PORT:-3306}
+      DB_USER: ${EXTERNAL_DB_USER}
+      DB_PASSWORD: ${EXTERNAL_DB_PASSWORD}
+      DB_NAME: ${EXTERNAL_DB_NAME}
+    networks:
+      - aiot-network
+    depends_on:
+      - mqtt
+    restart: unless-stopped
+
+  # Celery Worker - 异步任务处理（独立服务）
+  celery_worker:
+    build:
+      context: ..
+      dockerfile: service/celery-service/Dockerfile
+    container_name: codehubot-celery-worker
+    environment:
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      # 数据库配置 - 使用外部MySQL
+      DB_HOST: ${EXTERNAL_DB_HOST}
+      DB_PORT: ${EXTERNAL_DB_PORT:-3306}
+      DB_USER: ${EXTERNAL_DB_USER}
+      DB_PASSWORD: ${EXTERNAL_DB_PASSWORD}
+      DB_NAME: ${EXTERNAL_DB_NAME}
+      # JWT密钥
+      SECRET_KEY: ${SECRET_KEY}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 阿里云API密钥（向量化需要）
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      # 文件存储路径（与共享卷挂载路径一致）
+      KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
+    volumes:
+      # 共享文件存储卷（知识库文档）- 与backend共享
+      - knowledge_bases_data:/app/backend/data/knowledge-bases
+    networks:
+      - aiot-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Flower - Celery任务监控面板（独立服务）
+  flower:
+    build:
+      context: ..
+      dockerfile: service/celery-service/Dockerfile
+    container_name: codehubot-flower
+    command: ["bash", "start_flower.sh"]
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    environment:
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      # 数据库配置 - 使用外部MySQL
+      DB_HOST: ${EXTERNAL_DB_HOST}
+      DB_PORT: ${EXTERNAL_DB_PORT:-3306}
+      DB_USER: ${EXTERNAL_DB_USER}
+      DB_PASSWORD: ${EXTERNAL_DB_PASSWORD}
+      DB_NAME: ${EXTERNAL_DB_NAME}
+      # JWT密钥
+      SECRET_KEY: ${SECRET_KEY}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # Flower配置
+      FLOWER_PORT: 5555
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:admin}
+    networks:
+      - aiot-network
+    depends_on:
+      - redis
+      - celery_worker
+    restart: unless-stopped
+
+  # 配置服务
+  config-service:
+    build:
+      context: ../service/config-service
+      dockerfile: Dockerfile
+      args:
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+    container_name: codehubot-config-service
+    environment:
+      # 数据库配置 - 使用外部MySQL
+      DB_HOST: ${EXTERNAL_DB_HOST}
+      DB_PORT: ${EXTERNAL_DB_PORT:-3306}
+      DB_USER: ${EXTERNAL_DB_USER}
+      DB_PASSWORD: ${EXTERNAL_DB_PASSWORD}
+      DB_NAME: ${EXTERNAL_DB_NAME}
+      # MQTT配置
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      # 后端服务地址（用于内部调用）
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+      # 环境配置
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+    ports:
+      - "${CONFIG_SERVICE_PORT:-8001}:8001"
+    networks:
+      - aiot-network
+    depends_on:
+      - mqtt
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # 前端服务
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: codehubot-frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - aiot-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # 插件服务
+  plugin-service:
+    build:
+      context: ../service/plugin-service
+      dockerfile: Dockerfile
+      args:
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+    container_name: codehubot-plugin-service
+    environment:
+      # 服务配置
+      PORT: ${PLUGIN_SERVICE_PORT:-9000}
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      RELOAD: "false"
+      # 后端服务配置
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+      BACKEND_API_KEY: ${INTERNAL_API_KEY}
+      # 安全配置
+      CORS_ENABLED: ${PLUGIN_CORS_ENABLED:-true}
+      CORS_ORIGINS: ${PLUGIN_CORS_ORIGINS:-*}
+      # 其他配置
+      REQUEST_TIMEOUT: ${PLUGIN_REQUEST_TIMEOUT:-30}
+      DEBUG_MODE: ${PLUGIN_DEBUG_MODE:-false}
+    ports:
+      - "${PLUGIN_SERVICE_PORT:-9000}:9000"
+    networks:
+      - aiot-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  mqtt_data:
+  mqtt_logs:
+  knowledge_bases_data:  # 知识库文档共享存储卷
+
+networks:
+  aiot-network:
+    driver: bridge

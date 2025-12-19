@@ -127,12 +127,41 @@ request.interceptors.response.use(
     }
   },
   async error => {
-    console.error('响应错误:', error)
-    
     const originalRequest = error.config
+    const requestUrl = originalRequest.url || ''
     
-    // 处理 401 错误：尝试刷新 token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    console.error('❌ 响应错误:', {
+      status: error.response?.status,
+      url: requestUrl,
+      method: originalRequest.method
+    })
+    
+    // 定义不需要刷新token的接口列表（登录、注册等公开接口）
+    const noRefreshUrls = [
+      'auth/login',
+      'auth/register',
+      'auth/refresh',
+      'auth/request-password-reset',
+      'auth/reset-password',
+      'student/auth/login',
+      'teacher/auth/login',
+      'admin/auth/login',
+      'channel/auth/login',
+      'school/auth/login'
+    ]
+    
+    // 检查当前请求是否是不需要刷新token的接口
+    const isNoRefreshUrl = noRefreshUrls.some(url => requestUrl.includes(url))
+    
+    console.log('🔍 URL匹配检查:', {
+      requestUrl,
+      isNoRefreshUrl,
+      status: error.response?.status,
+      willRefresh: error.response?.status === 401 && !originalRequest._retry && !isNoRefreshUrl
+    })
+    
+    // 处理 401 错误：仅在非登录接口且未重试时尝试刷新 token
+    if (error.response?.status === 401 && !originalRequest._retry && !isNoRefreshUrl) {
       // 如果正在刷新 token，将请求加入队列
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -183,10 +212,20 @@ request.interceptors.response.use(
         
         ElMessage.error('登录已过期，请重新登录')
         
-        return Promise.reject(refreshError)
+        // 返回错误，不再继续执行后面的错误处理
+        return Promise.reject({
+          success: false,
+          message: '登录已过期，请重新登录',
+          skipErrorHandler: true // 标记跳过后续错误处理
+        })
       } finally {
         isRefreshing = false
       }
+    }
+    
+    // 如果错误已经被处理过（有 skipErrorHandler 标记），直接返回
+    if (error.skipErrorHandler) {
+      return Promise.reject(error)
     }
     
     // 其他 HTTP 错误处理
@@ -196,15 +235,23 @@ request.interceptors.response.use(
       const status = error.response.status
       const data = error.response.data
       
+      // 检查是否是登录相关接口（使用与上面相同的逻辑）
+      const isAuthUrl = noRefreshUrls.some(url => requestUrl.includes(url))
+      
       switch (status) {
         case 400:
           message = data.message || data.detail || '请求参数错误'
           break
         case 401:
-          message = '未授权，请重新登录'
+          // 如果是登录接口，显示具体错误信息；否则提示重新登录
+          if (isAuthUrl) {
+            message = data.message || data.detail || '用户名或密码错误'
+          } else {
+            message = '未授权，请重新登录'
+          }
           break
         case 403:
-          message = '没有权限访问该资源'
+          message = data.message || data.detail || '没有权限访问该资源'
           break
         case 404:
           message = data.message || data.detail || '请求的资源不存在'
@@ -227,7 +274,8 @@ request.interceptors.response.use(
       message = error.message || '请求配置错误'
     }
     
-    ElMessage.error(message)
+    // 不在这里显示错误提示，让组件自己决定如何处理错误
+    // ElMessage.error(message)
     
     return Promise.reject({
       success: false,

@@ -38,9 +38,10 @@ CodeHubot 平台采用 Docker 容器化技术实现一键部署,所有服务通�
 CodeHubot/
 ├── docker/                          # Docker 配置目录
 │   ├── docker-compose.yml           # 开发环境编排
-│   ├── docker-compose.prod.yml      # 生产环境编排
-│   ├── docker-compose.plugin.yml    # 插件服务编排
-│   ├── .env.example                 # 环境变量示例
+│   ├── docker-compose.prod.yml      # 生产环境编排（标准模式）
+│   ├── docker-compose.external-db.yml  # 生产环境编排（外部数据库模式）
+│   ├── .env.example                 # 环境变量示例（标准模式）
+│   ├── .env.external-db.example     # 环境变量示例（外部数据库模式）
 │   ├── mosquitto.conf               # MQTT 配置
 │   └── verify-env.sh                # 环境检查脚本
 ├── backend/
