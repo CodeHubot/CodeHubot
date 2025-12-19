@@ -46,9 +46,9 @@ if not all([db_host, db_user, db_password, db_name]):
     raise ValueError("数据库配置不完整：请提供 DB_HOST、DB_USER、DB_PASSWORD、DB_NAME（DB_PORT 可选，默认 3306）")
 
 DATABASE_URL = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-MQTT_BROKER = os.getenv("MQTT_BROKER", "mqtt.example.com")
-MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
-MQTT_USE_SSL = os.getenv("MQTT_USE_SSL", "false").lower() == "true"
+MQTT_BROKER = os.getenv("DEVICE_MQTT_BROKER", "mqtt.example.com")
+MQTT_PORT = int(os.getenv("DEVICE_MQTT_PORT", "1883"))
+MQTT_USE_SSL = os.getenv("DEVICE_MQTT_USE_SSL", "false").lower() == "true"
 API_SERVER = os.getenv("API_SERVER", "http://api.example.com")
 OTA_SERVER = os.getenv("OTA_SERVER", "http://ota.example.com")
 

@@ -10,3 +10,7 @@ PyMySQL==1.1.0
 # 环境变量
 python-dotenv==1.0.0
 
+# 加密（如需要）
+cryptography==41.0.7
+
+

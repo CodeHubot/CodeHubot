@@ -5,8 +5,10 @@
 import asyncio
 import json
 import logging
+import time
 from typing import List, Dict, Any, Optional
-from app.services.mqtt_service import mqtt_service
+import paho.mqtt.client as mqtt
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

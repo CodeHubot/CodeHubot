@@ -41,7 +41,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # MQTT服务
+  # MQTT Broker
   mqtt:
     image: eclipse-mosquitto:2.0
     container_name: codehubot-mqtt
@@ -59,6 +59,40 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # MQTT服务 - 设备消息处理（独立服务）
+  mqtt-service:
+    build:
+      context: ../service/mqtt-service
+      dockerfile: Dockerfile
+    container_name: codehubot-mqtt-service
+    environment:
+      # MQTT Broker配置（内部连接）
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 设备MQTT配置（提供给设备的外部MQTT地址）
+      DEVICE_MQTT_BROKER: ${DEVICE_MQTT_BROKER}
+      DEVICE_MQTT_PORT: ${DEVICE_MQTT_PORT:-1883}
+      DEVICE_MQTT_USE_SSL: ${DEVICE_MQTT_USE_SSL:-false}
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: aiot_user
+      DB_PASSWORD: aiot_password
+      DB_NAME: aiot_admin
+    networks:
+      - aiot-network
+    depends_on:
+      - mysql
+      - mqtt
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mysql_data:

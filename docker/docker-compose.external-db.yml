@@ -233,9 +233,13 @@ services:
       DB_USER: ${EXTERNAL_DB_USER}
       DB_PASSWORD: ${EXTERNAL_DB_PASSWORD}
       DB_NAME: ${EXTERNAL_DB_NAME}
-      # MQTT配置
+      # MQTT配置（内部连接）
       MQTT_BROKER: ${MQTT_BROKER:-mqtt}
       MQTT_PORT: 1883
+      # 设备MQTT配置（提供给设备的外部MQTT地址）
+      DEVICE_MQTT_BROKER: ${DEVICE_MQTT_BROKER}
+      DEVICE_MQTT_PORT: ${DEVICE_MQTT_PORT:-1883}
+      DEVICE_MQTT_USE_SSL: ${DEVICE_MQTT_USE_SSL:-false}
       # 后端服务地址（用于内部调用）
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
       # 环境配置

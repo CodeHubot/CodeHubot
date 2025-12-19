@@ -11,11 +11,11 @@ load_dotenv()
 class Settings:
     """配置类"""
     
-    # MQTT配置
-    MQTT_BROKER: str = os.getenv("MQTT_BROKER", "localhost")
-    MQTT_PORT: int = int(os.getenv("MQTT_PORT", "1883"))
-    MQTT_USERNAME: str = os.getenv("MQTT_USERNAME", "")
-    MQTT_PASSWORD: str = os.getenv("MQTT_PASSWORD", "")
+    # MQTT配置（mqtt-service连接到Broker）
+    MQTT_BROKER: str = os.getenv("MQTT_SERVICE_BROKER", "localhost")
+    MQTT_PORT: int = int(os.getenv("MQTT_SERVICE_PORT", "1883"))
+    MQTT_USERNAME: str = os.getenv("MQTT_SERVICE_USERNAME", "")
+    MQTT_PASSWORD: str = os.getenv("MQTT_SERVICE_PASSWORD", "")
     
     # 数据库配置
     DB_HOST: str = os.getenv("DB_HOST", "localhost")

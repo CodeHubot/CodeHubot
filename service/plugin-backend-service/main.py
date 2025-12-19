@@ -138,16 +138,8 @@ class Device(Base):
     is_online = Column(Boolean)
     is_active = Column(Boolean)
     device_settings = Column(JSON)  # 设备配置，包含预设指令
-
-class InteractionLog(Base):
-    __tablename__ = "aiot_interaction_logs"
-    
-    id = Column(Integer, primary_key=True)
-    device_id = Column(String(100))
-    interaction_type = Column(String(50))
-    request_data = Column(JSON)
-    response_data = Column(JSON)
-    timestamp = Column(DateTime)
+    last_report_data = Column(JSON)  # 最后上报数据，包含所有传感器数据
+    last_seen = Column(DateTime)  # 最后在线时间
 
 # ============================================================
 # 数据库连接
@@ -343,7 +335,7 @@ async def health_check():
 async def get_sensor_data(device_uuid: str, sensor: str):
     """获取传感器数据
     
-    直接从数据库的 interaction_logs 表读取最新传感器数据
+    从 device_main 表的 last_report_data 字段读取最新传感器数据
     """
     logger.info(f"📊 查询传感器数据: device_uuid={device_uuid}, sensor={sensor}")
     
@@ -357,72 +349,74 @@ async def get_sensor_data(device_uuid: str, sensor: str):
         if not device:
             raise HTTPException(status_code=404, detail="设备不存在")
         
-        # 从 interaction_logs 获取最新传感器数据
-        logs = db.query(InteractionLog).filter(
-            InteractionLog.device_id == device.device_id,
-            InteractionLog.interaction_type == "data_upload"
-        ).order_by(desc(InteractionLog.timestamp)).limit(20).all()
+        logger.info(f"📱 设备: {device.name} (ID: {device.device_id})")
         
-        if not logs:
-            raise HTTPException(status_code=404, detail="暂无传感器数据")
+        # 检查是否有上报数据
+        if not device.last_report_data:
+            raise HTTPException(status_code=404, detail="设备尚未上报数据")
         
-        # 提取传感器数据
-        sensor_data = {}
-        for log in logs:
-            if log.request_data:
-                raw_data = log.request_data
-                sensor_type = raw_data.get("sensor")
-                
-                if sensor_type == "DHT11":
-                    if "DHT11_temperature" not in sensor_data and "temperature" in raw_data:
-                        sensor_data["DHT11_temperature"] = raw_data["temperature"]
-                    if "DHT11_humidity" not in sensor_data and "humidity" in raw_data:
-                        sensor_data["DHT11_humidity"] = raw_data["humidity"]
-                elif sensor_type == "DS18B20":
-                    if "DS18B20_temperature" not in sensor_data and "temperature" in raw_data:
-                        sensor_data["DS18B20_temperature"] = raw_data["temperature"]
-                elif sensor_type == "RAIN_SENSOR":
-                    if "RAIN_SENSOR" not in sensor_data and "is_raining" in raw_data:
-                        sensor_data["RAIN_SENSOR"] = raw_data["is_raining"]
+        # 从 last_report_data 获取传感器数据
+        last_data = device.last_report_data
+        sensors = last_data.get("sensors", {})
         
-        # 映射传感器名称
+        if not sensors:
+            raise HTTPException(status_code=404, detail="设备暂无传感器数据")
+        
+        logger.info(f"🔍 可用传感器: {list(sensors.keys())}")
+        
+        # 映射传感器名称（支持中文和英文）
         sensor_map = {
-            "温度": "DHT11_temperature",
-            "temperature": "DHT11_temperature",
-            "湿度": "DHT11_humidity",
-            "humidity": "DHT11_humidity",
-            "DS18B20": "DS18B20_temperature",
-            "雨水": "RAIN_SENSOR"
+            "温度": "temperature",
+            "湿度": "humidity",
+            "DS18B20": "ds18b20",
+            "雨水": "rain"
         }
         
-        actual_key = sensor_map.get(sensor, sensor)
-        value = sensor_data.get(actual_key)
+        # 获取实际的传感器键名
+        actual_key = sensor_map.get(sensor, sensor.lower())
         
-        if value is None:
+        # 查找传感器数据（支持多种命名格式）
+        sensor_value = None
+        sensor_unit = ""
+        
+        # 尝试直接匹配
+        if actual_key in sensors:
+            sensor_info = sensors[actual_key]
+            sensor_value = sensor_info.get("value")
+            sensor_unit = sensor_info.get("unit", "")
+        else:
+            # 尝试模糊匹配（例如 temperature 匹配 DHT11_temperature）
+            for key, info in sensors.items():
+                if actual_key in key.lower():
+                    sensor_value = info.get("value")
+                    sensor_unit = info.get("unit", "")
+                    logger.info(f"🎯 模糊匹配到传感器: {key}")
+                    break
+        
+        if sensor_value is None:
+            available = ", ".join(sensors.keys())
             raise HTTPException(
                 status_code=404,
-                detail=f"未找到传感器 '{sensor}' 的数据"
+                detail=f"未找到传感器 '{sensor}' 的数据。可用传感器: {available}"
             )
         
-        # 确定单位
-        unit = ""
-        if "temperature" in actual_key.lower():
-            unit = "°C"
-        elif "humidity" in actual_key.lower():
-            unit = "%"
-        
-        logger.info(f"✅ 传感器数据: {sensor}={value}{unit}")
+        logger.info(f"✅ 传感器数据: {sensor} = {sensor_value}{sensor_unit}")
         
         return StandardResponse(
             code=200,
             msg="成功",
-            data={"value": value, "unit": unit}
+            data={
+                "value": sensor_value,
+                "unit": sensor_unit,
+                "device_name": device.name,
+                "last_seen": device.last_seen.isoformat() if device.last_seen else None
+            }
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ 查询传感器数据失败: {e}")
+        logger.error(f"❌ 查询传感器数据失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()

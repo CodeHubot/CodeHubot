@@ -1275,7 +1275,7 @@ async def upload_device_data(
     data: DeviceDataUpload,
     db: Session = Depends(get_db)
 ):
-    """设备数据上传"""
+    """设备数据上传 - 存储每个传感器的最后一次数据和上传时间"""
     # 验证设备ID和密钥
     device = db.query(Device).filter(
         Device.device_id == data.device_id,
@@ -1288,25 +1288,57 @@ async def upload_device_data(
             detail="设备ID或密钥无效"
         )
     
+    # 获取当前时间（北京时间）
+    current_time = get_beijing_now()
+    
     # 更新设备最后在线时间
-    device.last_seen = get_beijing_now()
+    device.last_seen = current_time
     device.is_online = True
     
     # 如果有IP地址信息，更新设备IP
     if hasattr(data, 'status') and data.status and 'ip_address' in data.status:
         device.ip_address = data.status['ip_address']
     
-    db.commit()
+    # 构建传感器数据存储结构
+    sensor_data_dict = {}
+    if data.sensors:
+        for sensor in data.sensors:
+            # 使用传感器名称作为key，存储值、单位和时间戳
+            sensor_data_dict[sensor.sensor_name] = {
+                "value": sensor.value,
+                "unit": sensor.unit,
+                "timestamp": sensor.timestamp.isoformat() if sensor.timestamp else current_time.isoformat()
+            }
     
-    # 这里可以添加传感器数据存储逻辑
-    # 目前只是简单返回成功消息
+    # 更新设备的最后上报数据（JSON格式）
+    device.last_report_data = {
+        "sensors": sensor_data_dict,
+        "status": data.status if data.status else {},
+        "location": data.location if data.location else {},
+        "upload_timestamp": current_time.isoformat()  # 整体上传时间
+    }
+    
+    # 标记JSON字段已修改（SQLAlchemy需要）
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(device, "last_report_data")
+    
+    db.commit()
+    db.refresh(device)
+    
+    logger.info(
+        f"✅ 设备数据上传成功 - 设备: {device.name} ({data.device_id}), "
+        f"传感器数量: {len(sensor_data_dict)}, "
+        f"传感器: {list(sensor_data_dict.keys())}"
+    )
     
     return success_response(
         message="数据上传成功",
         data={
             "device_id": data.device_id,
-            "timestamp": format_datetime_beijing(get_beijing_now()),
-            "sensors_count": len(data.sensors) if data.sensors else 0
+            "device_name": device.name,
+            "upload_timestamp": format_datetime_beijing(current_time),
+            "sensors_count": len(sensor_data_dict),
+            "sensors_uploaded": list(sensor_data_dict.keys())
         }
     )
 
@@ -1512,6 +1544,76 @@ async def get_device_product_history(
         ]
     })
 
+@router.get("/{device_uuid}/sensor-data")
+async def get_device_sensor_data(
+    device_uuid: str,
+    user_or_internal = Depends(verify_internal_or_user),
+    db: Session = Depends(get_db)
+):
+    """获取设备传感器的最后一次数据 - 支持JWT和内部API密钥认证
+    
+    认证方式：
+    1. JWT Token（用户请求，前端调用）
+    2. X-Internal-API-Key（内部服务）
+    
+    返回格式：
+    {
+        "device_uuid": "xxx",
+        "device_name": "设备名称",
+        "upload_timestamp": "2025-12-19T14:30:00+08:00",
+        "sensors": {
+            "temperature": {
+                "value": 25.5,
+                "unit": "°C",
+                "timestamp": "2025-12-19T14:30:00+08:00"
+            },
+            "humidity": {
+                "value": 60,
+                "unit": "%",
+                "timestamp": "2025-12-19T14:30:00+08:00"
+            }
+        }
+    }
+    """
+    # 查找设备
+    device = db.query(Device).filter(Device.uuid == device_uuid).first()
+    
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    
+    # 数据权限检查：内部API调用跳过权限检查，用户请求需要验证权限
+    if user_or_internal != "internal":
+        # 用户请求：检查数据权限
+        if not can_access_device(device, user_or_internal, db):
+            raise HTTPException(status_code=403, detail="无权访问该设备")
+    else:
+        # 内部API调用：跳过权限检查
+        logger.info(f"🔓 内部API调用，跳过权限检查: device_uuid={device_uuid}")
+    
+    # 获取最后上报的数据
+    if not device.last_report_data:
+        return success_response(data={
+            "device_uuid": device_uuid,
+            "device_name": device.name,
+            "upload_timestamp": None,
+            "sensors": {},
+            "status": {},
+            "location": {},
+            "message": "设备尚未上报数据"
+        })
+    
+    # 返回最后一次上报的所有传感器数据
+    return success_response(data={
+        "device_uuid": device_uuid,
+        "device_name": device.name,
+        "upload_timestamp": device.last_report_data.get("upload_timestamp"),
+        "sensors": device.last_report_data.get("sensors", {}),
+        "status": device.last_report_data.get("status", {}),
+        "location": device.last_report_data.get("location", {}),
+        "last_seen": format_datetime_beijing(device.last_seen)
+    })
+
+
 @router.get("/{device_uuid}/realtime-data")
 async def get_device_realtime_data(
     device_uuid: str,
@@ -1520,6 +1622,8 @@ async def get_device_realtime_data(
     db: Session = Depends(get_db)
 ):
     """获取设备实时传感器数据 - 支持JWT和内部API密钥认证
+    
+    ⚠️  已废弃：请使用 /{device_uuid}/sensor-data 接口
     
     认证方式：
     1. JWT Token（用户请求，前端调用）
@@ -2009,13 +2113,37 @@ async def control_device(
                     "parameters": target_preset.get("parameters", {})
                 }
                 
-                # 使用现有的MQTT发送逻辑
-                control_topic = MQTTTopics.DEVICE_CONTROL_TOPIC(device_uuid)
+                # 直接连接MQTT Broker发送预设指令
+                import paho.mqtt.client as mqtt
+                from app.core.config import settings
+                
+                control_topic = f"devices/{device_uuid}/control"
                 message = json.dumps(preset_command)
                 
-                if mqtt_service.client and mqtt_service.is_connected:
-                    result = mqtt_service.client.publish(control_topic, message, qos=1)
-                    if result.rc == 0:
+                try:
+                    # 创建临时MQTT客户端
+                    mqtt_client = mqtt.Client(
+                        client_id=f"preset_client_{device_uuid}_{int(__import__('time').time())}",
+                        protocol=mqtt.MQTTv311
+                    )
+                    
+                    # 设置认证
+                    if settings.mqtt_username and settings.mqtt_password:
+                        mqtt_client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
+                    
+                    # 连接到MQTT Broker
+                    mqtt_client.connect(settings.mqtt_broker_host, settings.mqtt_broker_port, 60)
+                    
+                    # 发布消息
+                    result = mqtt_client.publish(control_topic, message, qos=1)
+                    
+                    # 等待消息发送完成
+                    mqtt_client.loop_start()
+                    result.wait_for_publish(timeout=5)
+                    mqtt_client.loop_stop()
+                    mqtt_client.disconnect()
+                    
+                    if result.rc == mqtt.MQTT_ERR_SUCCESS:
                         logger.info(f"✅ 预设指令发送成功 - 设备: {device_uuid}, 预设: {target_preset.get('name')}")
                         return success_response(
                             message="预设指令发送成功",
@@ -2029,12 +2157,14 @@ async def control_device(
                     else:
                         raise HTTPException(
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="MQTT消息发送失败"
+                            detail=f"MQTT消息发送失败，错误代码: {result.rc}"
                         )
-                else:
+                        
+                except Exception as mqtt_error:
+                    logger.error(f"❌ 预设指令MQTT发送失败: {mqtt_error}", exc_info=True)
                     raise HTTPException(
                         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail="MQTT服务未连接"
+                        detail=f"MQTT服务连接失败: {str(mqtt_error)}"
                     )
         
         # 检查是否是序列指令
@@ -2082,20 +2212,40 @@ async def control_device(
                     detail=str(e)
                 )
         else:
-            # 单指令控制（原有逻辑）
-            from app.services.mqtt_service import mqtt_service
+            # 单指令控制 - 直接连接MQTT Broker发送控制指令
+            import paho.mqtt.client as mqtt
+            import json
+            from app.core.config import settings
             
             # 构建控制主题
             control_topic = f"devices/{device_uuid}/control"
             
-            # 发送MQTT消息
-            if mqtt_service.client and mqtt_service.is_connected:
-                import json
-                message = json.dumps(control_data)
-                result = mqtt_service.client.publish(control_topic, message, qos=1)
+            try:
+                # 创建临时MQTT客户端
+                mqtt_client = mqtt.Client(
+                    client_id=f"control_client_{device_uuid}_{int(__import__('time').time())}",
+                    protocol=mqtt.MQTTv311
+                )
                 
-                if result.rc == 0:
-                    logger.info(f"控制命令发送成功 - 设备: {device_uuid}, 命令: {control_data}")
+                # 设置认证
+                if settings.mqtt_username and settings.mqtt_password:
+                    mqtt_client.username_pw_set(settings.mqtt_username, settings.mqtt_password)
+                
+                # 连接到MQTT Broker
+                mqtt_client.connect(settings.mqtt_broker_host, settings.mqtt_broker_port, 60)
+                
+                # 发布消息
+                message = json.dumps(control_data)
+                result = mqtt_client.publish(control_topic, message, qos=1)
+                
+                # 等待消息发送完成
+                mqtt_client.loop_start()
+                result.wait_for_publish(timeout=5)
+                mqtt_client.loop_stop()
+                mqtt_client.disconnect()
+                
+                if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                    logger.info(f"✅ 控制命令发送成功 - 设备: {device_uuid}, 命令: {control_data}")
                     return success_response(
                         message="控制命令发送成功",
                         data={
@@ -2107,12 +2257,14 @@ async def control_device(
                 else:
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="MQTT消息发送失败"
+                        detail=f"MQTT消息发送失败，错误代码: {result.rc}"
                     )
-            else:
+                    
+            except Exception as mqtt_error:
+                logger.error(f"❌ MQTT连接或发送失败: {mqtt_error}", exc_info=True)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="MQTT服务未连接"
+                    detail=f"MQTT服务连接失败: {str(mqtt_error)}"
                 )
             
     except HTTPException:

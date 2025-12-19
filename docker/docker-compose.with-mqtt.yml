@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # MQTT 服务 - 独立的MQTT消息处理服务
+  mqtt-service:
+    build:
+      context: ../service/mqtt-service
+      dockerfile: Dockerfile
+    container_name: codehubot-mqtt-service
+    restart: always
+    
+    # 环境变量
+    environment:
+      # MQTT Broker 配置（内部连接）
+      MQTT_SERVICE_BROKER: mosquitto
+      MQTT_SERVICE_PORT: 1883
+      MQTT_SERVICE_USERNAME: ${MQTT_SERVICE_USERNAME:-}
+      MQTT_SERVICE_PASSWORD: ${MQTT_SERVICE_PASSWORD:-}
+      
+      # 设备MQTT配置（提供给设备的外部MQTT地址）
+      DEVICE_MQTT_BROKER: ${DEVICE_MQTT_BROKER}
+      DEVICE_MQTT_PORT: ${DEVICE_MQTT_PORT:-1883}
+      DEVICE_MQTT_USE_SSL: ${DEVICE_MQTT_USE_SSL:-false}
+      
+      # 数据库配置
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-aiot_admin}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
+    
+    # 网络配置
+    networks:
+      - codehubot-network
+    
+    # 依赖服务
+    depends_on:
+      - mysql
+      - mosquitto
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: codehubot-mysql
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-aiot_admin}
+      TZ: Asia/Shanghai
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../SQL/init_database.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    networks:
+      - codehubot-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MQTT Broker (Mosquitto)
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: codehubot-mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-logs:/mosquitto/log
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - codehubot-network
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 后端 API 服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: codehubot-backend
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://${DB_USER:-root}:${DB_PASSWORD}@mysql:3306/${DB_NAME:-aiot_admin}
+      SECRET_KEY: ${SECRET_KEY}
+      # 注意：后端不再需要 MQTT 配置
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ../backend:/app
+      - backend-logs:/var/log/backend
+    networks:
+      - codehubot-network
+    depends_on:
+      - mysql
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 前端服务
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: codehubot-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    volumes:
+      - ../frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - codehubot-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 数据卷
+volumes:
+  mysql-data:
+    driver: local
+  mosquitto-data:
+    driver: local
+  mosquitto-logs:
+    driver: local
+  backend-logs:
+    driver: local
+
+# 网络
+networks:
+  codehubot-network:
+    driver: bridge
