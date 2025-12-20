@@ -111,6 +111,10 @@ services:
     volumes:
       - ../backend:/app
       - backend-logs:/var/log/backend
+      # 文件上传目录持久化
+      - uploads_data:/app/uploads
+      # 静态文件持久化（固件、资源等）
+      - static_data:/app/static
     networks:
       - codehubot-network
     depends_on:
@@ -152,6 +156,10 @@ volumes:
   mosquitto-logs:
     driver: local
   backend-logs:
+    driver: local
+  uploads_data:          # 上传文件存储卷
+    driver: local
+  static_data:           # 静态文件存储卷（固件、资源等）
     driver: local
 
 # 网络

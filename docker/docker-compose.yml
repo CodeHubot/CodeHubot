@@ -60,6 +60,46 @@ services:
       timeout: 5s
       retries: 5
 
+  # 后端服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: codehubot-backend
+    environment:
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: aiot_user
+      DB_PASSWORD: aiot_password
+      DB_NAME: aiot_admin
+      # Redis配置
+      REDIS_URL: redis://redis:6379
+      # JWT配置
+      SECRET_KEY: your-secret-key-change-in-production
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ""
+      MQTT_PASSWORD: ""
+      # 服务器配置
+      SERVER_BASE_URL: http://localhost:8000
+    ports:
+      - "8000:8000"
+    networks:
+      - aiot-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # 文件上传目录持久化
+      - uploads_data:/app/uploads
+      # 静态文件持久化（固件、资源等）
+      - static_data:/app/static
+    restart: unless-stopped
+
   # MQTT服务 - 设备消息处理（独立服务）
   mqtt-service:
     build:
@@ -99,6 +139,8 @@ volumes:
   redis_data:
   mqtt_data:
   mqtt_logs:
+  uploads_data:          # 上传文件存储卷
+  static_data:           # 静态文件存储卷（固件、资源等）
 
 networks:
   aiot-network:

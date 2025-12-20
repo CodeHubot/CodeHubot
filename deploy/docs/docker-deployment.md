@@ -378,12 +378,85 @@ docker exec codehubot-mysql mysqldump -uaiot_user -paiot_password aiot_admin > b
 docker run --rm -v codehubot_mysql_data:/data -v $(pwd):/backup alpine tar czf /backup/mysql_backup.tar.gz /data
 ```
 
+#### 备份上传文件
+
+**重要**: 上传的文件（固件、资源文件等）存储在 Docker Volume 中，需要定期备份：
+
+```bash
+# 备份上传文件目录
+docker run --rm -v docker_uploads_data:/data -v $(pwd):/backup alpine tar czf /backup/uploads-backup.tar.gz /data
+
+# 备份静态文件（固件）
+docker run --rm -v docker_static_data:/data -v $(pwd):/backup alpine tar czf /backup/static-backup.tar.gz /data
+
+# 备份知识库文档
+docker run --rm -v docker_knowledge_bases_data:/data -v $(pwd):/backup alpine tar czf /backup/kb-backup.tar.gz /data
+```
+
+**一键备份所有上传文件**：
+
+```bash
+# 创建备份脚本
+cat > backup-files.sh << 'EOF'
+#!/bin/bash
+BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+
+echo "📦 开始备份上传文件..."
+docker run --rm -v docker_uploads_data:/data -v $(pwd):/backup alpine tar czf /backup/$BACKUP_DIR/uploads.tar.gz /data
+echo "✅ 上传文件备份完成"
+
+echo "📦 开始备份静态文件..."
+docker run --rm -v docker_static_data:/data -v $(pwd):/backup alpine tar czf /backup/$BACKUP_DIR/static.tar.gz /data
+echo "✅ 静态文件备份完成"
+
+echo "📦 开始备份知识库..."
+docker run --rm -v docker_knowledge_bases_data:/data -v $(pwd):/backup alpine tar czf /backup/$BACKUP_DIR/kb.tar.gz /data
+echo "✅ 知识库备份完成"
+
+echo "🎉 所有文件备份完成！备份位置: $BACKUP_DIR"
+EOF
+
+chmod +x backup-files.sh
+./backup-files.sh
+```
+
 #### 恢复数据库
 
 ```bash
 # 恢复 MySQL 数据
 docker exec -i codehubot-mysql mysql -uaiot_user -paiot_password aiot_admin < backup.sql
 ```
+
+#### 恢复上传文件
+
+```bash
+# 恢复上传文件
+docker run --rm -v docker_uploads_data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/uploads-backup.tar.gz --strip 1"
+
+# 恢复静态文件
+docker run --rm -v docker_static_data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/static-backup.tar.gz --strip 1"
+
+# 恢复知识库文档
+docker run --rm -v docker_knowledge_bases_data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/kb-backup.tar.gz --strip 1"
+```
+
+## 📁 文件上传持久化说明
+
+后端服务使用以下 Docker Volume 持久化上传文件：
+
+| Volume 名称 | 挂载路径 | 用途 |
+|-----------|---------|-----|
+| `uploads_data` | `/app/uploads` | 资源文件（视频、文档） |
+| `static_data` | `/app/static` | 固件文件（.bin） |
+| `knowledge_bases_data` | `/app/backend/data/knowledge-bases` | AI 知识库文档 |
+
+**重要提示**：
+- 容器重启后，上传的文件不会丢失
+- 定期备份这些 Volume，避免数据丢失
+- 监控磁盘使用情况：`docker system df -v`
+
+详细配置说明请参考：[文件上传持久化配置说明](../../docs/文件上传持久化配置说明.md)
 
 ## 🏭 生产环境建议
 

@@ -36,6 +36,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 复制应用代码
 COPY . .
 
+# 创建必要的上传目录
+RUN mkdir -p /app/uploads /app/static/firmware /app/backend/data/knowledge-bases && \
+    chmod -R 755 /app/uploads /app/static /app/backend/data
+
 # 暴露端口
 EXPOSE 8000
 
