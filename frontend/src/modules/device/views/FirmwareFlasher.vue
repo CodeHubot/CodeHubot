@@ -16,9 +16,19 @@
         style="margin-bottom: 20px;"
       >
         <template #title>
-          <strong>注意事项</strong>
+          <strong>重要提示</strong>
         </template>
-        <div>请使用 Chrome 或 Edge 浏览器，并确保使用数据线（非充电线）连接设备</div>
+        <div>
+          <p style="margin: 0 0 8px 0;">
+            <strong>🔒 必须使用 HTTPS 访问本页面</strong>（或在 localhost 运行）
+          </p>
+          <p style="margin: 0 0 8px 0;">
+            <strong>🌐 浏览器要求：</strong>Chrome (≥89)、Edge (≥89) 或 Opera
+          </p>
+          <p style="margin: 0;">
+            <strong>🔌 连接要求：</strong>使用 USB 数据线（非充电线）连接设备
+          </p>
+        </div>
       </el-alert>
 
       <!-- 连接状态 -->
@@ -201,37 +211,50 @@
         
         <div class="tips-content">
           <div class="tip-item">
+            <el-icon class="tip-icon" color="#F56C6C"><Check /></el-icon>
+            <div>
+              <strong>1. 安全协议要求（重要！）：</strong>
+              <p>必须通过 <strong>HTTPS</strong> 访问本页面，或在 <strong>localhost</strong> 环境下运行</p>
+              <p style="margin-top: 5px; color: #f56c6c;">
+                ⚠️ 如果使用 HTTP 协议，Web Serial API 将不可用
+              </p>
+            </div>
+          </div>
+          <div class="tip-item">
             <el-icon class="tip-icon" color="#409EFF"><Check /></el-icon>
             <div>
-              <strong>1. 浏览器要求：</strong>
-              <p>必须使用 Chrome、Edge 或 Opera 浏览器，其他浏览器不支持 Web Serial API</p>
+              <strong>2. 浏览器要求：</strong>
+              <p>必须使用 Chrome (≥89)、Edge (≥89) 或 Opera 浏览器</p>
+              <p style="margin-top: 5px; color: #909399;">
+                Firefox、Safari 等浏览器暂不支持 Web Serial API
+              </p>
             </div>
           </div>
           <div class="tip-item">
             <el-icon class="tip-icon" color="#67C23A"><Check /></el-icon>
             <div>
-              <strong>2. 连接设备：</strong>
+              <strong>3. 连接设备：</strong>
               <p>使用 USB 数据线（非充电线）连接 ESP32 设备到电脑，点击"连接设备"按钮</p>
             </div>
           </div>
           <div class="tip-item">
             <el-icon class="tip-icon" color="#E6A23C"><Check /></el-icon>
             <div>
-              <strong>3. 选择固件：</strong>
+              <strong>4. 选择固件：</strong>
               <p>从下拉列表中选择要烧录的固件版本</p>
             </div>
           </div>
           <div class="tip-item">
-            <el-icon class="tip-icon" color="#F56C6C"><Check /></el-icon>
+            <el-icon class="tip-icon" color="#9C27B0"><Check /></el-icon>
             <div>
-              <strong>4. 开始烧录：</strong>
+              <strong>5. 开始烧录：</strong>
               <p>点击"开始烧录"按钮，等待烧录完成（约2-3分钟）</p>
             </div>
           </div>
           <div class="tip-item">
             <el-icon class="tip-icon" color="#909399"><Check /></el-icon>
             <div>
-              <strong>5. 故障排除：</strong>
+              <strong>6. 故障排除：</strong>
               <p>如果烧录失败，可以先尝试"擦除Flash"，然后重新烧录</p>
             </div>
           </div>
@@ -515,11 +538,52 @@ const handleReset = async () => {
 
 // 检查浏览器支持
 onMounted(() => {
+  // 检查是否为安全上下文（HTTPS 或 localhost）
+  const isSecureContext = window.isSecureContext
+  const protocol = window.location.protocol
+  const hostname = window.location.hostname
+  
+  addLog(`🌐 当前协议: ${protocol}`, 'info')
+  addLog(`🏠 当前主机: ${hostname}`, 'info')
+  addLog(`🔒 安全上下文: ${isSecureContext ? '是' : '否'}`, isSecureContext ? 'success' : 'error')
+  
   if (!('serial' in navigator)) {
-    addLog('❌ 您的浏览器不支持 Web Serial API', 'error')
-    addLog('请使用 Chrome、Edge 或 Opera 浏览器', 'error')
-    ElMessage.error('您的浏览器不支持 Web Serial API，请使用 Chrome 或 Edge 浏览器')
+    addLog('❌ 检测失败：浏览器不支持 Web Serial API', 'error')
+    
+    // 提供详细的诊断信息
+    if (!isSecureContext) {
+      addLog('⚠️ 原因：当前页面不是安全上下文（HTTPS）', 'error')
+      addLog('💡 解决方案：', 'info')
+      
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        addLog('   - 当前是 localhost，但使用了 HTTP 协议', 'info')
+        addLog('   - 请确保服务器配置正确', 'info')
+      } else {
+        addLog('   - 必须通过 HTTPS 访问本页面', 'info')
+        addLog('   - 或者在 localhost 环境下运行', 'info')
+        addLog(`   - 当前地址: ${window.location.href}`, 'info')
+        addLog(`   - 建议地址: https://${hostname}${window.location.port ? ':' + window.location.port : ''}${window.location.pathname}`, 'info')
+      }
+      
+      ElMessage({
+        message: 'Web Serial API 需要 HTTPS 协议！请使用 HTTPS 访问或在 localhost 运行。',
+        type: 'error',
+        duration: 8000,
+        showClose: true
+      })
+    } else {
+      addLog('⚠️ 请使用 Chrome (≥89)、Edge (≥89) 或 Opera 浏览器', 'error')
+      addLog(`   当前浏览器: ${navigator.userAgent}`, 'info')
+      
+      ElMessage({
+        message: '您的浏览器不支持 Web Serial API，请使用 Chrome 或 Edge 浏览器',
+        type: 'error',
+        duration: 5000,
+        showClose: true
+      })
+    }
   } else {
+    addLog('✅ Web Serial API 可用', 'success')
     addLog('✅ 准备就绪，请连接 ESP32 设备并点击"连接设备"', 'success')
     addLog(`📋 已加载 ${firmwareList.value.length} 个固件版本`, 'success')
   }
