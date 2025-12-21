@@ -8,29 +8,6 @@
         </div>
       </template>
 
-      <!-- 警告提示 -->
-      <el-alert
-        type="info"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 20px;"
-      >
-        <template #title>
-          <strong>使用说明</strong>
-        </template>
-        <div>
-          <p style="margin: 0 0 8px 0;">
-            <strong>🔒 协议要求：</strong>必须使用 HTTPS 访问（或在 localhost 运行）
-          </p>
-          <p style="margin: 0 0 8px 0;">
-            <strong>🌐 浏览器要求：</strong>Chrome (≥89)、Edge (≥89) 或 Opera
-          </p>
-          <p style="margin: 0;">
-            <strong>✨ 功能特点：</strong>完整支持中文显示、可调波特率、实时数据监控
-          </p>
-        </div>
-      </el-alert>
-
       <!-- 连接控制区 -->
       <el-card class="control-card" shadow="never">
         <div class="control-section">
@@ -148,158 +125,72 @@
         </div>
       </el-card>
 
-      <!-- 发送数据区 -->
-      <el-card class="send-card" shadow="never">
+      <!-- MAC地址识别区 -->
+      <el-card v-if="detectedMacAddresses.length > 0" class="mac-card" shadow="never">
         <template #header>
           <div class="section-title">
-            <el-icon><Position /></el-icon>
-            <span>发送数据</span>
+            <el-icon><Tickets /></el-icon>
+            <span>检测到的MAC地址</span>
+            <el-tag type="success" size="small" style="margin-left: 10px;">
+              {{ detectedMacAddresses.length }} 个
+            </el-tag>
           </div>
         </template>
 
-        <div class="send-section">
-          <el-row :gutter="12">
-            <el-col :span="18">
-              <el-input
-                v-model="sendText"
-                placeholder="输入要发送的数据（支持中文）"
-                :disabled="!isConnected"
-                @keyup.enter="handleSend"
-              >
-                <template #prepend>
-                  <el-select v-model="lineEnding" style="width: 100px;">
-                    <el-option label="无" value="none" />
-                    <el-option label="换行 (\\n)" value="lf" />
-                    <el-option label="回车 (\\r)" value="cr" />
-                    <el-option label="回车换行 (\\r\\n)" value="crlf" />
-                  </el-select>
-                </template>
-              </el-input>
-            </el-col>
-            <el-col :span="6">
+        <div class="mac-list">
+          <div 
+            v-for="(mac, index) in detectedMacAddresses" 
+            :key="index"
+            class="mac-item"
+          >
+            <div class="mac-info">
+              <span class="mac-address">{{ mac.address }}</span>
+              <el-tag size="small" type="info">{{ mac.format }}</el-tag>
+              <span class="mac-time">{{ mac.timestamp }}</span>
+            </div>
+            <div class="mac-actions">
               <el-button 
-                type="primary" 
-                style="width: 100%;"
-                :disabled="!isConnected || !sendText"
-                @click="handleSend"
+                size="small" 
+                type="primary"
+                @click="copyToClipboard(mac.address)"
               >
-                <el-icon><Promotion /></el-icon>
-                发送
+                <el-icon><DocumentCopy /></el-icon>
+                复制
               </el-button>
-            </el-col>
-          </el-row>
-
-          <!-- 快捷发送按钮 -->
-          <div class="quick-send-section">
-            <span class="quick-send-label">快捷命令：</span>
-            <el-button 
-              v-for="cmd in quickCommands" 
-              :key="cmd.label"
-              size="small"
-              :disabled="!isConnected"
-              @click="quickSend(cmd.value)"
-            >
-              {{ cmd.label }}
-            </el-button>
-            <el-button 
-              size="small"
-              type="success"
-              plain
-              @click="showAddCommandDialog = true"
-            >
-              <el-icon><Plus /></el-icon>
-              添加
-            </el-button>
+            </div>
           </div>
         </div>
       </el-card>
 
-      <!-- 高级设置 -->
-      <el-card class="advanced-card" shadow="never">
+      <!-- 使用说明 -->
+      <el-card class="tips-card" shadow="never">
         <template #header>
           <div class="section-title">
-            <el-icon><Setting /></el-icon>
-            <span>高级设置</span>
+            <el-icon><InfoFilled /></el-icon>
+            <span>使用说明</span>
           </div>
         </template>
-
-        <el-row :gutter="16}>
-          <el-col :span="8">
-            <el-form-item label="数据位">
-              <el-select v-model="dataBits" :disabled="isConnected" style="width: 100%;">
-                <el-option label="7" :value="7" />
-                <el-option label="8" :value="8" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="停止位">
-              <el-select v-model="stopBits" :disabled="isConnected" style="width: 100%;">
-                <el-option label="1" :value="1" />
-                <el-option label="2" :value="2" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="校验位">
-              <el-select v-model="parity" :disabled="isConnected" style="width: 100%;">
-                <el-option label="无" value="none" />
-                <el-option label="奇校验" value="odd" />
-                <el-option label="偶校验" value="even" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="最大缓冲行数">
-              <el-input-number 
-                v-model="maxBufferLines" 
-                :min="100" 
-                :max="10000" 
-                :step="100"
-                style="width: 100%;"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="字符编码">
-              <el-select v-model="encoding" style="width: 100%;">
-                <el-option label="UTF-8" value="utf-8" />
-                <el-option label="GBK" value="gbk" />
-                <el-option label="ASCII" value="ascii" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+        >
+          <div>
+            <p style="margin: 0 0 8px 0;">
+              <strong>🔒 协议要求：</strong>必须使用 HTTPS 访问（或在 localhost 运行）
+            </p>
+            <p style="margin: 0 0 8px 0;">
+              <strong>🌐 浏览器要求：</strong>Chrome (≥89)、Edge (≥89) 或 Opera
+            </p>
+            <p style="margin: 0;">
+              <strong>✨ 功能特点：</strong>完整支持中文显示、自动识别MAC地址、实时数据监控
+            </p>
+          </div>
+        </el-alert>
       </el-card>
-    </el-card>
 
-    <!-- 添加快捷命令对话框 -->
-    <el-dialog
-      v-model="showAddCommandDialog"
-      title="添加快捷命令"
-      width="500px"
-    >
-      <el-form :model="newCommand" label-width="80px">
-        <el-form-item label="命令名称">
-          <el-input v-model="newCommand.label" placeholder="例如：重启设备" />
-        </el-form-item>
-        <el-form-item label="命令内容">
-          <el-input 
-            v-model="newCommand.value" 
-            type="textarea"
-            :rows="3"
-            placeholder="例如：restart"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showAddCommandDialog = false">取消</el-button>
-        <el-button type="primary" @click="addQuickCommand">确定</el-button>
-      </template>
-    </el-dialog>
+    </el-card>
   </div>
 </template>
 
@@ -307,7 +198,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Link, Close, Monitor, Position, Promotion, Setting, Plus
+  Link, Close, Monitor, Tickets, DocumentCopy, InfoFilled
 } from '@element-plus/icons-vue'
 
 // 连接状态
@@ -318,15 +209,11 @@ const writer = ref(null)
 
 // 串口配置
 const baudRate = ref(115200)
-const dataBits = ref(8)
-const stopBits = ref(1)
-const parity = ref('none')
 
 // 显示配置
 const autoScroll = ref(true)
 const showTimestamp = ref(true)
 const hexMode = ref(false)
-const encoding = ref('utf-8')
 const maxBufferLines = ref(1000)
 
 // 数据缓冲
@@ -335,18 +222,9 @@ const totalBytes = ref(0)
 const dataRate = ref(0)
 const monitorRef = ref(null)
 
-// 发送配置
-const sendText = ref('')
-const lineEnding = ref('crlf')
-const quickCommands = ref([
-  { label: '获取状态', value: 'status' },
-  { label: '重启设备', value: 'restart' },
-  { label: '获取版本', value: 'version' },
-])
-
-// 对话框
-const showAddCommandDialog = ref(false)
-const newCommand = ref({ label: '', value: '' })
+// MAC地址识别
+const detectedMacAddresses = ref([])
+const macAddressSet = new Set() // 用于去重
 
 // 读取循环控制
 let reading = false
@@ -356,7 +234,14 @@ let lastByteCount = 0
 
 // TextDecoder 支持中文
 const decoder = new TextDecoder('utf-8')
-const textEncoder = new TextEncoder()
+
+// MAC地址正则表达式 - 支持多种格式
+const macRegexPatterns = [
+  { regex: /([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})/g, format: '冒号/横线分隔' },
+  { regex: /([0-9A-Fa-f]{2}\.){5}([0-9A-Fa-f]{2})/g, format: '点分隔' },
+  { regex: /([0-9A-Fa-f]{4}\.){2}([0-9A-Fa-f]{4})/g, format: 'Cisco格式' },
+  { regex: /[0-9A-Fa-f]{12}/g, format: '无分隔符' }
+]
 
 // 连接串口
 const handleConnect = async () => {
@@ -384,9 +269,9 @@ const handleConnect = async () => {
     // 打开串口
     await port.value.open({
       baudRate: baudRate.value,
-      dataBits: dataBits.value,
-      stopBits: stopBits.value,
-      parity: parity.value,
+      dataBits: 8,
+      stopBits: 1,
+      parity: 'none',
       flowControl: 'none'
     })
 
@@ -506,10 +391,15 @@ const addLine = (data, type = 'data') => {
     fractionalSecondDigits: 3
   })
 
+  // 提取MAC地址（只从实际数据中提取，不从系统消息中提取）
+  if (type === 'data') {
+    extractMacAddresses(data)
+  }
+
   let displayData = data
   if (hexMode.value && type === 'data') {
     // 转换为十六进制显示
-    displayData = Array.from(textEncoder.encode(data))
+    displayData = Array.from(new TextEncoder().encode(data))
       .map(b => b.toString(16).padStart(2, '0').toUpperCase())
       .join(' ')
   }
@@ -539,64 +429,76 @@ const addLine = (data, type = 'data') => {
 const clearReceiveData = () => {
   receiveBuffer.value = []
   totalBytes.value = 0
+  detectedMacAddresses.value = []
+  macAddressSet.clear()
 }
 
-// 发送数据
-const handleSend = async () => {
-  if (!isConnected.value || !writer.value || !sendText.value) {
-    return
-  }
-
-  try {
-    let dataToSend = sendText.value
-
-    // 添加行尾符
-    switch (lineEnding.value) {
-      case 'lf':
-        dataToSend += '\n'
-        break
-      case 'cr':
-        dataToSend += '\r'
-        break
-      case 'crlf':
-        dataToSend += '\r\n'
-        break
+// 提取MAC地址
+const extractMacAddresses = (text) => {
+  for (const pattern of macRegexPatterns) {
+    const matches = text.matchAll(pattern.regex)
+    for (const match of matches) {
+      let macAddr = match[0].toUpperCase()
+      
+      // 标准化MAC地址格式为 XX:XX:XX:XX:XX:XX
+      let normalizedMac = macAddr
+      if (pattern.format === '无分隔符' && macAddr.length === 12) {
+        // 将 AABBCCDDEEFF 转换为 AA:BB:CC:DD:EE:FF
+        normalizedMac = macAddr.match(/.{2}/g).join(':')
+      } else if (pattern.format === 'Cisco格式') {
+        // 将 AABB.CCDD.EEFF 转换为 AA:BB:CC:DD:EE:FF
+        normalizedMac = macAddr.replace(/\./g, '').match(/.{2}/g).join(':')
+      } else if (pattern.format === '点分隔') {
+        // 将 AA.BB.CC.DD.EE.FF 转换为 AA:BB:CC:DD:EE:FF
+        normalizedMac = macAddr.replace(/\./g, ':')
+      } else {
+        // 统一使用冒号分隔
+        normalizedMac = macAddr.replace(/-/g, ':')
+      }
+      
+      // 去重
+      if (!macAddressSet.has(normalizedMac)) {
+        macAddressSet.add(normalizedMac)
+        
+        const timestamp = new Date().toLocaleTimeString('zh-CN', { 
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })
+        
+        detectedMacAddresses.value.push({
+          address: normalizedMac,
+          original: macAddr,
+          format: pattern.format,
+          timestamp
+        })
+      }
     }
+  }
+}
 
-    // 编码并发送（支持中文）
-    const encoded = textEncoder.encode(dataToSend)
-    await writer.value.write(encoded)
-
-    addLine(`>>> ${sendText.value}`, 'send')
-    sendText.value = ''
-    ElMessage.success('数据已发送')
+// 复制到剪贴板
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('MAC地址已复制到剪贴板')
   } catch (error) {
-    ElMessage.error(`发送失败: ${error.message}`)
-    console.error(error)
+    // 降级方案
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      ElMessage.success('MAC地址已复制到剪贴板')
+    } catch (err) {
+      ElMessage.error('复制失败，请手动复制')
+    }
+    document.body.removeChild(textarea)
   }
-}
-
-// 快捷发送
-const quickSend = (value) => {
-  sendText.value = value
-  handleSend()
-}
-
-// 添加快捷命令
-const addQuickCommand = () => {
-  if (!newCommand.value.label || !newCommand.value.value) {
-    ElMessage.warning('请填写完整信息')
-    return
-  }
-
-  quickCommands.value.push({ ...newCommand.value })
-  
-  // 保存到本地存储
-  localStorage.setItem('serialMonitorQuickCommands', JSON.stringify(quickCommands.value))
-  
-  newCommand.value = { label: '', value: '' }
-  showAddCommandDialog.value = false
-  ElMessage.success('快捷命令已添加')
 }
 
 // 启动速率计算
@@ -621,16 +523,6 @@ watch(hexMode, () => {
 
 // 组件挂载
 onMounted(() => {
-  // 加载保存的快捷命令
-  const saved = localStorage.getItem('serialMonitorQuickCommands')
-  if (saved) {
-    try {
-      quickCommands.value = JSON.parse(saved)
-    } catch (e) {
-      console.error('加载快捷命令失败:', e)
-    }
-  }
-
   // 检查浏览器支持
   if (!('serial' in navigator)) {
     addLine('❌ 浏览器不支持 Web Serial API', 'error')
@@ -804,29 +696,54 @@ onUnmounted(() => {
   }
 }
 
-.send-section {
-  .quick-send-section {
-    margin-top: 15px;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    
-    .quick-send-label {
-      font-size: 14px;
-      color: #606266;
-      font-weight: 500;
-    }
-  }
+.mac-card,
+.tips-card {
+  margin-bottom: 20px;
 }
 
-.advanced-card {
-  :deep(.el-form-item) {
+.mac-list {
+  .mac-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #f5f7fa;
+    border-radius: 4px;
     margin-bottom: 10px;
-  }
-  
-  :deep(.el-form-item__label) {
-    font-size: 13px;
+    border-left: 3px solid #409eff;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    &:hover {
+      background: #ecf5ff;
+    }
+    
+    .mac-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      
+      .mac-address {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 15px;
+        font-weight: 600;
+        color: #303133;
+        letter-spacing: 0.5px;
+      }
+      
+      .mac-time {
+        font-size: 12px;
+        color: #909399;
+      }
+    }
+    
+    .mac-actions {
+      display: flex;
+      gap: 8px;
+    }
   }
 }
 </style>
