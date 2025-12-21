@@ -39,6 +39,12 @@ export default [
         component: () => import('@device/views/FirmwareFlasher.vue'),
         meta: { title: '固件烧录' }
       },
+      {
+        path: 'serial-monitor',
+        name: 'SerialMonitor',
+        component: () => import('@device/views/SerialMonitor.vue'),
+        meta: { title: '串口监视器' }
+      },
       // 注意：更具体的路由必须放在更通用的路由之前
       {
         path: ':uuid/realtime',

@@ -43,6 +43,12 @@
           <span>固件烧录</span>
         </el-menu-item>
         
+        <!-- 串口监视器 -->
+        <el-menu-item index="/device/serial-monitor">
+          <el-icon><Monitor /></el-icon>
+          <span>串口监视器</span>
+        </el-menu-item>
+        
         <!-- 设备分组暂时隐藏 -->
         <!-- <el-menu-item index="/device/device-groups">
           <el-icon><FolderOpened /></el-icon>
@@ -138,7 +144,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  HomeFilled, Cpu, FolderOpened, Box, Document, Key, Upload,
+  HomeFilled, Cpu, FolderOpened, Box, Document, Key, Upload, Monitor,
   Expand, Fold, Grid, Setting, Plus, User, Lock, SwitchButton
 } from '@element-plus/icons-vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
