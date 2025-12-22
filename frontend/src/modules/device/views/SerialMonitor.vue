@@ -177,14 +177,8 @@
           show-icon
         >
           <div>
-            <p style="margin: 0 0 8px 0;">
-              <strong>🔒 协议要求：</strong>必须使用 HTTPS 访问
-            </p>
-            <p style="margin: 0 0 8px 0;">
-              <strong>🌐 浏览器要求：</strong>Chrome (≥89)、Edge (≥89) 或 Opera
-            </p>
             <p style="margin: 0;">
-              <strong>✨ 功能特点：</strong>完整支持中文显示、自动识别MAC地址、实时数据监控
+              <strong>使用要求：</strong>必须使用 HTTPS 访问，支持 Chrome、Edge 或 Opera 浏览器
             </p>
           </div>
         </el-alert>
