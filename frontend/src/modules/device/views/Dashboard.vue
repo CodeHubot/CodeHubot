@@ -4,17 +4,16 @@
     <div class="welcome-banner">
       <div class="banner-content">
         <div class="banner-text">
-          <h1>欢迎回来，{{ userStore.userInfo?.username || '用户' }}！</h1>
-          <p>今天是 {{ currentDate }}，系统运行正常</p>
+          <h1>设备管理控制台</h1>
         </div>
         <div class="banner-actions">
           <el-button type="primary" @click="$router.push('/device/device-register')">
             <el-icon><Plus /></el-icon>
             注册设备
           </el-button>
-          <el-button @click="refreshData">
-            <el-icon><Refresh /></el-icon>
-            刷新数据
+          <el-button type="primary" @click="$router.push('/device/devices')">
+            <el-icon><Monitor /></el-icon>
+            设备列表
           </el-button>
         </div>
       </div>
@@ -22,7 +21,7 @@
 
     <!-- 统计卡片 -->
     <el-row :gutter="24" class="stats-row">
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12">
         <el-card class="stat-card total-devices" shadow="hover">
           <div class="stat-content">
             <div class="stat-icon">
@@ -35,7 +34,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12">
         <el-card class="stat-card online-devices" shadow="hover">
           <div class="stat-content">
             <div class="stat-icon">
@@ -44,147 +43,6 @@
             <div class="stat-info">
               <div class="stat-number">{{ stats.onlineDevices }}</div>
               <div class="stat-label">在线设备</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card class="stat-card offline-devices" shadow="hover">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon size="32"><CircleClose /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-number">{{ stats.offlineDevices }}</div>
-              <div class="stat-label">离线设备</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card class="stat-card alerts" shadow="hover">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon size="32"><Warning /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-number">{{ stats.alerts }}</div>
-              <div class="stat-label">告警数量</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 实时交互数据小组件 -->
-    <el-row :gutter="24" class="interaction-widgets">
-      <el-col :xs="24" :sm="12" :md="8">
-        <el-card class="interaction-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>今日交互统计</span>
-              <el-button type="text" @click="$router.push('/device/device-interactions')">查看详情</el-button>
-            </div>
-          </template>
-          <div class="interaction-stats">
-            <div class="stat-item">
-              <div class="stat-icon primary">
-                <el-icon><DataAnalysis /></el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ interactionStats.todayTotal.toLocaleString('zh-CN') }}</div>
-                <div class="stat-label">总交互次数</div>
-              </div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon success">
-                <el-icon><CircleCheck /></el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ interactionStats.successRate }}%</div>
-                <div class="stat-label">成功率</div>
-              </div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon warning">
-                <el-icon><Timer /></el-icon>
-              </div>
-              <div class="stat-content">
-                <div class="stat-value">{{ interactionStats.avgResponseTime }}ms</div>
-                <div class="stat-label">平均响应时间</div>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :xs="24" :sm="12" :md="8">
-        <el-card class="interaction-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>数据传输统计</span>
-              <el-button type="text" @click="refreshInteractionData">
-                <el-icon><Refresh /></el-icon>
-              </el-button>
-            </div>
-          </template>
-          <div class="data-transfer-stats">
-            <div class="transfer-item">
-              <div class="transfer-label">今日上传</div>
-              <div class="transfer-value upload">{{ formatDataSize(interactionStats.todayUpload) }}</div>
-            </div>
-            <div class="transfer-item">
-              <div class="transfer-label">今日下载</div>
-              <div class="transfer-value download">{{ formatDataSize(interactionStats.todayDownload) }}</div>
-            </div>
-            <div class="transfer-item">
-              <div class="transfer-label">总传输量</div>
-              <div class="transfer-value total">{{ formatDataSize(interactionStats.totalTransfer) }}</div>
-            </div>
-            <div class="transfer-progress">
-              <div class="progress-label">今日传输进度</div>
-              <el-progress 
-                :percentage="interactionStats.transferProgress" 
-                :color="getProgressColor(interactionStats.transferProgress)"
-                :stroke-width="8"
-              />
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <el-col :xs="24" :sm="24" :md="8">
-        <el-card class="interaction-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span>最近交互记录</span>
-              <el-button type="text" @click="$router.push('/device/device-interactions')">查看全部</el-button>
-            </div>
-          </template>
-          <div class="recent-interactions">
-            <div 
-              v-for="interaction in recentInteractions" 
-              :key="interaction.id"
-              class="interaction-item"
-            >
-              <div class="interaction-icon">
-                <el-icon :color="getInteractionIconColor(interaction.type)">
-                  <component :is="getInteractionIcon(interaction.type)" />
-                </el-icon>
-              </div>
-              <div class="interaction-content">
-                <div class="interaction-device">{{ interaction.deviceName }}</div>
-                <div class="interaction-desc">{{ interaction.description }}</div>
-                <div class="interaction-time">{{ interaction.timestamp }}</div>
-              </div>
-              <div class="interaction-status">
-                <el-tag 
-                  :type="interaction.status === 'success' ? 'success' : 'danger'"
-                  size="small"
-                >
-                  {{ interaction.status === 'success' ? '成功' : '失败' }}
-                </el-tag>
-              </div>
             </div>
           </div>
         </el-card>
@@ -204,21 +62,12 @@
         <el-table-column prop="type" label="产品类型" />
         <el-table-column prop="status" label="状态">
           <template #default="scope">
-            <el-tag :type="scope.row.status === 'online' ? 'success' : 'danger'">
+            <el-tag :type="scope.row.status === 'online' ? 'success' : 'danger'" size="small">
               {{ scope.row.status === 'online' ? '在线' : '离线' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="value" label="当前值" />
-        <el-table-column prop="location" label="位置" />
         <el-table-column prop="lastSeen" label="最后上报" />
-        <el-table-column label="操作">
-          <template #default="scope">
-            <el-button type="text" @click="$router.push(`/device/devices/${scope.row.uuid}`)">
-              查看详情
-            </el-button>
-          </template>
-        </el-table-column>
       </el-table>
     </el-card>
   </div>
