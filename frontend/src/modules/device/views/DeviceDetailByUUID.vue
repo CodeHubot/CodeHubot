@@ -19,19 +19,11 @@
         </div>
       </div>
       <div class="header-controls">
-        <el-button @click="goToRealtime" :disabled="!deviceInfo.is_online">
-          <el-icon><Monitor /></el-icon>
-          实时数据
-        </el-button>
-        <el-button @click="goToRemoteControl" :disabled="!deviceInfo.is_online">
-          <el-icon><Operation /></el-icon>
-          远程控制
-        </el-button>
-        <el-button @click="goToConfig">
-          <el-icon><Setting /></el-icon>
-          设备配置
-        </el-button>
-        <el-button type="primary" @click="editDialogVisible = true">
+        <el-button 
+          v-if="isDeviceOwner"
+          type="primary" 
+          @click="editDialogVisible = true"
+        >
           <el-icon><Edit /></el-icon>
           编辑设备
         </el-button>
@@ -316,9 +308,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/store/user'
 import { 
   ArrowLeft,
   Edit,
@@ -334,6 +327,7 @@ import { getDevice, updateDevice, getDeviceProductInfo } from '../api/device'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 // 响应式数据
 const loading = ref(true)
@@ -395,24 +389,24 @@ const editRules = {
   ]
 }
 
+// 判断当前用户是否是设备所有者
+const isDeviceOwner = computed(() => {
+  // 管理员可以编辑所有设备
+  if (userStore.isPlatformAdmin || userStore.isSchoolAdmin) {
+    return true
+  }
+  
+  // 检查是否是设备所有者
+  if (!deviceInfo.user_id || !userStore.user?.id) {
+    return false
+  }
+  
+  return deviceInfo.user_id === userStore.user.id
+})
+
 // 返回设备列表
 const goBack = () => {
   router.push('/device/devices')
-}
-
-// 跳转到实时数据页面
-const goToRealtime = () => {
-  router.push(`/device/${route.params.uuid}/realtime`)
-}
-
-// 跳转到远程控制页面
-const goToRemoteControl = () => {
-  router.push(`/device/${route.params.uuid}/remote-control`)
-}
-
-// 跳转到设备配置页面
-const goToConfig = () => {
-  router.push(`/device/${route.params.uuid}/config`)
 }
 
 // 加载设备信息
@@ -451,6 +445,7 @@ const loadDeviceInfo = async () => {
       name: response.name,
       description: response.description,
       product_id: response.product_id,
+      user_id: response.user_id,  // 添加用户ID用于权限判断
       
       // 从产品信息获取或使用默认值
       device_type: productInfo?.product_name || productInfo?.product_code || '未绑定产品',
