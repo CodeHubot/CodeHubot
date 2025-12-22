@@ -178,7 +178,7 @@
         >
           <div>
             <p style="margin: 0 0 8px 0;">
-              <strong>🔒 协议要求：</strong>必须使用 HTTPS 访问（或在 localhost 运行）
+              <strong>🔒 协议要求：</strong>必须使用 HTTPS 访问
             </p>
             <p style="margin: 0 0 8px 0;">
               <strong>🌐 浏览器要求：</strong>Chrome (≥89)、Edge (≥89) 或 Opera
@@ -250,7 +250,7 @@ const handleConnect = async () => {
     if (!('serial' in navigator)) {
       const isSecure = window.isSecureContext
       if (!isSecure) {
-        ElMessage.error('Web Serial API 需要 HTTPS 协议！请使用 HTTPS 访问或在 localhost 运行')
+        ElMessage.error('Web Serial API 需要 HTTPS 协议！请使用 HTTPS 访问')
       } else {
         ElMessage.error('您的浏览器不支持 Web Serial API，请使用 Chrome、Edge 或 Opera 浏览器')
       }

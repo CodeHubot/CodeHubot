@@ -20,7 +20,7 @@
         </template>
         <div>
           <p style="margin: 0 0 8px 0;">
-            <strong>🔒 必须使用 HTTPS 访问本页面</strong>（或在 localhost 运行）
+            <strong>🔒 必须使用 HTTPS 访问本页面</strong>
           </p>
           <p style="margin: 0 0 8px 0;">
             <strong>🌐 浏览器要求：</strong>Chrome (≥89)、Edge (≥89) 或 Opera
@@ -214,7 +214,7 @@
             <el-icon class="tip-icon" color="#F56C6C"><Check /></el-icon>
             <div>
               <strong>1. 安全协议要求（重要！）：</strong>
-              <p>必须通过 <strong>HTTPS</strong> 访问本页面，或在 <strong>localhost</strong> 环境下运行</p>
+              <p>必须通过 <strong>HTTPS</strong> 访问本页面</p>
               <p style="margin-top: 5px; color: #f56c6c;">
                 ⚠️ 如果使用 HTTP 协议，Web Serial API 将不可用
               </p>
@@ -560,13 +560,12 @@ onMounted(() => {
         addLog('   - 请确保服务器配置正确', 'info')
       } else {
         addLog('   - 必须通过 HTTPS 访问本页面', 'info')
-        addLog('   - 或者在 localhost 环境下运行', 'info')
         addLog(`   - 当前地址: ${window.location.href}`, 'info')
         addLog(`   - 建议地址: https://${hostname}${window.location.port ? ':' + window.location.port : ''}${window.location.pathname}`, 'info')
       }
       
       ElMessage({
-        message: 'Web Serial API 需要 HTTPS 协议！请使用 HTTPS 访问或在 localhost 运行。',
+        message: 'Web Serial API 需要 HTTPS 协议！请使用 HTTPS 访问。',
         type: 'error',
         duration: 8000,
         showClose: true
