@@ -35,6 +35,30 @@ class GroupMemberAddRequest(BaseModel):
     """添加小组成员请求模型"""
     student_ids: List[int]
 
+class CreateGroupRequest(BaseModel):
+    """创建小组请求模型"""
+    name: str
+    class_id: Optional[int] = None
+    course_id: Optional[int] = None
+    max_members: int = 6
+
+class AddStudentsRequest(BaseModel):
+    """添加学生到班级请求模型"""
+    student_ids: List[int]
+
+class AssignTeacherRequest(BaseModel):
+    """分配教师到班级请求模型"""
+    teacher_id: int
+    subject: Optional[str] = None
+    is_primary: bool = False
+
+class AssignCourseRequest(BaseModel):
+    """分配课程到班级请求模型"""
+    course_id: int
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    remarks: Optional[str] = None
+
 # ===== 班级管理 =====
 
 @router.get("/classes")
@@ -290,7 +314,7 @@ def get_class_students(
 @router.post("/classes/{class_id}/add-students")
 def add_students_to_class(
     class_id: str,
-    student_ids: List[int],
+    request: AddStudentsRequest,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -322,7 +346,7 @@ def add_students_to_class(
             )
     
     success_count = 0
-    for student_id in student_ids:
+    for student_id in request.student_ids:
         student = db.query(User).filter(
             User.id == student_id,
             User.role == 'student'
@@ -419,10 +443,7 @@ def get_groups(
 
 @router.post("/groups")
 def create_group(
-    name: str,
-    class_id: Optional[int] = None,
-    course_id: Optional[int] = None,
-    max_members: int = 6,
+    request: CreateGroupRequest,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -437,17 +458,17 @@ def create_group(
     
     # 创建小组记录
     new_group = PBLGroup(
-        name=name,
-        class_id=class_id,
-        course_id=course_id,
-        max_members=max_members,
+        name=request.name,
+        class_id=request.class_id,
+        course_id=request.course_id,
+        max_members=request.max_members,
         is_active=True
     )
     db.add(new_group)
     db.commit()
     db.refresh(new_group)
     
-    logger.info(f"创建小组 - 名称: {name}, 班级ID: {class_id}, 操作者: {current_admin.username}")
+    logger.info(f"创建小组 - 名称: {request.name}, 班级ID: {request.class_id}, 操作者: {current_admin.username}")
     
     return success_response(
         data={
@@ -788,9 +809,7 @@ def get_class_teachers(
 @router.post("/classes/{class_id}/teachers")
 def assign_teacher_to_class(
     class_id: str,
-    teacher_id: int,
-    subject: Optional[str] = None,
-    is_primary: bool = False,
+    request: AssignTeacherRequest,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -823,7 +842,7 @@ def assign_teacher_to_class(
     
     # 验证教师存在且是教师角色
     teacher = db.query(User).filter(
-        User.id == teacher_id,
+        User.id == request.teacher_id,
         User.role == 'teacher'
     ).first()
     
@@ -837,7 +856,7 @@ def assign_teacher_to_class(
     # 检查是否已经分配
     existing = db.query(PBLClassTeacher).filter(
         PBLClassTeacher.class_id == pbl_class.id,
-        PBLClassTeacher.teacher_id == teacher_id
+        PBLClassTeacher.teacher_id == request.teacher_id
     ).first()
     
     if existing:
@@ -848,35 +867,35 @@ def assign_teacher_to_class(
         )
     
     # 如果设置为班主任，先取消其他班主任
-    if is_primary:
+    if request.is_primary:
         db.query(PBLClassTeacher).filter(
             PBLClassTeacher.class_id == pbl_class.id,
             PBLClassTeacher.is_primary == 1
         ).update({'is_primary': 0})
         
         # 同时更新班级表的class_teacher_id
-        pbl_class.class_teacher_id = teacher_id
+        pbl_class.class_teacher_id = request.teacher_id
     
     # 创建班级教师关联记录
     class_teacher = PBLClassTeacher(
         class_id=pbl_class.id,
-        teacher_id=teacher_id,
-        subject=subject,
-        is_primary=1 if is_primary else 0
+        teacher_id=request.teacher_id,
+        subject=request.subject,
+        is_primary=1 if request.is_primary else 0
     )
     db.add(class_teacher)
     db.commit()
     db.refresh(class_teacher)
     
-    logger.info(f"为班级分配教师 - 班级UUID: {class_id}, 教师ID: {teacher_id}, 操作者: {current_admin.username}")
+    logger.info(f"为班级分配教师 - 班级UUID: {class_id}, 教师ID: {request.teacher_id}, 操作者: {current_admin.username}")
     
     return success_response(
         data={
             'id': class_teacher.id,
-            'teacher_id': teacher_id,
+            'teacher_id': request.teacher_id,
             'teacher_name': teacher.name or teacher.real_name,
-            'subject': subject,
-            'is_primary': is_primary
+            'subject': request.subject,
+            'is_primary': request.is_primary
         },
         message="教师分配成功"
     )
@@ -997,10 +1016,7 @@ def get_class_courses(
 @router.post("/classes/{class_id}/courses")
 def assign_course_to_class(
     class_id: str,
-    course_id: int,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    remarks: Optional[str] = None,
+    request: AssignCourseRequest,
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
@@ -1032,7 +1048,7 @@ def assign_course_to_class(
             )
     
     # 验证课程存在
-    course = db.query(PBLCourse).filter(PBLCourse.id == course_id).first()
+    course = db.query(PBLCourse).filter(PBLCourse.id == request.course_id).first()
     if not course:
         return error_response(
             message="课程不存在",
@@ -1043,7 +1059,7 @@ def assign_course_to_class(
     # 检查是否已经分配
     existing = db.query(PBLClassCourse).filter(
         PBLClassCourse.class_id == pbl_class.id,
-        PBLClassCourse.course_id == course_id
+        PBLClassCourse.course_id == request.course_id
     ).first()
     
     if existing:
@@ -1056,12 +1072,12 @@ def assign_course_to_class(
     # 创建班级课程分配记录
     class_course = PBLClassCourse(
         class_id=pbl_class.id,
-        course_id=course_id,
+        course_id=request.course_id,
         assigned_by=current_admin.id,
-        start_date=datetime.fromisoformat(start_date) if start_date else None,
-        end_date=datetime.fromisoformat(end_date) if end_date else None,
+        start_date=datetime.fromisoformat(request.start_date) if request.start_date else None,
+        end_date=datetime.fromisoformat(request.end_date) if request.end_date else None,
         status='active',
-        remarks=remarks
+        remarks=request.remarks
     )
     db.add(class_course)
     db.flush()
@@ -1076,13 +1092,13 @@ def assign_course_to_class(
     db.commit()
     db.refresh(class_course)
     
-    logger.info(f"为班级分配课程 - 班级UUID: {class_id}, 课程ID: {course_id}, 自动分配学生数: {enrolled_count}, 操作者: {current_admin.username}")
+    logger.info(f"为班级分配课程 - 班级UUID: {class_id}, 课程ID: {request.course_id}, 自动分配学生数: {enrolled_count}, 操作者: {current_admin.username}")
     
     return success_response(
         data={
             'id': class_course.id,
             'uuid': class_course.uuid,
-            'course_id': course_id,
+            'course_id': request.course_id,
             'course_title': course.title,
             'enrolled_students': enrolled_count
         },
