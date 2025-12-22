@@ -81,9 +81,27 @@ main() {
     echo ""
     echo ""
 
-    # 4. 停止前端服务
+    # 4. 重新构建前端镜像（在服务运行时构建，减少中断时间）
     print_separator
-    print_info "正在停止前端服务..."
+    print_info "正在重新构建前端镜像..."
+    print_warning "这可能需要几分钟时间，请耐心等待..."
+    print_info "注意：构建期间前端服务继续运行，不会中断"
+    print_separator
+    
+    docker-compose -f docker/docker-compose.external-db.yml build --no-cache frontend
+    
+    if [ $? -ne 0 ]; then
+        print_error "前端镜像构建失败，服务继续使用旧版本"
+        print_error "请检查错误信息后重试"
+        exit 1
+    fi
+    
+    print_success "前端镜像构建成功"
+    echo ""
+
+    # 5. 停止旧的前端服务
+    print_separator
+    print_info "正在停止旧的前端服务..."
     print_separator
     
     docker-compose -f docker/docker-compose.external-db.yml stop frontend
@@ -91,39 +109,24 @@ main() {
     if [ $? -ne 0 ]; then
         print_warning "停止前端服务失败（可能服务未运行）"
     else
-        print_success "前端服务已停止"
+        print_success "旧的前端服务已停止"
     fi
     echo ""
 
-    # 5. 重新构建前端镜像
+    # 6. 启动新的前端服务
     print_separator
-    print_info "正在重新构建前端镜像..."
-    print_warning "这可能需要几分钟时间，请耐心等待..."
-    print_separator
-    
-    docker-compose -f docker/docker-compose.external-db.yml build --no-cache frontend
-    
-    if [ $? -ne 0 ]; then
-        print_error "前端镜像构建失败"
-        exit 1
-    fi
-    
-    print_success "前端镜像构建成功"
-    echo ""
-
-    # 6. 启动前端服务
-    print_separator
-    print_info "正在启动前端服务..."
+    print_info "正在启动新的前端服务..."
     print_separator
     
     docker-compose -f docker/docker-compose.external-db.yml up -d frontend
     
     if [ $? -ne 0 ]; then
         print_error "前端服务启动失败"
+        print_error "请检查日志: docker-compose -f docker/docker-compose.external-db.yml logs frontend"
         exit 1
     fi
     
-    print_success "前端服务已启动"
+    print_success "新的前端服务已启动"
     echo ""
 
     # 7. 等待服务启动
@@ -152,11 +155,17 @@ main() {
     print_separator
     echo ""
     
-    print_info "提示:"
-    echo "  - 访问前端页面验证更新: http://localhost (或你的服务器地址)"
+    print_info "更新流程说明:"
+    echo "  - ✅ 先构建新镜像（旧服务继续运行）"
+    echo "  - ✅ 构建成功后停止旧服务"
+    echo "  - ✅ 立即启动新服务"
+    echo "  - 📊 服务中断时间: 约 5-10 秒"
+    echo ""
+    
+    print_info "验证更新:"
+    echo "  - 访问前端页面: http://localhost (或你的服务器地址)"
     echo "  - 查看实时日志: docker-compose -f docker/docker-compose.external-db.yml logs -f frontend"
     echo "  - 查看服务状态: docker-compose -f docker/docker-compose.external-db.yml ps"
-    echo "  - 重启前端服务: docker-compose -f docker/docker-compose.external-db.yml restart frontend"
     echo ""
     
     print_info "如果页面没有更新，请尝试:"
