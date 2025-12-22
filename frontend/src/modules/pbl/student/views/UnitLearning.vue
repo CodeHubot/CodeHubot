@@ -273,6 +273,7 @@
 
     <!-- 悬浮AI助手 -->
     <FloatingAIAssistant 
+      v-if="showAIAssistant"
       :unit-id="currentUnit?.uuid || ''"
       :course-id="courseId"
       storage-mode="session"
@@ -300,6 +301,7 @@ import {
   submitTask as submitTaskAPI,
   resetLearningProgress
 } from '../api/student'
+import { getPublicConfigs } from '@/modules/device/api/systemConfig'
 
 const router = useRouter()
 const route = useRoute()
@@ -324,9 +326,35 @@ const submitting = ref(false)
 const quizAnswers = ref({})
 const loading = ref(true)
 
+// AI助手配置
+const showAIAssistant = ref(true) // 默认显示，从后台配置加载
+
 const courseUnits = ref([])
 const previousUnit = ref(null)
 const nextUnit = ref(null)
+
+// 加载AI助手配置
+const loadAIAssistantConfig = async () => {
+  try {
+    const response = await getPublicConfigs()
+    const configs = response.data || []
+    
+    // 查找AI助手配置项
+    const aiAssistantConfig = configs.find(
+      config => config.config_key === 'enable_ai_assistant_in_unit'
+    )
+    
+    if (aiAssistantConfig) {
+      // 处理布尔值配置
+      if (aiAssistantConfig.config_type === 'boolean') {
+        showAIAssistant.value = aiAssistantConfig.config_value === 'true'
+      }
+    }
+  } catch (error) {
+    console.error('加载AI助手配置失败:', error)
+    // 失败时保持默认值 true，不影响用户体验
+  }
+}
 
 // 视频播放相关状态
 const videoPlayData = ref({
@@ -992,6 +1020,9 @@ const goToUnit = (unitIdOrUuid) => router.push(`/pbl/student/units/${unitIdOrUui
 
 onMounted(async () => {
   const unitId = route.params.uuid
+
+  // 加载AI助手配置
+  await loadAIAssistantConfig()
 
   // 从后端API加载单元数据
   await loadUnitData(unitId)
