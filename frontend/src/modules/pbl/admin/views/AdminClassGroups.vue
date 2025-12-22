@@ -76,11 +76,6 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.created_at) }}
-          </template>
-        </el-table-column>
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" @click="viewGroupMembers(row)">
