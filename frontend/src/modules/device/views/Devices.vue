@@ -208,6 +208,7 @@
             <!-- 次要操作按钮 -->
             <div class="secondary-actions">
               <el-button 
+                v-if="canViewDeviceDetail(device)"
                 type="primary" 
                 size="small" 
                 @click.stop="navigateToDeviceDetail(device)"
@@ -638,7 +639,30 @@ const navigateToDeviceDetail = (device) => {
     ElMessage.warning('设备UUID未生成，无法访问设备详情页面')
     return
   }
+  
+  // 再次检查权限
+  if (!canViewDeviceDetail(device)) {
+    ElMessage.warning('您没有权限查看此设备详情（授权设备仅供使用）')
+    return
+  }
+  
   router.push(`/device/${device.uuid}/detail`)
+}
+
+// 判断用户是否有权限查看设备详情
+const canViewDeviceDetail = (device) => {
+  // 管理员可以查看所有设备详情
+  if (userStore.isPlatformAdmin || userStore.isSchoolAdmin) {
+    return true
+  }
+  
+  // 学生只能查看自己注册的设备详情，不能查看授权获得的设备详情
+  if (userStore.userInfo?.role === 'student') {
+    return device.user_id === userStore.user?.id
+  }
+  
+  // 其他用户（教师等）可以查看自己的设备详情
+  return device.user_id === userStore.user?.id
 }
 
 // 判断用户是否有权限配置设备
