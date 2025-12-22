@@ -2374,10 +2374,9 @@ async def control_device(
 @router.get("/{device_uuid}/product-config")
 async def get_device_product_config(
     device_uuid: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    """获取设备的产品配置信息（传感器和控制端口配置）"""
+    """获取设备的产品配置信息（传感器和控制端口配置）- 公开接口，无需认证"""
     try:
         # 查询设备
         device = db.query(Device).filter(Device.uuid == device_uuid).first()
@@ -2385,13 +2384,6 @@ async def get_device_product_config(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="设备不存在"
-            )
-        
-        # 权限检查
-        if not can_access_device(device, current_user, db):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权访问该设备"
             )
         
         # 查询产品配置

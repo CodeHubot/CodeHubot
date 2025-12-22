@@ -60,7 +60,7 @@
       </div>
       
       <!-- 智能体开发系统 -->
-      <div v-if="authStore.isAuthenticated" class="portal-card ai-card" @click="enterAI">
+      <div v-if="canAccessAI" class="portal-card ai-card" @click="enterAI">
         <div class="card-icon">
           <el-icon :size="40"><MagicStick /></el-icon>
         </div>
@@ -78,7 +78,7 @@
       </div>
       
       <!-- PBL学习平台 - 学习/教学入口（所有用户可见） -->
-      <div v-if="authStore.isAuthenticated" class="portal-card pbl-card" @click="enterPBLLearning">
+      <div v-if="canAccessPBL" class="portal-card pbl-card" @click="enterPBLLearning">
         <div class="card-icon">
           <el-icon :size="40"><Reading /></el-icon>
         </div>
@@ -180,6 +180,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useAuth, getRoleText } from '@/composables/useAuth'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
+import { getModuleConfig } from '@/modules/device/api/systemConfig'
 
 const router = useRouter()
 const { authStore, loading, isAdmin, isSchoolAdmin, isChannelManager, platformName, platformDescription } = useAuth()
@@ -189,12 +190,22 @@ const profileDialogVisible = ref(false)
 const profileDialogTab = ref('profile')
 const forceChangePassword = ref(false)
 
+// 模块配置
+const moduleConfig = ref({
+  enable_device_module: true,
+  enable_ai_module: true,
+  enable_pbl_module: true
+})
+
 // 简化计算属性
-const canAccessDevice = computed(() => authStore.isAuthenticated)
+const canAccessDevice = computed(() => authStore.isAuthenticated && moduleConfig.value.enable_device_module)
+const canAccessAI = computed(() => authStore.isAuthenticated && moduleConfig.value.enable_ai_module)
+const canAccessPBL = computed(() => authStore.isAuthenticated && moduleConfig.value.enable_pbl_module)
 
 // 检查是否需要强制修改密码
 onMounted(() => {
   checkForceChangePassword()
+  loadModuleConfig()
 })
 
 function checkForceChangePassword() {
@@ -203,6 +214,19 @@ function checkForceChangePassword() {
     profileDialogVisible.value = true
     profileDialogTab.value = 'password'
     ElMessage.warning('检测到您是首次登录，请先修改密码')
+  }
+}
+
+// 加载模块配置
+async function loadModuleConfig() {
+  try {
+    const response = await getModuleConfig()
+    if (response.data) {
+      moduleConfig.value = response.data
+    }
+  } catch (error) {
+    console.error('加载模块配置失败:', error)
+    // 失败时使用默认值，不影响用户体验
   }
 }
 
