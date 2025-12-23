@@ -99,22 +99,8 @@ async function loadStatistics() {
   try {
     loading.value = true
     
-    // 获取当前管理员信息
-    const adminInfo = await getCurrentAdmin()
-    
-    if (!adminInfo.school_id) {
-      ElMessage.warning('未找到学校信息')
-      return
-    }
-    
-    // 等待一小段时间确保 school_uuid 已加载
-    if (!adminInfo.school_uuid) {
-      console.warn('school_uuid 暂未加载，将跳过统计数据获取')
-      return
-    }
-    
-    // 获取学校统计数据
-    const response = await request.get(`/pbl/admin/schools/${adminInfo.school_uuid}/statistics`)
+    // 使用便捷API，无需传递 school_uuid，更安全
+    const response = await request.get('/pbl/admin/schools/my-school/statistics')
     
     if (response.success) {
       const data = response.data

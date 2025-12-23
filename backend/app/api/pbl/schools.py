@@ -114,6 +114,220 @@ def get_schools(
     })
 
 
+# ============================================================================
+# 便捷API - 无需传递UUID（必须在 /{school_uuid} 路由之前）
+# ============================================================================
+
+@router.get("/my-school/info")
+def get_my_school_info(
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    获取当前管理员所属学校的基本信息
+    用于前端获取当前学校的UUID等信息
+    """
+    # 检查当前管理员是否有关联的学校
+    if not current_admin.school_id:
+        return error_response(
+            message="您的账号未关联任何学校",
+            code=400,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 获取管理员的学校
+    school = db.query(School).filter(School.id == current_admin.school_id).first()
+    if not school:
+        logger.error(f"管理员 {current_admin.username} 的 school_id={current_admin.school_id} 找不到对应的学校")
+        return error_response(
+            message="您关联的学校不存在，请联系管理员",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    return success_response(data={
+        'id': school.id,
+        'uuid': school.uuid,
+        'school_code': school.school_code,
+        'school_name': school.school_name,
+        'province': school.province,
+        'city': school.city,
+        'district': school.district,
+        'address': school.address,
+        'is_active': school.is_active,
+        'license_expire_at': school.license_expire_at.isoformat() if school.license_expire_at else None,
+        'max_teachers': school.max_teachers,
+        'max_students': school.max_students,
+        'max_devices': school.max_devices,
+        'description': school.description,
+        'created_at': school.created_at.isoformat() if school.created_at else None
+    })
+
+
+@router.get("/my-school/users")
+def get_my_school_users(
+    skip: int = 0,
+    limit: int = 20,
+    role: Optional[str] = None,
+    keyword: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    获取当前管理员所属学校的用户列表（教师和学生）
+    权限：学校管理员只能查看自己学校的用户
+    这是一个便捷端点，无需传递 school_uuid
+    """
+    # 检查当前管理员是否有关联的学校
+    if not current_admin.school_id:
+        return error_response(
+            message="您的账号未关联任何学校",
+            code=400,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 获取管理员的学校
+    school = db.query(School).filter(School.id == current_admin.school_id).first()
+    if not school:
+        logger.error(f"管理员 {current_admin.username} 的 school_id={current_admin.school_id} 找不到对应的学校")
+        return error_response(
+            message="您关联的学校不存在，请联系管理员",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    logger.info(
+        f"管理员 {current_admin.username} 查询自己学校 {school.school_name} 的用户列表"
+    )
+    
+    # 构建查询
+    query = db.query(User).filter(
+        User.school_id == school.id,
+        User.deleted_at == None
+    )
+    
+    # 角色筛选
+    if role:
+        query = query.filter(User.role == role)
+    else:
+        # 默认只查询教师和学生
+        query = query.filter(User.role.in_(['teacher', 'student']))
+    
+    # 关键词搜索
+    if keyword:
+        query = query.filter(
+            (User.name.like(f'%{keyword}%')) |
+            (User.real_name.like(f'%{keyword}%')) |
+            (User.username.like(f'%{keyword}%')) |
+            (User.teacher_number.like(f'%{keyword}%')) |
+            (User.student_number.like(f'%{keyword}%'))
+        )
+    
+    # 总数
+    total = query.count()
+    
+    # 分页
+    users = query.offset(skip).limit(limit).all()
+    
+    # 序列化结果
+    result = []
+    for user in users:
+        result.append({
+            'id': user.id,
+            'username': user.username,
+            'name': user.name or user.real_name,
+            'role': user.role,
+            'teacher_number': user.teacher_number,
+            'student_number': user.student_number,
+            'gender': user.gender,
+            'phone': user.phone,
+            'email': user.email,
+            'is_active': user.is_active,
+            'created_at': user.created_at.isoformat() if user.created_at else None
+        })
+    
+    return success_response(data={
+        'items': result,
+        'total': total,
+        'skip': skip,
+        'limit': limit,
+        'school_name': school.school_name,
+        'school_uuid': school.uuid
+    })
+
+
+@router.get("/my-school/statistics")
+def get_my_school_statistics(
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    获取当前管理员所属学校的统计信息
+    权限：学校管理员只能查看自己学校的统计
+    这是一个便捷端点，无需传递 school_uuid
+    """
+    # 检查当前管理员是否有关联的学校
+    if not current_admin.school_id:
+        return error_response(
+            message="您的账号未关联任何学校",
+            code=400,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 获取管理员的学校
+    school = db.query(School).filter(School.id == current_admin.school_id).first()
+    if not school:
+        logger.error(f"管理员 {current_admin.username} 的 school_id={current_admin.school_id} 找不到对应的学校")
+        return error_response(
+            message="您关联的学校不存在，请联系管理员",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    logger.info(
+        f"管理员 {current_admin.username} 查询自己学校 {school.school_name} 的统计信息"
+    )
+    
+    # 统计教师数
+    teacher_count = db.query(func.count(User.id)).filter(
+        User.school_id == school.id,
+        User.role == 'teacher',
+        User.deleted_at == None,
+        User.is_active == True
+    ).scalar()
+    
+    # 统计学生数
+    student_count = db.query(func.count(User.id)).filter(
+        User.school_id == school.id,
+        User.role == 'student',
+        User.deleted_at == None,
+        User.is_active == True
+    ).scalar()
+    
+    # 统计学校管理员数
+    admin_count = db.query(func.count(User.id)).filter(
+        User.school_id == school.id,
+        User.role == 'school_admin',
+        User.deleted_at == None,
+        User.is_active == True
+    ).scalar()
+    
+    return success_response(data={
+        'teacher_count': teacher_count,
+        'student_count': student_count,
+        'admin_count': admin_count,
+        'max_teachers': school.max_teachers,
+        'max_students': school.max_students,
+        'max_devices': school.max_devices,
+        'school_name': school.school_name,
+        'school_uuid': school.uuid
+    })
+
+
+# ============================================================================
+# 带UUID的API - 用于平台管理员或兼容旧代码
+# ============================================================================
+
 @router.get("/{school_uuid}")
 def get_school(
     school_uuid: str,
@@ -122,32 +336,43 @@ def get_school(
 ):
     """
     获取学校详情
-    权限：平台管理员可查看所有，学校管理员只能查看自己的学校
+    权限：
+    - 平台管理员：可以查看任何学校
+    - 学校管理员：自动忽略传入的UUID，只能查看自己学校（安全设计）
     """
-    # 通过UUID获取学校
-    school = db.query(School).filter(School.uuid == school_uuid).first()
-    
-    if not school:
-        return error_response(
-            message="学校不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    # 权限检查
-    if current_admin.role == 'school_admin' and current_admin.school_id != school.id:
-        return error_response(
-            message="无权限查看其他学校信息",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
-    
-    if not school:
-        return error_response(
-            message="学校不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
+    # 安全设计：如果是学校管理员，自动使用其所属学校的ID，忽略传入的UUID
+    if current_admin.role == 'school_admin':
+        if not current_admin.school_id:
+            return error_response(
+                message="您的账号未关联任何学校",
+                code=400,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        school = db.query(School).filter(School.id == current_admin.school_id).first()
+        if not school:
+            logger.error(f"管理员 {current_admin.username} 的 school_id={current_admin.school_id} 找不到对应的学校")
+            return error_response(
+                message="您关联的学校不存在，请联系管理员",
+                code=404,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # 如果传入的UUID与管理员所属学校不符，记录警告日志
+        if school.uuid != school_uuid:
+            logger.warning(
+                f"🔒 安全拦截 - 学校管理员 {current_admin.username} 尝试访问其他学校UUID ({school_uuid})，"
+                f"已自动重定向到其所属学校 {school.school_name} (uuid={school.uuid})"
+            )
+    else:
+        # 平台管理员可以查看任何学校
+        school = db.query(School).filter(School.uuid == school_uuid).first()
+        if not school:
+            return error_response(
+                message="学校不存在",
+                code=404,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
     
     # 获取学校管理员信息
     admin_user = None
@@ -816,24 +1041,45 @@ def get_school_users(
 ):
     """
     获取学校用户列表（教师和学生）
-    权限：学校管理员只能查看自己学校的用户
+    权限：
+    - 平台管理员：可以查看任何学校的用户
+    - 学校管理员：自动忽略传入的UUID，只能查看自己学校的用户（安全设计）
     """
-    # 检查学校是否存在
-    school = db.query(School).filter(School.uuid == school_uuid).first()
-    if not school:
-        return error_response(
-            message="学校不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    # 权限检查
-    if current_admin.role == 'school_admin' and current_admin.school_id != school.id:
-        return error_response(
-            message="无权限查看其他学校用户",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
+    # 安全设计：如果是学校管理员，自动使用其所属学校的ID，忽略传入的UUID
+    if current_admin.role == 'school_admin':
+        # 检查学校管理员是否有关联的学校
+        if not current_admin.school_id:
+            return error_response(
+                message="您的账号未关联任何学校",
+                code=400,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 直接使用管理员所属的学校
+        school = db.query(School).filter(School.id == current_admin.school_id).first()
+        if not school:
+            logger.error(f"管理员 {current_admin.username} 的 school_id={current_admin.school_id} 找不到对应的学校")
+            return error_response(
+                message="您关联的学校不存在，请联系管理员",
+                code=404,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # 如果传入的UUID与管理员所属学校不符，记录警告日志但仍返回管理员自己学校的数据
+        if school.uuid != school_uuid:
+            logger.warning(
+                f"🔒 安全拦截 - 学校管理员 {current_admin.username} 尝试访问其他学校UUID ({school_uuid})，"
+                f"已自动重定向到其所属学校 {school.school_name} (uuid={school.uuid})"
+            )
+    else:
+        # 平台管理员可以查看任何学校
+        school = db.query(School).filter(School.uuid == school_uuid).first()
+        if not school:
+            return error_response(
+                message="学校不存在",
+                code=404,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
     
     # 构建查询
     query = db.query(User).filter(
@@ -888,6 +1134,7 @@ def get_school_users(
         'limit': limit
     })
 
+
 @router.get("/{school_uuid}/statistics")
 def get_school_statistics(
     school_uuid: str,
@@ -896,24 +1143,43 @@ def get_school_statistics(
 ):
     """
     获取学校统计信息
-    权限：平台管理员可查看所有，学校管理员只能查看自己的学校
+    权限：
+    - 平台管理员：可以查看任何学校
+    - 学校管理员：自动忽略传入的UUID，只能查看自己学校（安全设计）
     """
-    # 检查学校是否存在
-    school = db.query(School).filter(School.uuid == school_uuid).first()
-    if not school:
-        return error_response(
-            message="学校不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    # 权限检查
-    if current_admin.role == 'school_admin' and current_admin.school_id != school.id:
-        return error_response(
-            message="无权限查看其他学校信息",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
+    # 安全设计：如果是学校管理员，自动使用其所属学校的ID，忽略传入的UUID
+    if current_admin.role == 'school_admin':
+        if not current_admin.school_id:
+            return error_response(
+                message="您的账号未关联任何学校",
+                code=400,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        school = db.query(School).filter(School.id == current_admin.school_id).first()
+        if not school:
+            logger.error(f"管理员 {current_admin.username} 的 school_id={current_admin.school_id} 找不到对应的学校")
+            return error_response(
+                message="您关联的学校不存在，请联系管理员",
+                code=404,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # 如果传入的UUID与管理员所属学校不符，记录警告日志
+        if school.uuid != school_uuid:
+            logger.warning(
+                f"🔒 安全拦截 - 学校管理员 {current_admin.username} 尝试访问其他学校UUID ({school_uuid})，"
+                f"已自动重定向到其所属学校 {school.school_name} (uuid={school.uuid})"
+            )
+    else:
+        # 平台管理员可以查看任何学校
+        school = db.query(School).filter(School.uuid == school_uuid).first()
+        if not school:
+            return error_response(
+                message="学校不存在",
+                code=404,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
     
     # 统计教师数
     teacher_count = db.query(func.count(User.id)).filter(

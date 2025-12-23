@@ -420,15 +420,6 @@ const loadUsers = async () => {
   try {
     loading.value = true
     
-    // 确保有 school_uuid
-    if (!adminInfo.value.school_uuid) {
-      await loadAdminInfo()
-      if (!adminInfo.value.school_uuid) {
-        ElMessage.warning('未找到学校信息')
-        return
-      }
-    }
-    
     const params = {
       skip: (pagination.page - 1) * pagination.pageSize,
       limit: pagination.pageSize,
@@ -436,7 +427,8 @@ const loadUsers = async () => {
       keyword: filters.keyword || undefined
     }
     
-    const response = await request.get(`/pbl/admin/schools/${adminInfo.value.school_uuid}/users`, params)
+    // 使用便捷API，无需传递 school_uuid，更安全
+    const response = await request.get('/pbl/admin/schools/my-school/users', params)
     
     if (response.success) {
       users.value = response.data.items || []
@@ -453,9 +445,8 @@ const loadUsers = async () => {
 // 加载统计信息
 const loadStats = async () => {
   try {
-    if (!adminInfo.value.school_id) return
-    
-    const response = await request.get(`/pbl/admin/schools/${adminInfo.value.school_uuid}/statistics`)
+    // 使用便捷API，无需传递 school_uuid，更安全
+    const response = await request.get('/pbl/admin/schools/my-school/statistics')
     
     if (response.success) {
       const data = response.data
