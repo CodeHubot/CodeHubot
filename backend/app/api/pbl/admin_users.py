@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel, Field
-import uuid as uuid_lib
 
 from ...db.session import SessionLocal
 from ...core.response import success_response, error_response
@@ -151,7 +150,6 @@ def create_user(
     
     # 创建用户
     new_user = User(
-        uuid=str(uuid_lib.uuid4()),
         username=username,
         password_hash=get_password_hash(user_data.password),
         role=user_data.role,
@@ -191,7 +189,6 @@ def create_user(
             message="创建成功",
             data={
                 'id': new_user.id,
-                'uuid': new_user.uuid,
                 'username': username,
                 'name': new_user.name,
                 'role': new_user.role
