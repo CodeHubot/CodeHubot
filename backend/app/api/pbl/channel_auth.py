@@ -20,73 +20,10 @@ class ChannelLoginRequest(BaseModel):
     username: str
     password: str
 
-@router.post("/login")
-def channel_login(login_data: ChannelLoginRequest, db: Session = Depends(get_db)):
-    """渠道商用户登录 - 使用账号+密码登录"""
-    logger.info(f"收到渠道商登录请求 - 账号: {login_data.username}")
-    
-    # 1. 查找渠道商用户（role为channel_partner）
-    channel_partner = db.query(Admin).filter(
-        Admin.username == login_data.username,
-        Admin.role == 'channel_partner'
-    ).first()
-    
-    if not channel_partner:
-        logger.warning(f"渠道商登录失败：用户不存在或角色不匹配 - {login_data.username}")
-        return error_response(
-            message="账号或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"找到渠道商 - ID: {channel_partner.id}, 用户名: {channel_partner.username}, 激活状态: {channel_partner.is_active}")
-    
-    # 2. 验证密码
-    logger.debug(f"验证渠道商 {login_data.username} 的密码...")
-    password_valid = verify_password(login_data.password, channel_partner.password_hash)
-    
-    if not password_valid:
-        logger.warning(f"渠道商登录失败 - 账号 {login_data.username} 密码错误")
-        return error_response(
-            message="账号或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"渠道商 {login_data.username} 密码验证通过")
-    
-    # 3. 检查账户状态
-    if not channel_partner.is_active:
-        logger.warning(f"渠道商登录失败 - 账号 {login_data.username} 已被禁用")
-        return error_response(
-            message="账户已被禁用",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
-    
-    # 4. 更新最后登录时间
-    channel_partner.last_login = get_beijing_time_naive()
-    db.commit()
-    logger.debug(f"已更新渠道商 {login_data.username} 的最后登录时间")
-    
-    # 5. 创建访问令牌和刷新令牌（标记为channel_portal）
-    access_token = create_access_token(data={"sub": str(channel_partner.id), "user_role": "channel_partner", "portal": "channel"})
-    refresh_token = create_refresh_token(data={"sub": str(channel_partner.id), "user_role": "channel_partner", "portal": "channel"})
-    
-    logger.info(f"✅ 渠道商登录成功: {channel_partner.username} (ID: {channel_partner.id})")
-    
-    # 将 Admin 模型转换为 UserResponse schema
-    channel_response = UserResponse.model_validate(channel_partner)
-    
-    return success_response(
-        data={
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": channel_response.model_dump(mode='json')
-        },
-        message="登录成功"
-    )
+# ===== 已废弃的渠道商登录接口（2024-12-24）=====
+# 系统已统一使用 /api/auth/login 作为唯一登录接口
+# 原登录接口已删除
+# ============================================
 
 @router.get("/me")
 def get_current_channel_info(current_channel: Admin = Depends(get_current_channel_partner)):

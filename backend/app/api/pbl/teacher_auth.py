@@ -30,101 +30,10 @@ class UpdateProfileRequest(BaseModel):
     phone: str = None
     subject: str = None
 
-@router.post("/login")
-def teacher_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_db)):
-    """教师用户登录 - 使用工号@学校代码登录"""
-    logger.info(f"收到教师登录请求 - 学校代码: {login_data.school_code}, 工号: {login_data.number}")
-    
-    # 1. 查找学校
-    school = db.query(School).filter(
-        School.school_code == login_data.school_code.upper()
-    ).first()
-    
-    if not school:
-        logger.warning(f"教师登录失败：学校不存在 - {login_data.school_code}")
-        return error_response(
-            message="学校不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    if not school.is_active:
-        logger.warning(f"教师登录失败：学校已禁用 - {login_data.school_code}")
-        return error_response(
-            message="学校已禁用",
-            code=400,
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # 2. 查找教师用户（通过工号，role为teacher）
-    teacher = db.query(Admin).filter(
-        Admin.school_id == school.id,
-        Admin.teacher_number == login_data.number,
-        Admin.role == 'teacher'
-    ).first()
-    
-    if not teacher:
-        logger.warning(f"教师登录失败：用户不存在 - {login_data.school_code}/{login_data.number}")
-        return error_response(
-            message="工号或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"找到教师 - ID: {teacher.id}, 用户名: {teacher.username}, 角色: {teacher.role}, 激活状态: {teacher.is_active}")
-    
-    # 3. 验证密码
-    logger.debug(f"验证教师 {login_data.number} 的密码...")
-    password_valid = verify_password(login_data.password, teacher.password_hash)
-    
-    if not password_valid:
-        logger.warning(f"教师登录失败 - 工号 {login_data.number} 密码错误")
-        return error_response(
-            message="工号或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"教师 {login_data.number} 密码验证通过")
-    
-    # 4. 检查账户状态
-    if not teacher.is_active:
-        logger.warning(f"教师登录失败 - 工号 {login_data.number} 账户已被禁用")
-        return error_response(
-            message="账户已被禁用",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
-    
-    # 5. 更新最后登录时间
-    teacher.last_login = get_beijing_time_naive()
-    db.commit()
-    logger.debug(f"已更新教师 {login_data.number} 的最后登录时间")
-    
-    # 6. 创建访问令牌和刷新令牌（标记为teacher_portal）
-    access_token = create_access_token(data={"sub": str(teacher.id), "user_role": "teacher", "portal": "teacher"})
-    refresh_token = create_refresh_token(data={"sub": str(teacher.id), "user_role": "teacher", "portal": "teacher"})
-    
-    logger.info(f"✅ 教师登录成功: {teacher.username} - {school.school_name} (ID: {teacher.id})")
-    
-    # 将 Admin 模型转换为 UserResponse schema
-    teacher_response = UserResponse.model_validate(teacher)
-    
-    return success_response(
-        data={
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": teacher_response.model_dump(mode='json'),
-            "school": {
-                "id": school.id,
-                "uuid": school.uuid,
-                "school_code": school.school_code,
-                "school_name": school.school_name
-            }
-        },
-        message="登录成功"
-    )
+# ===== 已废弃的教师登录接口（2024-12-24）=====
+# 系统已统一使用 /api/auth/login 作为唯一登录接口
+# 原登录接口已删除
+# ============================================
 
 @router.get("/me")
 def get_current_teacher_info(current_teacher: Admin = Depends(get_current_teacher), db: Session = Depends(get_db)):

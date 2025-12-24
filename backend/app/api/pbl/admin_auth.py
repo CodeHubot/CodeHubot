@@ -16,74 +16,10 @@ from ...utils.timezone import get_beijing_time_naive
 router = APIRouter()
 logger = get_logger(__name__)
 
-@router.post("/platform-login")
-def platform_admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
-    """平台管理员登录 - 使用用户名+密码"""
-    logger.info(f"收到平台管理员登录请求 - 用户名: {login_data.username}")
-    
-    # 1. 查找平台管理员用户（role 必须是 platform_admin）
-    admin = db.query(Admin).filter(
-        Admin.username == login_data.username,
-        Admin.role == 'platform_admin'
-    ).first()
-    
-    # 检查用户是否存在
-    if not admin:
-        logger.warning(f"平台管理员登录失败 - 用户不存在或不是平台管理员: {login_data.username}")
-        return error_response(
-            message="用户名或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"找到平台管理员 - ID: {admin.id}, 用户名: {admin.username}, 角色: {admin.role}, 激活状态: {admin.is_active}")
-    
-    # 2. 验证密码
-    logger.debug(f"验证平台管理员 {login_data.username} 的密码...")
-    password_valid = verify_password(login_data.password, admin.password_hash)
-    
-    if not password_valid:
-        logger.warning(f"平台管理员登录失败 - 用户 {login_data.username} 密码错误")
-        return error_response(
-            message="用户名或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"平台管理员 {login_data.username} 密码验证通过")
-    
-    # 3. 检查账户状态
-    if not admin.is_active:
-        logger.warning(f"平台管理员登录失败 - 用户 {login_data.username} 账户已被禁用")
-        return error_response(
-            message="账户已被禁用",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
-    
-    # 4. 更新最后登录时间
-    admin.last_login = get_beijing_time_naive()
-    db.commit()
-    logger.debug(f"已更新平台管理员 {login_data.username} 的最后登录时间")
-    
-    # 5. 创建访问令牌和刷新令牌（包含用户类型信息）
-    access_token = create_access_token(data={"sub": str(admin.id), "user_role": admin.role})
-    refresh_token = create_refresh_token(data={"sub": str(admin.id), "user_role": admin.role})
-    
-    logger.info(f"✅ 平台管理员登录成功: {admin.username} (ID: {admin.id})")
-    
-    # 将 Admin 模型转换为 AdminResponse schema
-    admin_response = AdminResponse.model_validate(admin)
-    
-    return success_response(
-        data={
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "admin": admin_response.model_dump(mode='json')
-        },
-        message="登录成功"
-    )
+# ===== 已废弃的平台管理员登录接口（2024-12-24）=====
+# 系统已统一使用 /api/auth/login 作为唯一登录接口
+# 原登录接口已删除
+# ============================================
 
 @router.post("/login")
 def admin_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_db)):

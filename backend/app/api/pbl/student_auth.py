@@ -15,95 +15,10 @@ from ...utils.timezone import get_beijing_time_naive
 router = APIRouter()
 logger = get_logger(__name__)
 
-@router.post("/login")
-def student_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_db)):
-    """学生用户登录 - 机构登录方式（学校代码+学号+密码）"""
-    logger.info(f"收到学生登录请求 - 学校代码: {login_data.school_code}, 学号: {login_data.number}")
-    
-    # 1. 查找学校
-    school = db.query(School).filter(
-        School.school_code == login_data.school_code.upper()
-    ).first()
-    
-    if not school:
-        logger.warning(f"机构登录失败：学校不存在 - {login_data.school_code}")
-        return error_response(
-            message="学校不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    if not school.is_active:
-        logger.warning(f"机构登录失败：学校已禁用 - {login_data.school_code}")
-        return error_response(
-            message="学校已禁用",
-            code=400,
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # 2. 查找用户（通过学号，role为student）
-    user = db.query(User).filter(
-        User.school_id == school.id,
-        User.student_number == login_data.number,
-        User.role == 'student'
-    ).first()
-    
-    if not user:
-        logger.warning(f"机构登录失败：学生用户不存在 - {login_data.school_code}/{login_data.number}")
-        return error_response(
-            message="学号或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"找到用户 - ID: {user.id}, 用户名: {user.username}, 角色: {user.role}, 激活状态: {user.is_active}")
-    
-    # 3. 验证密码
-    logger.debug(f"验证用户 {login_data.number} 的密码...")
-    password_valid = verify_password(login_data.password, user.password_hash)
-    
-    if not password_valid:
-        logger.warning(f"登录失败 - 用户 {login_data.number} 密码错误")
-        return error_response(
-            message="学号或密码错误",
-            code=401,
-            status_code=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    logger.debug(f"用户 {login_data.number} 密码验证通过")
-    
-    # 4. 检查账户状态
-    if not user.is_active:
-        logger.warning(f"登录失败 - 用户 {login_data.number} 账户已被禁用")
-        return error_response(
-            message="账户已被禁用",
-            code=403,
-            status_code=status.HTTP_403_FORBIDDEN
-        )
-    
-    # 5. 更新最后登录时间
-    user.last_login = get_beijing_time_naive()
-    db.commit()
-    logger.debug(f"已更新用户 {login_data.number} 的最后登录时间")
-    
-    # 6. 创建访问令牌和刷新令牌（包含用户类型信息）
-    access_token = create_access_token(data={"sub": str(user.id), "user_role": user.role})
-    refresh_token = create_refresh_token(data={"sub": str(user.id), "user_role": user.role})
-    
-    logger.info(f"✅ 学生用户登录成功: {user.username} ({user.role}) - {school.school_name} (ID: {user.id})")
-    
-    # 将 User 模型转换为 UserResponse schema
-    user_response = UserResponse.model_validate(user)
-    
-    return success_response(
-        data={
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": user_response.model_dump(mode='json')
-        },
-        message="登录成功"
-    )
+# ===== 已废弃的学生登录接口（2024-12-24）=====
+# 系统已统一使用 /api/auth/login 作为唯一登录接口
+# 原登录接口已删除
+# ============================================
 
 @router.get("/me")
 def get_current_user_info(current_user: User = Depends(get_current_user)):
