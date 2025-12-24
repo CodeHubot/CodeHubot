@@ -315,17 +315,59 @@ async def get_login_attempts(identifier: str):
     try:
         attempts = captcha_store.get_login_attempts(identifier)
         needs_captcha = attempts >= LOGIN_ATTEMPT_THRESHOLD
+        is_blocked = captcha_store.is_account_blocked(identifier, BLOCK_DURATION_MINUTES)
+        remaining_time = captcha_store.get_block_remaining_time(identifier, BLOCK_DURATION_MINUTES)
         
         return success_response(data={
             "attempts": attempts,
             "needs_captcha": needs_captcha,
-            "threshold": LOGIN_ATTEMPT_THRESHOLD
+            "threshold": LOGIN_ATTEMPT_THRESHOLD,
+            "is_blocked": is_blocked,
+            "remaining_seconds": remaining_time
         })
     except Exception as e:
         logger.error(f"❌ 查询登录失败次数失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="查询失败"
+        )
+
+
+@router.post("/unblock-account/{identifier}")
+async def unblock_account(identifier: str):
+    """手动解封被锁定的账号（无需认证，紧急解封用）
+    
+    Args:
+        identifier: 用户标识（用户名或邮箱）
+        
+    Returns:
+        解封结果
+        
+    Note:
+        这是一个应急接口，生产环境建议添加管理员权限验证
+    """
+    try:
+        was_blocked = captcha_store.is_account_blocked(identifier, BLOCK_DURATION_MINUTES)
+        
+        # 解除封禁和重置失败次数
+        captcha_store.unblock_account(identifier)
+        captcha_store.reset_login_attempts(identifier)
+        
+        logger.info(f"✅ 账号已手动解封: {identifier} (之前状态: {'已封禁' if was_blocked else '未封禁'})")
+        
+        return success_response(
+            data={
+                "identifier": identifier,
+                "was_blocked": was_blocked,
+                "status": "已解封"
+            },
+            message=f"账号 {identifier} 已成功解封"
+        )
+    except Exception as e:
+        logger.error(f"❌ 解封账号失败: {identifier}, 错误: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="解封失败"
         )
 
 
