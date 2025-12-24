@@ -37,7 +37,7 @@ router = APIRouter()
 # 验证码相关的常量
 LOGIN_ATTEMPT_THRESHOLD = 3  # 登录失败次数阈值，超过此次数需要验证码
 BLOCK_THRESHOLD = 5  # 登录失败次数阈值，超过此次数临时禁用账户
-BLOCK_DURATION_MINUTES = 30  # 账户禁用时长（分钟）
+BLOCK_DURATION_MINUTES = 3  # 账户禁用时长（分钟）
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
