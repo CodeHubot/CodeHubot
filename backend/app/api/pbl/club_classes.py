@@ -8,7 +8,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, select
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from datetime import datetime
 from app.utils.timezone import get_beijing_time_naive
 from pydantic import BaseModel
@@ -29,6 +29,50 @@ from ...models.school import School
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+# ===== 权限检查辅助函数 =====
+
+def check_class_permission(
+    pbl_class: PBLClass,
+    current_admin: Admin,
+    db: Session,
+    allow_teacher: bool = True
+) -> Tuple[bool, Optional[str]]:
+    """
+    检查用户是否有权限操作班级
+    
+    Args:
+        pbl_class: 班级对象
+        current_admin: 当前用户
+        db: 数据库会话
+        allow_teacher: 是否允许教师操作（默认True）
+        
+    Returns:
+        (has_permission, error_message): 是否有权限及错误信息
+    """
+    # 1. 平台管理员有所有权限
+    if current_admin.role == 'platform_admin':
+        return True, None
+    
+    # 2. 学校管理员只能操作本学校的班级
+    if current_admin.role == 'school_admin':
+        if pbl_class.school_id != current_admin.school_id:
+            return False, "无权限操作该班级"
+        return True, None
+    
+    # 3. 教师只能操作自己教授的班级
+    if current_admin.role == 'teacher' and allow_teacher:
+        is_class_teacher = db.query(PBLClassTeacher).filter(
+            PBLClassTeacher.class_id == pbl_class.id,
+            PBLClassTeacher.teacher_id == current_admin.id
+        ).first()
+        
+        if not is_class_teacher:
+            return False, "您不是该班级的教师，无权限操作"
+        return True, None
+    
+    # 4. 其他角色无权限
+    return False, "无权限操作"
 
 # ===== Pydantic 模型 =====
 
@@ -164,9 +208,10 @@ def create_class(
     """创建班级
     
     如果提供template_id，将从模板创建完整的课程实例并关联到班级
+    教师创建的班级，自动成为该班级的主讲教师
     """
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 权限检查（允许教师创建班级）
+    if current_admin.role not in ['platform_admin', 'school_admin', 'teacher']:
         return error_response(
             message="无权限操作",
             code=403,
@@ -177,7 +222,7 @@ def create_class(
     school_id = current_admin.school_id
     if not school_id:
         return error_response(
-            message="当前管理员未关联学校，无法创建班级",
+            message="您未关联学校，无法创建班级",
             code=400,
             status_code=status.HTTP_400_BAD_REQUEST
         )
@@ -253,6 +298,17 @@ def create_class(
                 code=500,
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    # 如果是教师创建的班级，自动添加为主讲教师
+    if current_admin.role == 'teacher':
+        class_teacher = PBLClassTeacher(
+            class_id=new_class.id,
+            teacher_id=current_admin.id,
+            role='main',  # 主讲教师
+            is_primary=1  # 班主任
+        )
+        db.add(class_teacher)
+        logger.info(f"自动添加教师为班级主讲 - 教师ID: {current_admin.id}, 班级ID: {new_class.id}")
     
     db.commit()
     db.refresh(new_class)
@@ -381,21 +437,14 @@ def update_class(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 权限检查（允许教师修改）
+    has_permission, error_msg = check_class_permission(pbl_class, current_admin, db, allow_teacher=True)
+    if not has_permission:
         return error_response(
-            message="无权限操作",
+            message=error_msg,
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
-    
-    if current_admin.role == 'school_admin':
-        if pbl_class.school_id != current_admin.school_id:
-            return error_response(
-                message="无权限操作该班级",
-                code=403,
-                status_code=status.HTTP_403_FORBIDDEN
-            )
     
     # 更新字段
     if class_data.name is not None:
@@ -619,21 +668,14 @@ def add_members_to_class(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 权限检查（允许教师添加学生）
+    has_permission, error_msg = check_class_permission(pbl_class, current_admin, db, allow_teacher=True)
+    if not has_permission:
         return error_response(
-            message="无权限操作",
+            message=error_msg,
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
-    
-    if current_admin.role == 'school_admin':
-        if pbl_class.school_id != current_admin.school_id:
-            return error_response(
-                message="无权限操作该班级",
-                code=403,
-                status_code=status.HTTP_403_FORBIDDEN
-            )
     
     added_count = 0
     auto_enrolled_courses = []
@@ -707,21 +749,14 @@ def remove_member_from_class(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 权限检查（允许教师移除学生）
+    has_permission, error_msg = check_class_permission(pbl_class, current_admin, db, allow_teacher=True)
+    if not has_permission:
         return error_response(
-            message="无权限操作",
+            message=error_msg,
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
-    
-    if current_admin.role == 'school_admin':
-        if pbl_class.school_id != current_admin.school_id:
-            return error_response(
-                message="无权限操作该班级",
-                code=403,
-                status_code=status.HTTP_403_FORBIDDEN
-            )
     
     # 查找成员记录
     member = db.query(PBLClassMember).filter(
@@ -769,21 +804,14 @@ def update_member_role(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 权限检查（允许教师设置学生角色）
+    has_permission, error_msg = check_class_permission(pbl_class, current_admin, db, allow_teacher=True)
+    if not has_permission:
         return error_response(
-            message="无权限操作",
+            message=error_msg,
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
-    
-    if current_admin.role == 'school_admin':
-        if pbl_class.school_id != current_admin.school_id:
-            return error_response(
-                message="无权限操作该班级",
-                code=403,
-                status_code=status.HTTP_403_FORBIDDEN
-            )
     
     # 查找成员记录
     member = db.query(PBLClassMember).filter(
@@ -968,10 +996,20 @@ def create_course_from_template(
     current_admin: Admin = Depends(get_current_admin)
 ):
     """基于模板为班级创建课程（并自动为班级成员选课）"""
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 检查班级是否存在
+    pbl_class = db.query(PBLClass).filter(PBLClass.id == course_data.class_id).first()
+    if not pbl_class:
         return error_response(
-            message="无权限操作",
+            message="班级不存在",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    # 权限检查（允许教师为自己的班级创建课程）
+    has_permission, error_msg = check_class_permission(pbl_class, current_admin, db, allow_teacher=True)
+    if not has_permission:
+        return error_response(
+            message=error_msg,
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
@@ -986,24 +1024,6 @@ def create_course_from_template(
             code=404,
             status_code=status.HTTP_404_NOT_FOUND
         )
-    
-    # 检查班级是否存在
-    pbl_class = db.query(PBLClass).filter(PBLClass.id == course_data.class_id).first()
-    if not pbl_class:
-        return error_response(
-            message="班级不存在",
-            code=404,
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
-    # 权限检查：学校管理员只能操作本校班级
-    if current_admin.role == 'school_admin':
-        if pbl_class.school_id != current_admin.school_id:
-            return error_response(
-                message="无权限操作该班级",
-                code=403,
-                status_code=status.HTTP_403_FORBIDDEN
-            )
     
     # 创建课程
     course_title = course_data.title if course_data.title else f"{pbl_class.name}{template.title}"
@@ -1154,21 +1174,23 @@ def enroll_class_members_to_course(
             status_code=status.HTTP_400_BAD_REQUEST
         )
     
-    # 权限检查
-    if current_admin.role not in ['platform_admin', 'school_admin']:
+    # 获取班级对象进行权限检查
+    pbl_class = db.query(PBLClass).filter(PBLClass.id == course.class_id).first()
+    if not pbl_class:
         return error_response(
-            message="无权限操作",
+            message="关联的班级不存在",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    # 权限检查（允许教师为自己班级的课程批量选课）
+    has_permission, error_msg = check_class_permission(pbl_class, current_admin, db, allow_teacher=True)
+    if not has_permission:
+        return error_response(
+            message=error_msg,
             code=403,
             status_code=status.HTTP_403_FORBIDDEN
         )
-    
-    if current_admin.role == 'school_admin':
-        if course.school_id != current_admin.school_id:
-            return error_response(
-                message="无权限操作该课程",
-                code=403,
-                status_code=status.HTTP_403_FORBIDDEN
-            )
     
     # 注意：班级成员自动拥有班级课程的访问权限，无需创建选课记录
     # 统计班级成员数量
