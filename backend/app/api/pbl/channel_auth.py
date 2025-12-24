@@ -20,9 +20,16 @@ class ChannelLoginRequest(BaseModel):
     username: str
     password: str
 
+# ===== 已废弃的登录接口（2024-12-24）=====
+# 系统已统一使用 /api/auth/login 作为唯一登录接口
+# 以下接口已注释，保留代码以备后续需要
+# ============================================
+
+"""
 @router.post("/login")
 def channel_login(login_data: ChannelLoginRequest, db: Session = Depends(get_db)):
-    """渠道商用户登录 - 使用账号+密码登录"""
+    # 渠道商用户登录 - 使用账号+密码登录
+    # ⚠️ 已废弃：请使用统一登录接口 POST /api/auth/login
     logger.info(f"收到渠道商登录请求 - 账号: {login_data.username}")
     
     # 1. 查找渠道商用户（role为channel_partner）
