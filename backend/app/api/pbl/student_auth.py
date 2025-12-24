@@ -15,18 +15,9 @@ from ...utils.timezone import get_beijing_time_naive
 router = APIRouter()
 logger = get_logger(__name__)
 
-# ===== 已废弃的登录接口（2024-12-24）=====
-# 系统已统一使用 /api/auth/login 作为唯一登录接口
-# 以下接口已注释，保留代码以备后续需要
-# ============================================
-
-"""
 @router.post("/login")
 def student_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_db)):
-    \"\"\"学生用户登录 - 机构登录方式（学校代码+学号+密码）
-    
-    ⚠️ 已废弃：请使用统一登录接口 POST /api/auth/login
-    \"\"\"
+    """学生用户登录 - 机构登录方式（学校代码+学号+密码）"""
     logger.info(f"收到学生登录请求 - 学校代码: {login_data.school_code}, 学号: {login_data.number}")
     
     # 1. 查找学校
@@ -113,7 +104,6 @@ def student_login(login_data: InstitutionLoginRequest, db: Session = Depends(get
         },
         message="登录成功"
     )
-"""
 
 @router.get("/me")
 def get_current_user_info(current_user: User = Depends(get_current_user)):

@@ -125,7 +125,6 @@ def teacher_login(login_data: InstitutionLoginRequest, db: Session = Depends(get
         },
         message="登录成功"
     )
-"""
 
 @router.get("/me")
 def get_current_teacher_info(current_teacher: Admin = Depends(get_current_teacher), db: Session = Depends(get_db)):

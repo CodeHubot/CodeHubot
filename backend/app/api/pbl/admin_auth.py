@@ -16,18 +16,9 @@ from ...utils.timezone import get_beijing_time_naive
 router = APIRouter()
 logger = get_logger(__name__)
 
-# ===== 已废弃的登录接口（2024-12-24）=====
-# 系统已统一使用 /api/auth/login 作为唯一登录接口
-# 以下接口已注释，保留代码以备后续需要
-# ============================================
-
-"""
 @router.post("/platform-login")
 def platform_admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
-    \"\"\"平台管理员登录 - 使用用户名+密码
-    
-    ⚠️ 已废弃：请使用统一登录接口 POST /api/auth/login
-    \"\"\"
+    """平台管理员登录 - 使用用户名+密码"""
     logger.info(f"收到平台管理员登录请求 - 用户名: {login_data.username}")
     
     # 1. 查找平台管理员用户（role 必须是 platform_admin）
@@ -96,10 +87,7 @@ def platform_admin_login(login_data: AdminLogin, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def admin_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_db)):
-    \"\"\"教师/学校管理员登录 - 机构登录方式（学校代码+工号+密码）
-    
-    ⚠️ 已废弃：请使用统一登录接口 POST /api/auth/login
-    \"\"\"
+    """教师/学校管理员登录 - 机构登录方式（学校代码+工号+密码）"""
     logger.info(f"收到教师登录请求 - 学校代码: {login_data.school_code}, 工号: {login_data.number}")
     
     # 1. 查找学校
@@ -195,7 +183,6 @@ def admin_login(login_data: InstitutionLoginRequest, db: Session = Depends(get_d
         },
         message="登录成功"
     )
-"""
 
 @router.get("/me")
 def get_current_admin_info(current_admin: Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
