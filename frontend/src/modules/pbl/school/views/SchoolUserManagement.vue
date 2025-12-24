@@ -238,8 +238,15 @@
           style="margin-top: 10px"
         >
           <template #default>
-            <div style="font-size: 13px;">
-              <strong>说明：</strong>用户名将自动生成为"{{ form.role === 'teacher' ? '工号' : '学号' }}@学校编码"的格式，无需手动输入
+            <div style="font-size: 13px; line-height: 1.8;">
+              <div><strong>用户名规则：</strong>自动生成为"学校代码_角色_工号/学号"的格式</div>
+              <div style="margin-top: 8px;"><strong>密码要求：</strong></div>
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>至少 8 位字符</li>
+                <li>必须包含大小写字母、数字、特殊字符中的至少 2 种</li>
+                <li>不能与用户名相同</li>
+                <li>不能使用常见弱密码（如 12345678、password 等）</li>
+              </ul>
             </div>
           </template>
         </el-alert>
@@ -386,14 +393,62 @@ const form = reactive({
   subject: ''
 })
 
+// 常见弱密码列表
+const weakPasswords = [
+  '12345678', '123456789', '11111111', '00000000',
+  'password', 'Password', 'password123', 'Password123',
+  'qwerty123', 'abc12345', 'abcd1234', '1qaz2wsx',
+  '88888888', '66666666', '11223344', '12341234'
+]
+
 const validatePassword = (rule, value, callback) => {
-  if (dialogMode.value === 'create' && !value) {
-    callback(new Error('请输入密码'))
-  } else if (dialogMode.value === 'create' && value.length < 6) {
-    callback(new Error('密码长度不能少于6位'))
-  } else {
-    callback()
+  if (dialogMode.value === 'create') {
+    if (!value) {
+      callback(new Error('请输入密码'))
+      return
+    }
+    
+    // 1. 长度检查：至少8位
+    if (value.length < 8) {
+      callback(new Error('密码长度不能少于8位'))
+      return
+    }
+    
+    // 2. 不能是常见弱密码
+    if (weakPasswords.includes(value.toLowerCase())) {
+      callback(new Error('密码过于简单，请使用更复杂的密码'))
+      return
+    }
+    
+    // 3. 生成用户名并检查密码是否与用户名相同
+    const schoolCode = adminInfo.value.school_code || ''
+    let username = ''
+    if (form.role === 'teacher' && form.teacher_number) {
+      username = `${schoolCode}_T_${form.teacher_number}`
+    } else if (form.role === 'student' && form.student_number) {
+      username = `${schoolCode}_S_${form.student_number}`
+    }
+    
+    if (username && value.toLowerCase() === username.toLowerCase()) {
+      callback(new Error('密码不能与用户名相同'))
+      return
+    }
+    
+    // 4. 复杂度检查：至少包含大小写字母、数字、特殊字符中的2种
+    const hasLower = /[a-z]/.test(value)
+    const hasUpper = /[A-Z]/.test(value)
+    const hasDigit = /\d/.test(value)
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(value)
+    
+    const complexityCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length
+    
+    if (complexityCount < 2) {
+      callback(new Error('密码必须包含大小写字母、数字、特殊字符中的至少2种'))
+      return
+    }
   }
+  
+  callback()
 }
 
 const validateConfirmPassword = (rule, value, callback) => {
@@ -424,11 +479,11 @@ const loadUsers = async () => {
       skip: (pagination.page - 1) * pagination.pageSize,
       limit: pagination.pageSize,
       role: filters.role || undefined,
-      keyword: filters.keyword || undefined
+      keyword: filters.search || undefined
     }
     
     // 使用便捷API，无需传递 school_uuid，更安全
-    const response = await request.get('/pbl/admin/schools/my-school/users', params)
+    const response = await request.get('/pbl/admin/schools/my-school/users', { params })
     
     if (response.success) {
       users.value = response.data.items || []

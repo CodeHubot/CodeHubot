@@ -4,8 +4,9 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Optional, Tuple
+from pydantic import BaseModel, Field, validator
+import re
 
 from ...db.session import SessionLocal
 from ...core.response import success_response, error_response
@@ -19,12 +20,57 @@ from ...core.logging_config import get_logger
 router = APIRouter()
 logger = get_logger(__name__)
 
+# 常见弱密码列表
+WEAK_PASSWORDS = {
+    '12345678', '123456789', '11111111', '00000000',
+    'password', 'Password', 'password123', 'Password123',
+    'qwerty123', 'abc12345', 'abcd1234', '1qaz2wsx',
+    '88888888', '66666666', '11223344', '12341234'
+}
+
+
+def validate_password_strength(password: str, username: str = None) -> Tuple[bool, str]:
+    """
+    验证密码强度
+    
+    Args:
+        password: 密码
+        username: 用户名（可选，用于检查是否与密码相同）
+    
+    Returns:
+        (是否通过, 错误信息)
+    """
+    # 1. 长度检查：至少8位
+    if len(password) < 8:
+        return False, "密码长度不能少于8位"
+    
+    # 2. 不能是常见弱密码
+    if password.lower() in WEAK_PASSWORDS:
+        return False, "密码过于简单，请使用更复杂的密码"
+    
+    # 3. 不能与用户名相同
+    if username and password.lower() == username.lower():
+        return False, "密码不能与用户名相同"
+    
+    # 4. 复杂度检查：至少包含大小写字母、数字、特殊字符中的2种
+    has_lower = bool(re.search(r'[a-z]', password))
+    has_upper = bool(re.search(r'[A-Z]', password))
+    has_digit = bool(re.search(r'\d', password))
+    has_special = bool(re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]', password))
+    
+    complexity_count = sum([has_lower, has_upper, has_digit, has_special])
+    
+    if complexity_count < 2:
+        return False, "密码必须包含大小写字母、数字、特殊字符中的至少2种"
+    
+    return True, ""
+
 
 class UserCreate(BaseModel):
     """创建用户请求模型"""
     role: str = Field(..., description="角色: teacher/student")
     name: str = Field(..., min_length=2, max_length=50, description="姓名")
-    password: str = Field(..., min_length=6, description="密码")
+    password: str = Field(..., min_length=8, description="密码（至少8位，包含大小写字母、数字、特殊字符中至少2种）")
     gender: Optional[str] = Field(None, description="性别: male/female")
     teacher_number: Optional[str] = Field(None, description="教师工号")
     student_number: Optional[str] = Field(None, description="学生学号")
@@ -32,6 +78,14 @@ class UserCreate(BaseModel):
     subject: Optional[str] = Field(None, description="学科（教师）")
     phone: Optional[str] = Field(None, description="手机号")
     email: Optional[str] = Field(None, description="邮箱")
+    
+    @validator('password')
+    def validate_password(cls, v):
+        """验证密码强度"""
+        is_valid, error_msg = validate_password_strength(v)
+        if not is_valid:
+            raise ValueError(error_msg)
+        return v
 
 
 class UserUpdate(BaseModel):
@@ -146,6 +200,14 @@ def create_user(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="用户名已存在"
+        )
+    
+    # 再次验证密码强度（包括与用户名的对比）
+    is_valid, error_msg = validate_password_strength(user_data.password, username)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
         )
     
     # 创建用户
