@@ -83,6 +83,12 @@ try:
 except ImportError as e:
     print(f"警告: 无法导入admin_users: {e}")
 
+try:
+    from app.api.pbl.feedback_templates import router as feedback_templates_router
+    pbl_router.include_router(feedback_templates_router, prefix="/admin/feedback-templates", tags=["PBL-评语模板"])
+except ImportError as e:
+    print(f"警告: 无法导入feedback_templates: {e}")
+
 # 其他PBL功能路由
 try:
     from app.api.pbl.schools import router as schools_router
