@@ -535,6 +535,87 @@ def delete_user(
         )
 
 
+class ResetPasswordRequest(BaseModel):
+    """重置密码请求模型"""
+    new_password: str = Field(..., min_length=8, description="新密码（至少8位）")
+    
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        """验证新密码强度"""
+        is_valid, error_msg = validate_password_strength(v)
+        if not is_valid:
+            raise ValueError(error_msg)
+        return v
+
+
+@router.post("/{user_id}/reset-password")
+def reset_user_password(
+    user_id: int,
+    reset_data: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    重置用户密码
+    权限：学校管理员只能重置自己学校用户的密码
+    """
+    # 检查管理员是否关联学校
+    if not current_admin.school_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="您的账号未关联任何学校"
+        )
+    
+    # 查找用户
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.deleted_at == None
+    ).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 权限检查
+    if user.school_id != current_admin.school_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权重置该用户密码"
+        )
+    
+    # 再次验证密码强度（包括与用户名的对比）
+    is_valid, error_msg = validate_password_strength(reset_data.new_password, user.username)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    
+    try:
+        # 更新密码
+        user.password_hash = get_password_hash(reset_data.new_password)
+        # 设置首次登录需要修改密码
+        user.need_change_password = True
+        
+        db.commit()
+        
+        logger.info(
+            f"重置用户密码成功 - 用户ID: {user_id}, 用户名: {user.username}, "
+            f"操作者: {current_admin.username}"
+        )
+        
+        return success_response(message="密码重置成功，用户下次登录时需要修改密码")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"重置用户密码失败: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="重置密码失败"
+        )
+
+
 @router.post("/batch-import/students")
 async def batch_import_students(
     file: UploadFile = File(...),
