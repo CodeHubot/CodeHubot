@@ -662,14 +662,29 @@ const handleToggleActive = async (row) => {
 // 重置密码
 const handleResetPassword = async (row) => {
   try {
+    // 先显示密码要求提示
+    await ElMessageBox.alert(
+      '密码要求：\n' +
+      '• 至少 8 位字符\n' +
+      '• 必须包含大小写字母、数字、特殊字符中的至少 2 种\n' +
+      '• 不能与用户名相同\n' +
+      '• 不能使用常见弱密码',
+      '密码要求',
+      {
+        confirmButtonText: '我知道了',
+        type: 'info'
+      }
+    )
+    
     const { value: newPassword } = await ElMessageBox.prompt(
-      `请输入新密码（用户"${row.name}"）`,
+      `请为用户"${row.name}"设置新密码`,
       '重置密码',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        inputPattern: /.{6,}/,
-        inputErrorMessage: '密码长度不能少于6位'
+        inputPattern: /.{8,}/,
+        inputErrorMessage: '密码长度不能少于8位',
+        inputType: 'password'
       }
     )
     
@@ -678,7 +693,7 @@ const handleResetPassword = async (row) => {
     )
     
     if (response.success) {
-      ElMessage.success('密码重置成功')
+      ElMessage.success('密码重置成功，用户下次登录时需要修改密码')
     }
   } catch (error) {
     if (error === 'cancel') {
