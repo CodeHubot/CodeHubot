@@ -14,7 +14,7 @@ from ...core.deps import get_db, get_current_admin
 from ...core.security import get_password_hash
 from ...models.admin import Admin, User
 from ...models.school import School
-from ...models.pbl_class import PBLClass
+from ...models.pbl import PBLClass
 from ...core.logging_config import get_logger
 
 router = APIRouter()
