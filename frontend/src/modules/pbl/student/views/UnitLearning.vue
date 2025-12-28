@@ -274,8 +274,8 @@
     <!-- 悬浮AI助手 -->
     <FloatingAIAssistant 
       v-if="showAIAssistant"
-      :unit-id="currentUnit?.uuid || ''"
-      :course-id="courseId"
+      :unit-uuid="currentUnit?.uuid || ''"
+      :course-uuid="courseId"
       storage-mode="session"
       :enable-server-sync="true"
     />

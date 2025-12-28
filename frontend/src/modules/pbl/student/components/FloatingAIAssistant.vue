@@ -64,8 +64,8 @@
         <div class="chat-content">
           <ChatPanel 
             ref="chatPanelRef" 
-            :unit-id="unitId"
-            :course-id="courseId"
+            :unit-uuid="unitUuid"
+            :course-uuid="courseUuid"
             :storage-mode="storageMode"
             :enable-server-sync="enableServerSync"
           />
@@ -96,11 +96,11 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  unitId: {
+  unitUuid: {
     type: String,
     default: ''
   },
-  courseId: {
+  courseUuid: {
     type: String,
     default: ''
   },

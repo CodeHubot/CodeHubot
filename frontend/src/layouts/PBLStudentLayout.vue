@@ -90,6 +90,11 @@
             <template #title>我的任务</template>
           </el-menu-item>
           
+          <el-menu-item index="/pbl/student/learning-assistant" class="menu-item">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>AI学习助手</template>
+          </el-menu-item>
+          
           <el-menu-item index="/pbl/student/portfolio" class="menu-item">
             <el-icon><Collection /></el-icon>
             <template #title>学习档案</template>
@@ -134,7 +139,8 @@ import {
   Fold,
   Document,
   Folder,
-  Collection
+  Collection,
+  ChatDotRound
 } from '@element-plus/icons-vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
 

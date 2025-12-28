@@ -16,12 +16,6 @@ export default [
         meta: { title: 'AI控制台' }
       },
       {
-        path: 'chat',
-        name: 'AIChat',
-        component: () => import('@ai/views/Chat.vue'),
-        meta: { title: 'AI对话' }
-      },
-      {
         path: 'agents',
         name: 'AIAgentList',
         component: () => import('@ai/views/Agents.vue'),

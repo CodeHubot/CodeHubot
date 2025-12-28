@@ -97,3 +97,4 @@ class AIChatMessage(Base):
         Index('idx_session_sequence', 'session_id', 'sequence_number'),
     )
 
+

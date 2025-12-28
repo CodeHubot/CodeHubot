@@ -668,3 +668,4 @@ def get_student_detail_progress(
         'tasks': tasks_progress
     })
 
+

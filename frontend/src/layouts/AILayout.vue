@@ -17,11 +17,6 @@
           <span>控制台</span>
         </el-menu-item>
         
-        <el-menu-item index="/ai/chat">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>AI对话</span>
-        </el-menu-item>
-        
         <el-menu-item index="/ai/agents">
           <el-icon><Avatar /></el-icon>
           <span>智能体</span>

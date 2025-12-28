@@ -124,3 +124,4 @@ class ChatAnalytics(BaseModel):
     active_hours: List[dict]
     category_distribution: List[dict]
 
+

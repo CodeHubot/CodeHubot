@@ -47,6 +47,15 @@ const studentRoutes = {
       name: 'StudentPortfolio',
       component: () => import('@pbl/student/views/StudentPortfolio.vue'),
       meta: { title: '我的作品集' }
+    },
+    {
+      path: 'learning-assistant',
+      name: 'StudentLearningAssistant',
+      component: () => import('@pbl/student/views/LearningAssistant.vue'),
+      meta: { 
+        title: 'AI学习助手',
+        hideSidebar: false  // 显示侧边栏导航
+      }
     }
   ]
 }
@@ -231,6 +240,15 @@ const schoolRoutes = {
       component: () => import('@pbl/school/views/SchoolDashboard.vue'),
       meta: { 
         title: '数据统计',
+        roles: ['school_admin']
+      }
+    },
+    {
+      path: 'learning-assistant',
+      name: 'SchoolLearningAssistant',
+      component: () => import('@pbl/school/views/LearningAssistantTeacher.vue'),
+      meta: { 
+        title: 'AI学习助手',
         roles: ['school_admin']
       }
     }

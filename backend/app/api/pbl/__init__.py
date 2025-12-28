@@ -148,4 +148,17 @@ try:
 except ImportError as e:
     print(f"警告: 无法导入ai_chat: {e}")
 
+# AI学习助手路由（Phase 1）
+try:
+    from app.api.pbl.learning_assistant import router as learning_assistant_router
+    pbl_router.include_router(learning_assistant_router, prefix="/learning-assistant", tags=["PBL-AI学习助手"])
+except ImportError as e:
+    print(f"警告: 无法导入learning_assistant: {e}")
+
+try:
+    from app.api.pbl.learning_assistant_teacher import router as learning_assistant_teacher_router
+    pbl_router.include_router(learning_assistant_teacher_router, prefix="/learning-assistant/teacher", tags=["PBL-AI学习助手-教师"])
+except ImportError as e:
+    print(f"警告: 无法导入learning_assistant_teacher: {e}")
+
 print(f"✓ PBL路由注册完成，已注册 {len(pbl_router.routes)} 个路由")

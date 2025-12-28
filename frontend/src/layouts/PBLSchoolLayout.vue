@@ -32,6 +32,11 @@
             <el-icon><Files /></el-icon>
             <span>课程模板库</span>
           </el-menu-item>
+          
+          <el-menu-item index="/pbl/school/learning-assistant">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>AI学习助手</span>
+          </el-menu-item>
         </template>
         
         <!-- 教师功能 -->
@@ -112,7 +117,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  School, HomeFilled, User, UserFilled, Files, Grid, Lock, SwitchButton, Reading, EditPen
+  School, HomeFilled, User, UserFilled, Files, Grid, Lock, SwitchButton, Reading, EditPen, ChatDotRound
 } from '@element-plus/icons-vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
 
