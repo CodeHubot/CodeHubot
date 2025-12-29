@@ -855,8 +855,12 @@ watch(
     if (oldUuid !== undefined && newUuid !== oldUuid) {
       isInitialLoad.value = true
       
+      // 先清空知识库列表，避免显示上一个智能体的数据
+      knowledgeBases.value = []
+      
       if (newUuid) {
-        // 编辑模式：加载智能体数据
+        // 编辑模式：先清空表单，再加载智能体数据
+        resetForm()
         await loadAgent()
         loadKnowledgeBases()
       } else {

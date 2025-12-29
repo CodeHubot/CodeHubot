@@ -777,8 +777,12 @@ watch(
   (newUuid, oldUuid) => {
     // 只有当 UUID 真正变化时才重新加载（避免初始化时触发）
     if (oldUuid !== undefined && newUuid !== oldUuid) {
+      // 先清空知识库列表，避免显示上一个智能体的数据
+      knowledgeBases.value = []
+      
       if (newUuid) {
-        // 编辑模式：加载智能体数据
+        // 编辑模式：先清空表单，再加载智能体数据
+        resetForm()
         loadAgent()
         loadKnowledgeBases()
       } else {
