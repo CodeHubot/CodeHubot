@@ -490,8 +490,8 @@ onMounted(async () => {
 watch(
   () => agentUuid.value,
   (newUuid, oldUuid) => {
-    // 只有当 UUID 真正变化时才重新加载（避免初始化时触发）
-    if (oldUuid !== undefined && newUuid !== oldUuid) {
+    // 只有当 UUID 真正变化且新 UUID 有效时才重新加载
+    if (oldUuid !== undefined && newUuid !== oldUuid && newUuid) {
       // 清空消息历史
       messages.value = []
       // 重新加载智能体信息
