@@ -114,8 +114,11 @@ def get_plugins(
         if is_system is not None:
             query = query.filter(Plugin.is_system == (1 if is_system else 0))
     else:
-        # 普通用户：只看到自己创建的插件（不显示系统内置插件）
-        query = query.filter(Plugin.user_id == current_user.id)
+        # 普通用户：可以看到系统内置插件和自己创建的插件
+        # 系统内置插件（如IoT设备控制）对所有用户可见和可用
+        query = query.filter(
+            (Plugin.is_system == 1) | (Plugin.user_id == current_user.id)
+        )
     
     # 激活状态筛选
     if is_active is not None:
