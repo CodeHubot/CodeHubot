@@ -104,12 +104,12 @@
         
         <div class="input-hint" v-if="showHint">
           <el-icon><InfoFilled /></el-icon>
-          <span>按 Enter 发送，Shift+Enter 换行</span>
+          <span>按 Ctrl+Enter 发送，Enter 换行</span>
         </div>
         <div class="input-container">
           <textarea
             v-model="inputMessage"
-            @keydown.enter.prevent="handleEnterKey"
+            @keydown.enter="handleEnterKey"
             @focus="showHint = true"
             @blur="showHint = false"
             ref="messageInputRef"
@@ -372,15 +372,15 @@ const sendMessage = async () => {
       console.log('⚠️ 检测到会话ID已保存，可能是401自动重试，等待结果...')
       // 不显示错误消息
     } else {
-      ElMessage.error('发送消息失败，请稍后再试。')
-      
-      messages.value.push({
-        id: Date.now() + 1,
-        type: 'ai',
-        content: '抱歉，我暂时无法回复。请稍后再试或联系老师。',
-        timestamp: Date.now(),
-        isError: true
-      })
+    ElMessage.error('发送消息失败，请稍后再试。')
+    
+    messages.value.push({
+      id: Date.now() + 1,
+      type: 'ai',
+      content: '抱歉，我暂时无法回复。请稍后再试或联系老师。',
+      timestamp: Date.now(),
+      isError: true
+    })
     }
   } finally {
     isTyping.value = false
@@ -389,8 +389,12 @@ const sendMessage = async () => {
 }
 
 const handleEnterKey = (event) => {
-  if (event.shiftKey) return // 换行
-  sendMessage()
+  // Ctrl+Enter (Windows/Linux) 或 Cmd+Enter (Mac) 发送消息
+  if (event.ctrlKey || event.metaKey) {
+    event.preventDefault() // 阻止默认换行
+    sendMessage()
+  }
+  // 直接按 Enter 允许换行（默认行为）
 }
 
 const copyMessage = (content) => {
