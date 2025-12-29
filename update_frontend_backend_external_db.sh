@@ -1,10 +1,14 @@
 #!/bin/bash
 
 ################################################################################
-# CodeHubot 完整更新脚本 (使用外部数据库配置)
-# 用途: 同时更新前端和后端服务，使用 docker-compose.external-db.yml
+# CodeHubot 前端+后端更新脚本 (使用外部数据库配置)
+# 用途: 同时更新 Frontend 和 Backend 服务
+# 说明: 
+#   - 包含: frontend, backend
+#   - 不包含: celery-worker (请使用 update_celery_external_db.sh)
+# 使用: docker-compose.external-db.yml
 # 作者: CodeHubot Team
-# 日期: 2024-12-22
+# 日期: 2024-12-29
 ################################################################################
 
 set -e  # 遇到错误立即退出
@@ -50,7 +54,8 @@ check_project_root() {
 # 主流程
 main() {
     print_separator
-    print_info "CodeHubot 完整更新脚本 (前端+后端)"
+    print_info "CodeHubot 前端+后端更新脚本"
+    print_info "更新服务: Frontend + Backend"
     print_info "使用配置: docker-compose.external-db.yml"
     print_separator
     echo ""
@@ -203,6 +208,11 @@ main() {
     echo "  - 重启服务: docker-compose -f docker/docker-compose.external-db.yml restart backend frontend"
     echo "  - 查看所有服务: docker-compose -f docker/docker-compose.external-db.yml ps"
     echo "  - 停止所有服务: docker-compose -f docker/docker-compose.external-db.yml stop"
+    echo ""
+    
+    print_info "如需更新其他服务:"
+    echo "  - Celery Worker: ./update_celery_external_db.sh"
+    echo "  - 仅前端: ./update_frontend_external_db.sh"
     echo ""
 }
 
