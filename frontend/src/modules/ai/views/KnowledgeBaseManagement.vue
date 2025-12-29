@@ -214,8 +214,8 @@ const formData = reactive({
 // 初始化默认scope_type（简化版）
 const initDefaultScopeType = () => {
   // 所有用户默认创建私有知识库
-  formData.scope_type = 'personal'
-  formData.scope_id = userId.value
+    formData.scope_type = 'personal'
+    formData.scope_id = userId.value
 }
 
 // 方法
@@ -269,9 +269,9 @@ const formatTime = (dateStr) => {
 const handleScopeTypeChange = (scopeType) => {
   // 根据类型自动设置scope_id
   if (scopeType === 'system') {
-    formData.scope_id = null
+      formData.scope_id = null
   } else {
-    formData.scope_id = userId.value
+      formData.scope_id = userId.value
   }
 }
 
@@ -330,9 +330,9 @@ const handleSubmit = async () => {
   const submitData = { ...formData }
   
   if (submitData.scope_type === 'system') {
-    submitData.scope_id = null
+      submitData.scope_id = null
   } else {
-    submitData.scope_id = userId.value
+      submitData.scope_id = userId.value
   }
 
   try {

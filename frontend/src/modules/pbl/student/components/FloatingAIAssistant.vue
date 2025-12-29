@@ -497,11 +497,11 @@ defineExpose({
 // ===== 对话窗口 =====
 .chat-window {
   position: fixed;
-  bottom: 100px;
+  bottom: 90px;
   right: 24px;
   width: 420px;
-  height: 640px;
-  max-height: calc(100vh - 140px);
+  height: 760px;
+  max-height: calc(100vh - 110px);
   background: white;
   border-radius: 20px;
   box-shadow: 
@@ -513,6 +513,7 @@ defineExpose({
   backdrop-filter: blur(20px);
   border: 1px solid rgba(102, 126, 234, 0.1);
   animation: float 3s ease-in-out infinite;
+  z-index: 10000;
 }
 
 .chat-header {
@@ -524,6 +525,8 @@ defineExpose({
   align-items: center;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
   position: relative;
+  z-index: 10;
+  flex-shrink: 0;
   
   &::after {
     content: '';
@@ -595,6 +598,8 @@ defineExpose({
 .header-actions {
   display: flex;
   gap: 8px;
+  position: relative;
+  z-index: 20;
 }
 
 .header-btn {
@@ -610,6 +615,9 @@ defineExpose({
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
   
   &:hover {
     background: rgba(255, 255, 255, 0.25);
