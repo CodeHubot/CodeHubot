@@ -93,9 +93,7 @@
       <el-main class="layout-main">
         <router-view v-slot="{ Component }">
           <transition name="fade-transform" mode="out-in">
-            <keep-alive>
-              <component :is="Component" />
-            </keep-alive>
+            <component :is="Component" />
           </transition>
         </router-view>
       </el-main>

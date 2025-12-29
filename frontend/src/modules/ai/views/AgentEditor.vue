@@ -859,10 +859,13 @@ watch(
       knowledgeBases.value = []
       
       if (newUuid) {
-        // 编辑模式：先清空表单，再加载智能体数据
-        resetForm()
+        // 编辑模式：显示 loading，然后加载新智能体数据
+        // 不先调用 resetForm()，让 loadAgent() 内部的 Object.assign 直接覆盖旧数据
+        // 这样可以避免显示空白表单的闪烁
+        loading.value = true
         await loadAgent()
         loadKnowledgeBases()
+        loading.value = false
       } else {
         // 新建模式：清空表单
         resetForm()
