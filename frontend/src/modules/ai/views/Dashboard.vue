@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { Avatar, Connection, Collection, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getAIStats } from '../api/dashboard'
@@ -80,6 +80,11 @@ const stats = ref({
 const loading = ref(false)
 
 onMounted(() => {
+  loadStats()
+})
+
+// 当从其他页面返回时刷新统计数据
+onActivated(() => {
   loadStats()
 })
 
