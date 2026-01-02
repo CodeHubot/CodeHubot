@@ -278,6 +278,55 @@ async def chat_with_agent(
         system_content += knowledge_context
         system_content += "\n\n请基于以上参考内容回答用户问题。如果参考内容中没有相关信息，可以使用你的知识进行回答，但请说明这不是来自参考资料。"
     
+    # 检测用户消息是否包含批量操作关键词或多个设备编号
+    batch_keywords = ["依次", "分别", "批量", "全部", "所有", "一起", "同时", "逐个", "逐一"]
+    user_message_lower = request.message.lower()
+    
+    # 检测是否有批量关键词
+    has_batch_keyword = any(keyword in request.message for keyword in batch_keywords)
+    
+    # 检测是否列举了多个设备（如 LED1 LED2 LED3）
+    import re
+    # 匹配 LED1、LED2 这样的模式
+    led_pattern = r'LED\s*\d+'
+    relay_pattern = r'继电器\s*\d+|relay\s*\d+'
+    servo_pattern = r'舵机\s*\d+|servo\s*\d+'
+    
+    led_matches = re.findall(led_pattern, request.message, re.IGNORECASE)
+    relay_matches = re.findall(relay_pattern, request.message, re.IGNORECASE)
+    servo_matches = re.findall(servo_pattern, request.message, re.IGNORECASE)
+    
+    # 如果找到2个以上的设备，视为批量操作
+    has_multiple_devices = (len(led_matches) >= 2 or 
+                           len(relay_matches) >= 2 or 
+                           len(servo_matches) >= 2)
+    
+    is_batch_operation = has_batch_keyword or has_multiple_devices
+    
+    # 如果是批量操作且有插件，添加批量操作指导（作为智能体提示词的补充增强）
+    if is_batch_operation and functions:
+        batch_operation_guide = """
+
+【批量操作提醒】
+检测到你需要执行批量操作。请注意：
+1. 必须连续多次调用工具，每次处理一个设备/任务
+2. 不要在完成第一个任务后就返回文本回复
+3. 继续调用工具，直到所有任务都完成
+4. 最后返回汇总信息
+
+示例：
+用户说"关闭LED1 LED2 LED3"时，正确流程是：
+  → 调用工具关闭LED1
+  → 调用工具关闭LED2  
+  → 调用工具关闭LED3
+  → 返回"✅ 已关闭LED1、LED2、LED3"
+
+错误流程：
+  → 调用工具关闭LED1
+  → 直接返回"✅ 已关闭LED1" ❌（错误！还有LED2和LED3未处理）
+"""
+        system_content += batch_operation_guide
+    
     # 始终添加系统提示词
     messages.append({
         "role": "system",
@@ -371,8 +420,13 @@ async def chat_with_agent(
             total_completion_tokens += usage.get("completion_tokens", 0)
             total_tokens += usage.get("total_tokens", 0)
         
-        # 7. 处理函数调用
-        if "function_call" in result:
+        # 7. 处理函数调用（支持多次连续调用）
+        max_function_calls = 10  # 防止无限循环，最多连续调用10次
+        function_call_count = 0
+        
+        while "function_call" in result and function_call_count < max_function_calls:
+            function_call_count += 1
+            
             function_call = result["function_call"]
             function_name = function_call["name"]
             function_args = function_call["arguments"]
@@ -417,10 +471,14 @@ async def chat_with_agent(
                 "content": plugin_service.format_function_result(function_result)
             })
             
-            # 再次调用模型，让它基于函数结果生成回复
-            result = llm_service.chat(messages=messages)
+            # 再次调用模型，让它基于函数结果生成回复或继续调用函数
+            result = llm_service.chat(
+                messages=messages,
+                functions=functions if functions else None,
+                function_call="auto" if functions else None
+            )
             
-            # 累计第二次调用的 token
+            # 累计后续调用的 token
             if "usage" in result:
                 usage = result["usage"]
                 total_prompt_tokens += usage.get("prompt_tokens", 0)
