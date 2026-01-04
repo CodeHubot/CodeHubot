@@ -21,9 +21,25 @@ const routes = [
     meta: { title: '登录', public: true }
   },
   
-  // 门户页（系统选择）
+  // 根路径重定向到PBL平台
   {
     path: '/',
+    redirect: () => {
+      const authStore = useAuthStore()
+      // 根据用户角色重定向到对应的PBL页面
+      if (authStore.isStudent) return '/pbl/student/courses'
+      if (authStore.isTeacher) return '/pbl/school/dashboard'
+      if (authStore.isSchoolAdmin) return '/pbl/school/dashboard'
+      if (authStore.isChannelPartner) return '/pbl/channel/schools'
+      if (authStore.isAdmin || authStore.isChannelManager) return '/pbl/admin/schools'
+      return '/pbl'
+    },
+    meta: { requiresAuth: true }
+  },
+  
+  // 门户页（系统选择）- 保留但不作为默认页
+  {
+    path: '/portal',
     name: 'Portal',
     component: () => import('@/views/Portal.vue'),
     meta: { title: '系统门户', requiresAuth: true }
@@ -82,9 +98,20 @@ router.beforeEach(async (to, from, next) => {
     // 检查是否有 token
     const hasToken = localStorage.getItem('access_token')
     
-    // 如果有token且访问登录页，跳转到门户
+    // 如果有token且访问登录页，跳转到PBL平台
     if (to.path === '/login' && hasToken && authStore.isAuthenticated) {
-      next('/')
+      // 根据用户角色跳转到对应的PBL页面
+      let targetPath = '/pbl'
+      if (authStore.isStudent) {
+        targetPath = '/pbl/student/courses'
+      } else if (authStore.isTeacher || authStore.isSchoolAdmin) {
+        targetPath = '/pbl/school/dashboard'
+      } else if (authStore.isChannelPartner) {
+        targetPath = '/pbl/channel/schools'
+      } else if (authStore.isAdmin || authStore.isChannelManager) {
+        targetPath = '/pbl/admin/schools'
+      }
+      next(targetPath)
       return
     }
     next()
@@ -111,7 +138,18 @@ router.beforeEach(async (to, from, next) => {
     }
     if (!to.meta.roles.includes(userRole)) {
       ElMessage.error('没有权限访问该页面')
-      next('/')
+      // 跳转到用户对应的默认页面
+      if (authStore.isStudent) {
+        next('/pbl/student/courses')
+      } else if (authStore.isTeacher || authStore.isSchoolAdmin) {
+        next('/pbl/school/dashboard')
+      } else if (authStore.isChannelPartner) {
+        next('/pbl/channel/schools')
+      } else if (authStore.isAdmin || authStore.isChannelManager) {
+        next('/pbl/admin/schools')
+      } else {
+        next('/pbl')
+      }
       return
     }
   }
@@ -120,7 +158,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAdmin) {
     if (!authStore.isAdmin) {
       ElMessage.error('只有管理员可以访问该页面')
-      next('/')
+      next('/pbl')
       return
     }
   }
@@ -130,7 +168,7 @@ router.beforeEach(async (to, from, next) => {
     const userRole = authStore.userInfo?.role
     if (userRole !== 'platform_admin') {
       ElMessage.error('只有平台管理员可以访问该页面')
-      next('/')
+      next('/pbl')
       return
     }
   }

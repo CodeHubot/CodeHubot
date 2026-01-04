@@ -186,9 +186,9 @@
           >
             <el-option
               v-for="partner in partners"
-              :key="partner.id"
+              :key="partner.uuid"
               :label="`${partner.name} (${partner.username})`"
-              :value="partner.id"
+              :value="partner.uuid"
             />
           </el-select>
         </el-form-item>
@@ -342,8 +342,8 @@ async function handleAssign() {
   assigning.value = true
   try {
     await assignSchoolsToPartner({
-      channel_partner_id: selectedPartnerId.value,
-      school_ids: [currentSchool.value.id]
+      channel_partner_uuid: selectedPartnerId.value,
+      school_uuids: [currentSchool.value.uuid]
     })
     ElMessage.success('渠道商分配成功')
     assignDialogVisible.value = false

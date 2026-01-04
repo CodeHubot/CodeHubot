@@ -44,6 +44,16 @@ export function getCourseDetail(courseUuid) {
 }
 
 /**
+ * 获取课程学生作业提交统计
+ */
+export function getCourseStudentSubmissions(courseUuid) {
+  return request({
+    url: `/pbl/channel/courses/${courseUuid}/student-submissions`,
+    method: 'get'
+  })
+}
+
+/**
  * 获取课程进度
  */
 export function getCourseProgress(courseUuid) {

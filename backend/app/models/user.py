@@ -3,11 +3,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 from app.utils.timezone import get_beijing_time_naive
+import uuid as uuid_lib
 
 class User(Base):
     __tablename__ = "core_users"
     
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID，用于外部API访问')
     email = Column(String(255), unique=True, index=True, nullable=True)  # 改为可选
     username = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(100), nullable=True, comment='姓名')
@@ -26,6 +28,9 @@ class User(Base):
     teacher_number = Column(String(50), nullable=True, index=True, comment='教师工号（仅教师/学校管理员有）')
     student_number = Column(String(50), nullable=True, index=True, comment='学生学号（仅学生有）')
     subject = Column(String(50), nullable=True, comment='教师学科')
+    
+    # 渠道商字段
+    company_name = Column(String(200), nullable=True, comment='公司名称（仅渠道商有）')
     
     # 状态字段
     is_active = Column(Boolean, default=True)

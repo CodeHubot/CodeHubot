@@ -89,8 +89,10 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     """用户响应Schema - 不包含敏感信息"""
     id: int
+    uuid: Optional[str] = None
     email: Optional[str] = None
     username: str
+    name: Optional[str] = None
     real_name: Optional[str] = None
     nickname: Optional[str] = None
     phone: Optional[str] = None
@@ -100,6 +102,7 @@ class UserResponse(BaseModel):
     teacher_number: Optional[str] = None
     student_number: Optional[str] = None
     subject: Optional[str] = None
+    company_name: Optional[str] = None
     is_active: bool
     need_change_password: bool = False
     last_login: Optional[datetime] = None

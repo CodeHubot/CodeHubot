@@ -131,7 +131,7 @@ function handleSearch() {
 function viewSchoolCourses(school) {
   router.push({
     name: 'ChannelSchoolCourses',
-    params: { schoolId: school.school_id }
+    params: { schoolId: school.uuid }
   })
 }
 

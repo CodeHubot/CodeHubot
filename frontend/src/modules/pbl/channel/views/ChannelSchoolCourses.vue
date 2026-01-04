@@ -146,20 +146,24 @@ function formatDate(dateStr) {
 
 function getStatusType(status) {
   const typeMap = {
+    'draft': 'info',
+    'published': 'success',
+    'archived': 'warning',
     'not_started': 'info',
     'in_progress': 'success',
-    'completed': 'warning',
-    'archived': 'info'
+    'completed': 'warning'
   }
   return typeMap[status] || 'info'
 }
 
 function getStatusText(status) {
   const textMap = {
+    'draft': '草稿',
+    'published': '已发布',
+    'archived': '已归档',
     'not_started': '未开始',
     'in_progress': '进行中',
-    'completed': '已完成',
-    'archived': '已归档'
+    'completed': '已完成'
   }
   return textMap[status] || status
 }

@@ -122,7 +122,7 @@ const selectedSchools = ref([])
 const assigning = ref(false)
 
 function goBack() {
-  router.push({ name: 'ChannelPartners' })
+  router.push({ name: 'AdminChannelPartners' })
 }
 
 async function fetchDetail() {
@@ -144,14 +144,14 @@ async function showAssignDialog() {
   try {
     const response = await getAvailableSchools()
     availableSchools.value = (response.data || []).map(school => ({
-      key: school.id,
+      key: school.uuid,
       label: school.name
     }))
     
     // 预选已分配的学校
     selectedSchools.value = schools.value
       .filter(s => s.is_active)
-      .map(s => s.school_id)
+      .map(s => s.school_uuid)
     
     assignDialogVisible.value = true
   } catch (error) {
@@ -168,8 +168,8 @@ async function handleAssign() {
   assigning.value = true
   try {
     await assignSchoolsToPartner({
-      channel_partner_id: parseInt(route.params.partnerId),
-      school_ids: selectedSchools.value
+      channel_partner_uuid: route.params.partnerId,
+      school_uuids: selectedSchools.value
     })
     ElMessage.success('学校分配成功')
     assignDialogVisible.value = false
@@ -192,7 +192,7 @@ function removeSchool(school) {
     }
   ).then(async () => {
     try {
-      await removeSchoolFromPartner(partnerInfo.value.id, school.school_id)
+      await removeSchoolFromPartner(partnerInfo.value.uuid, school.school_uuid)
       ElMessage.success('关联已解除')
       fetchDetail()
     } catch (error) {

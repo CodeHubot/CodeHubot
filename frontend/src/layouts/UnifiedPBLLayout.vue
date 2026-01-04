@@ -1,20 +1,33 @@
 <template>
-  <div class="pbl-student-layout">
+  <div class="pbl-unified-layout">
     <!-- 顶部导航栏 -->
     <el-header class="header">
       <div class="header-left">
         <div class="logo">
           <el-icon :size="28" color="#3b82f6"><Reading /></el-icon>
-          <h2>PBL 学习平台</h2>
+          <h2>{{ platformTitle }}</h2>
         </div>
       </div>
       
       <div class="header-right">
-        <!-- 切换系统按钮 -->
-        <el-button text class="switch-system-btn" @click="backToPortal">
-          <el-icon :size="18"><Grid /></el-icon>
-          <span>切换系统</span>
-        </el-button>
+        <!-- 系统快速链接（渠道商不显示） -->
+        <div class="system-links" v-if="hasOtherSystems && !authStore.isChannelPartner">
+          <!-- 设备管理系统 - 新窗口打开 -->
+          <el-tooltip content="设备管理系统（新窗口打开）" placement="bottom" v-if="moduleConfig.enable_device_module">
+            <el-button text class="system-link-btn" @click="goToDevice">
+              <el-icon :size="18"><Setting /></el-icon>
+              <span class="link-text">设备管理</span>
+            </el-button>
+          </el-tooltip>
+          
+          <!-- 智能体开发系统 - 新窗口打开 -->
+          <el-tooltip content="智能体开发系统（新窗口打开）" placement="bottom" v-if="moduleConfig.enable_ai_module">
+            <el-button text class="system-link-btn" @click="goToAI">
+              <el-icon :size="18"><MagicStick /></el-icon>
+              <span class="link-text">智能体开发</span>
+            </el-button>
+          </el-tooltip>
+        </div>
         
         <!-- 消息通知 -->
         <el-tooltip content="消息通知" placement="bottom">
@@ -33,7 +46,7 @@
             </el-avatar>
             <div class="user-details">
               <div class="user-name">{{ userName }}</div>
-              <div class="user-role">学生</div>
+              <div class="user-role">{{ roleText }}</div>
             </div>
             <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
           </div>
@@ -71,35 +84,8 @@
           />
         </div>
         
-        <el-menu
-          :default-active="$route.path"
-          class="sidebar-menu"
-          router
-          :collapse="isCollapsed"
-          background-color="transparent"
-          text-color="#374151"
-          active-text-color="#3b82f6"
-        >
-          <el-menu-item index="/pbl/student/courses" class="menu-item">
-            <el-icon><Reading /></el-icon>
-            <template #title>我的课程</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/pbl/student/tasks" class="menu-item">
-            <el-icon><Document /></el-icon>
-            <template #title>我的任务</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/pbl/student/learning-assistant" class="menu-item">
-            <el-icon><ChatDotRound /></el-icon>
-            <template #title>AI学习助手</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/pbl/student/portfolio" class="menu-item">
-            <el-icon><Collection /></el-icon>
-            <template #title>学习档案</template>
-          </el-menu-item>
-        </el-menu>
+        <!-- 动态侧边栏菜单 -->
+        <component :is="currentSidebarMenu" :is-collapsed="isCollapsed" />
       </el-aside>
       
       <!-- 主内容 -->
@@ -129,7 +115,6 @@ import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Reading,
-  Grid,
   User,
   Lock,
   SwitchButton,
@@ -137,12 +122,18 @@ import {
   Bell,
   Expand,
   Fold,
-  Document,
-  Folder,
-  Collection,
-  ChatDotRound
+  Setting,
+  MagicStick
 } from '@element-plus/icons-vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
+import { getModuleConfig } from '@/modules/device/api/systemConfig'
+
+// 导入各角色的侧边栏组件
+import StudentSidebar from '@/components/pbl/StudentSidebar.vue'
+import TeacherSidebar from '@/components/pbl/TeacherSidebar.vue'
+import SchoolAdminSidebar from '@/components/pbl/SchoolAdminSidebar.vue'
+import PlatformAdminSidebar from '@/components/pbl/PlatformAdminSidebar.vue'
+import ChannelSidebar from '@/components/pbl/ChannelSidebar.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -152,6 +143,13 @@ const authStore = useAuthStore()
 const isCollapsed = ref(false)
 const unreadCount = ref(0)
 
+// 模块配置
+const moduleConfig = ref({
+  enable_device_module: false,
+  enable_ai_module: false,
+  enable_pbl_module: true
+})
+
 // 对话框状态
 const profileDialogVisible = ref(false)
 const profileDialogTab = ref('profile')
@@ -159,13 +157,50 @@ const forceChangePassword = ref(false)
 
 // ===== 计算属性 =====
 const userName = computed(() => {
-  return authStore.userName || authStore.userInfo?.full_name || authStore.userInfo?.username || '学生用户'
+  return authStore.userName || authStore.userInfo?.full_name || authStore.userInfo?.username || '用户'
+})
+
+// 平台标题（根据角色动态显示）
+const platformTitle = computed(() => {
+  if (authStore.isStudent) return 'PBL 学习平台'
+  if (authStore.isTeacher) return 'PBL 教学平台'
+  if (authStore.isSchoolAdmin) return 'PBL 学校管理'
+  if (authStore.isChannelPartner) return 'PBL 渠道商平台'
+  if (authStore.isAdmin || authStore.isChannelManager) return 'PBL 管理平台'
+  return 'PBL 平台'
+})
+
+// 角色文本
+const roleText = computed(() => {
+  if (authStore.isStudent) return '学生'
+  if (authStore.isTeacher) return '教师'
+  if (authStore.isSchoolAdmin) return '学校管理员'
+  if (authStore.isChannelPartner) return '渠道商'
+  if (authStore.isAdmin) return '平台管理员'
+  if (authStore.isChannelManager) return '渠道管理员'
+  return '用户'
+})
+
+// 当前侧边栏菜单组件（根据角色动态选择）
+const currentSidebarMenu = computed(() => {
+  if (authStore.isStudent) return StudentSidebar
+  if (authStore.isTeacher) return TeacherSidebar
+  if (authStore.isSchoolAdmin) return SchoolAdminSidebar
+  if (authStore.isChannelPartner) return ChannelSidebar
+  if (authStore.isAdmin || authStore.isChannelManager) return PlatformAdminSidebar
+  return StudentSidebar // 默认
+})
+
+// 是否有其他系统可访问
+const hasOtherSystems = computed(() => {
+  return moduleConfig.value.enable_device_module || moduleConfig.value.enable_ai_module
 })
 
 // ===== 生命周期 =====
 onMounted(() => {
   checkForceChangePassword()
   loadUnreadCount()
+  loadModuleConfig()
 })
 
 // ===== 方法 =====
@@ -191,6 +226,21 @@ function loadUnreadCount() {
 }
 
 /**
+ * 加载模块配置
+ */
+async function loadModuleConfig() {
+  try {
+    const response = await getModuleConfig()
+    if (response.data) {
+      moduleConfig.value = response.data
+    }
+  } catch (error) {
+    console.error('加载模块配置失败:', error)
+    // 失败时使用默认值，不影响用户体验
+  }
+}
+
+/**
  * 切换侧边栏折叠状态
  */
 function toggleSidebar() {
@@ -198,10 +248,17 @@ function toggleSidebar() {
 }
 
 /**
- * 返回系统门户
+ * 在新窗口打开设备管理系统
  */
-function backToPortal() {
-  router.push('/')
+function goToDevice() {
+  window.open('/device/dashboard', '_blank')
+}
+
+/**
+ * 在新窗口打开智能体开发系统
+ */
+function goToAI() {
+  window.open('/ai/dashboard', '_blank')
 }
 
 /**
@@ -245,7 +302,7 @@ function handlePasswordChanged() {
 </script>
 
 <style scoped lang="scss">
-.pbl-student-layout {
+.pbl-unified-layout {
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -297,18 +354,26 @@ function handlePasswordChanged() {
   gap: 8px;
 }
 
-.switch-system-btn {
+// 系统快速链接
+.system-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.system-link-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px !important;
+  padding: 8px 12px !important;
   height: 36px;
   border-radius: 8px;
   color: #64748b !important;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.3s ease;
   
-  span {
+  .link-text {
     font-weight: 500;
   }
   
@@ -388,12 +453,15 @@ function handlePasswordChanged() {
   border-right: 1px solid rgba(0, 0, 0, 0.06);
   transition: width 0.3s ease;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .menu-toggle {
   padding: 16px;
   text-align: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
 }
 
 .toggle-btn {
@@ -405,35 +473,6 @@ function handlePasswordChanged() {
 .toggle-btn:hover {
   background: rgba(59, 130, 246, 0.08) !important;
   color: #3b82f6 !important;
-}
-
-.sidebar-menu {
-  border: none;
-  height: calc(100vh - 128px);
-  overflow-y: auto;
-  background: transparent !important;
-}
-
-:deep(.menu-item) {
-  margin: 4px 12px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-:deep(.menu-item:hover) {
-  background: rgba(59, 130, 246, 0.08) !important;
-  transform: translateX(4px);
-}
-
-:deep(.menu-item.is-active) {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08)) !important;
-  color: #3b82f6 !important;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-  border-left: 3px solid #3b82f6;
-}
-
-:deep(.menu-item.is-active .el-icon) {
-  color: #3b82f6;
 }
 
 .main-content {
@@ -468,6 +507,18 @@ function handlePasswordChanged() {
     padding: 0 16px;
   }
   
+  // 移动端隐藏系统链接的文字，只显示图标
+  .system-link-btn .link-text {
+    display: none;
+  }
+  
+  .system-link-btn {
+    padding: 8px !important;
+    width: 36px;
+    height: 36px;
+    justify-content: center;
+  }
+  
   .user-details {
     display: none;
   }
@@ -482,19 +533,6 @@ function handlePasswordChanged() {
 }
 
 // ===== 滚动条样式 =====
-.sidebar-menu::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-menu::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
-}
-
-.sidebar-menu::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.3);
-}
-
 .main-content::-webkit-scrollbar {
   width: 8px;
 }
@@ -508,3 +546,4 @@ function handlePasswordChanged() {
   background: rgba(59, 130, 246, 0.3);
 }
 </style>
+

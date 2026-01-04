@@ -45,8 +45,8 @@ class ChannelPartnerUpdate(BaseModel):
 
 class AssignSchoolRequest(BaseModel):
     """分配学校请求"""
-    channel_partner_id: int = Field(..., description="渠道商ID")
-    school_ids: List[int] = Field(..., description="学校ID列表")
+    channel_partner_uuid: str = Field(..., description="渠道商UUID")
+    school_uuids: List[str] = Field(..., description="学校UUID列表")
 
 
 class ResetPasswordRequest(BaseModel):
@@ -161,16 +161,16 @@ def create_channel_partner(
     )
 
 
-@router.get("/partners/{partner_id}")
+@router.get("/partners/{partner_uuid}")
 def get_channel_partner_detail(
-    partner_id: int,
+    partner_uuid: str,
     current_manager: Admin = Depends(get_current_channel_manager),
     db: Session = Depends(get_db)
 ):
     """获取渠道商详情（含负责的学校列表）"""
     # 查询渠道商
     partner = db.query(Admin).filter(
-        Admin.id == partner_id,
+        Admin.uuid == partner_uuid,
         Admin.role == 'channel_partner'
     ).first()
     
@@ -178,23 +178,25 @@ def get_channel_partner_detail(
         return error_response(message="渠道商不存在", code=404)
     
     # 查询负责的学校
-    from ...models.pbl import School
+    from ...models.school import School
     relations = db.query(
         ChannelSchoolRelation.id,
         ChannelSchoolRelation.school_id,
-        School.name.label('school_name'),
+        School.uuid.label('school_uuid'),
+        School.school_name.label('school_name'),
         ChannelSchoolRelation.is_active,
         ChannelSchoolRelation.created_at
     ).join(
         School, School.id == ChannelSchoolRelation.school_id
     ).filter(
-        ChannelSchoolRelation.channel_partner_id == partner_id
+        ChannelSchoolRelation.channel_partner_id == partner.id
     ).all()
     
     schools = [
         {
             'relation_id': r.id,
             'school_id': r.school_id,
+            'school_uuid': r.school_uuid,
             'school_name': r.school_name,
             'is_active': r.is_active,
             'assigned_at': r.created_at.isoformat() if r.created_at else None
@@ -208,19 +210,19 @@ def get_channel_partner_detail(
     return success_response(data=partner_data)
 
 
-@router.put("/partners/{partner_id}")
+@router.put("/partners/{partner_uuid}")
 def update_channel_partner(
-    partner_id: int,
+    partner_uuid: str,
     partner_data: ChannelPartnerUpdate,
     current_manager: Admin = Depends(get_current_channel_manager),
     db: Session = Depends(get_db)
 ):
     """更新渠道商信息"""
-    logger.info(f"渠道管理员 {current_manager.username} 更新渠道商: {partner_id}")
+    logger.info(f"渠道管理员 {current_manager.username} 更新渠道商: {partner_uuid}")
     
     # 查询渠道商
     partner = db.query(Admin).filter(
-        Admin.id == partner_id,
+        Admin.uuid == partner_uuid,
         Admin.role == 'channel_partner'
     ).first()
     
@@ -245,19 +247,19 @@ def update_channel_partner(
     )
 
 
-@router.post("/partners/{partner_id}/reset-password")
+@router.post("/partners/{partner_uuid}/reset-password")
 def reset_partner_password(
-    partner_id: int,
+    partner_uuid: str,
     request: ResetPasswordRequest,
     current_manager: Admin = Depends(get_current_channel_manager),
     db: Session = Depends(get_db)
 ):
     """重置渠道商密码"""
-    logger.info(f"渠道管理员 {current_manager.username} 重置渠道商密码: {partner_id}")
+    logger.info(f"渠道管理员 {current_manager.username} 重置渠道商密码: {partner_uuid}")
     
     # 查询渠道商
     partner = db.query(Admin).filter(
-        Admin.id == partner_id,
+        Admin.uuid == partner_uuid,
         Admin.role == 'channel_partner'
     ).first()
     
@@ -280,30 +282,30 @@ def assign_schools_to_partner(
     db: Session = Depends(get_db)
 ):
     """为渠道商分配学校"""
-    logger.info(f"渠道管理员 {current_manager.username} 为渠道商 {request.channel_partner_id} 分配学校: {request.school_ids}")
+    logger.info(f"渠道管理员 {current_manager.username} 为渠道商 {request.channel_partner_uuid} 分配学校: {request.school_uuids}")
     
-    # 验证渠道商是否存在
+    # 验证渠道商是否存在（通过UUID）
     partner = db.query(Admin).filter(
-        Admin.id == request.channel_partner_id,
+        Admin.uuid == request.channel_partner_uuid,
         Admin.role == 'channel_partner'
     ).first()
     
     if not partner:
         return error_response(message="渠道商不存在", code=404)
     
-    # 验证学校是否存在
-    from ...models.pbl import School
-    schools = db.query(School).filter(School.id.in_(request.school_ids)).all()
-    if len(schools) != len(request.school_ids):
+    # 验证学校是否存在（通过UUID）
+    from ...models.school import School
+    schools = db.query(School).filter(School.uuid.in_(request.school_uuids)).all()
+    if len(schools) != len(request.school_uuids):
         return error_response(message="部分学校不存在", code=404)
     
     # 为每个学校创建关联（如果不存在）
     added_count = 0
-    for school_id in request.school_ids:
+    for school in schools:
         # 检查是否已存在关联
         existing = db.query(ChannelSchoolRelation).filter(
-            ChannelSchoolRelation.channel_partner_id == request.channel_partner_id,
-            ChannelSchoolRelation.school_id == school_id
+            ChannelSchoolRelation.channel_partner_id == partner.id,
+            ChannelSchoolRelation.school_id == school.id
         ).first()
         
         if existing:
@@ -315,8 +317,8 @@ def assign_schools_to_partner(
         else:
             # 创建新关联
             new_relation = ChannelSchoolRelation(
-                channel_partner_id=request.channel_partner_id,
-                school_id=school_id,
+                channel_partner_id=partner.id,
+                school_id=school.id,
                 is_active=1,
                 created_at=get_beijing_time_naive(),
                 updated_at=get_beijing_time_naive()
@@ -333,20 +335,36 @@ def assign_schools_to_partner(
     )
 
 
-@router.delete("/partners/{partner_id}/schools/{school_id}")
+@router.delete("/partners/{partner_uuid}/schools/{school_uuid}")
 def remove_school_from_partner(
-    partner_id: int,
-    school_id: int,
+    partner_uuid: str,
+    school_uuid: str,
     current_manager: Admin = Depends(get_current_channel_manager),
     db: Session = Depends(get_db)
 ):
     """解除渠道商与学校的关联"""
-    logger.info(f"渠道管理员 {current_manager.username} 解除渠道商 {partner_id} 与学校 {school_id} 的关联")
+    logger.info(f"渠道管理员 {current_manager.username} 解除渠道商 {partner_uuid} 与学校 {school_uuid} 的关联")
+    
+    # 查询渠道商获取 ID
+    partner = db.query(Admin).filter(
+        Admin.uuid == partner_uuid,
+        Admin.role == 'channel_partner'
+    ).first()
+    
+    if not partner:
+        return error_response(message="渠道商不存在", code=404)
+    
+    # 查询学校获取 ID
+    from ...models.school import School
+    school = db.query(School).filter(School.uuid == school_uuid).first()
+    
+    if not school:
+        return error_response(message="学校不存在", code=404)
     
     # 查找关联
     relation = db.query(ChannelSchoolRelation).filter(
-        ChannelSchoolRelation.channel_partner_id == partner_id,
-        ChannelSchoolRelation.school_id == school_id
+        ChannelSchoolRelation.channel_partner_id == partner.id,
+        ChannelSchoolRelation.school_id == school.id
     ).first()
     
     if not relation:
@@ -370,7 +388,7 @@ def create_school(
     """创建学校"""
     logger.info(f"渠道管理员 {current_manager.username} 创建学校: {school_data.school_name}")
     
-    from ...models.pbl import School
+    from ...models.school import School
     from datetime import datetime
     
     # 检查学校代码是否已存在
@@ -448,7 +466,7 @@ def get_schools(
     db: Session = Depends(get_db)
 ):
     """获取所有学校列表（含渠道商分配信息）"""
-    from ...models.pbl import School
+    from ...models.school import School
     schools = db.query(School).all()
     
     result = []
@@ -491,12 +509,13 @@ def get_available_schools(
     db: Session = Depends(get_db)
 ):
     """获取所有可分配的学校列表"""
-    from ...models.pbl import School
+    from ...models.school import School
     schools = db.query(School).all()
     
     result = [
         {
             'id': school.id,
+            'uuid': school.uuid,
             'name': school.school_name,
             'created_at': school.created_at.isoformat() if school.created_at else None
         }
@@ -530,7 +549,7 @@ def get_channel_statistics(
     ).scalar()
     
     # 有渠道商的学校数
-    from ...models.pbl import School
+    from ...models.school import School
     schools_with_partner = db.query(
         func.count(func.distinct(ChannelSchoolRelation.school_id))
     ).filter(

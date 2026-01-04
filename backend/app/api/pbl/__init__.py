@@ -126,7 +126,7 @@ except ImportError as e:
 
 try:
     from app.api.pbl.channel_schools import router as channel_schools_router
-    pbl_router.include_router(channel_schools_router, prefix="/channel/schools", tags=["PBL-渠道学校"])
+    pbl_router.include_router(channel_schools_router, prefix="/channel", tags=["PBL-渠道学校"])
 except ImportError as e:
     print(f"警告: 无法导入channel_schools: {e}")
 

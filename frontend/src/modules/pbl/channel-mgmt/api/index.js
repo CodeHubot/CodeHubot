@@ -52,7 +52,7 @@ export function resetPartnerPassword(partnerId, newPassword) {
   return request({
     url: `/pbl/channel-management/partners/${partnerId}/reset-password`,
     method: 'post',
-    params: { new_password: newPassword }
+    data: { new_password: newPassword }
   })
 }
 
@@ -70,9 +70,9 @@ export function assignSchoolsToPartner(data) {
 /**
  * 解除渠道商与学校的关联
  */
-export function removeSchoolFromPartner(partnerId, schoolId) {
+export function removeSchoolFromPartner(partnerUuid, schoolUuid) {
   return request({
-    url: `/pbl/channel-management/partners/${partnerId}/schools/${schoolId}`,
+    url: `/pbl/channel-management/partners/${partnerUuid}/schools/${schoolUuid}`,
     method: 'delete'
   })
 }

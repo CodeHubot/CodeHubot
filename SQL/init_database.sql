@@ -119,6 +119,7 @@ START TRANSACTION;
 
 CREATE TABLE `core_users` (
   `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
   `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '邮箱（学生非必填）',
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '电话（学生非必填）',
   `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '用户名',
@@ -135,6 +136,7 @@ CREATE TABLE `core_users` (
   `teacher_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '教师工号（仅教师/学校管理员有）',
   `student_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '学号（学生必填）',
   `subject` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '教师学科',
+  `company_name` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '公司名称（仅渠道商有）',
   `is_active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '是否激活',
   `need_change_password` tinyint(1) DEFAULT '0' COMMENT '首次登录需修改密码',
   `last_login` datetime DEFAULT NULL COMMENT '最后登录时间',
@@ -890,6 +892,7 @@ CREATE TABLE `workflow_executions` (
 -- 注意：对于 VARCHAR 长度较大的字段，使用前缀索引以避免超过 767 字节限制（utf8mb4 每字符最多4字节）
 --
 ALTER TABLE `core_users`
+  ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `email` (`email`(191)),
   ADD UNIQUE KEY `uk_school_teacher_number` (`school_id`,`teacher_number`),

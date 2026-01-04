@@ -20,9 +20,9 @@
           >
             <el-option
               v-for="partner in partners"
-              :key="partner.id"
+              :key="partner.uuid"
               :label="`${partner.name} (${partner.username})`"
-              :value="partner.id"
+              :value="partner.uuid"
             />
           </el-select>
         </el-form-item>
@@ -83,7 +83,7 @@ async function loadSchools() {
   try {
     const response = await getAvailableSchools()
     allSchools.value = (response.data || []).map(school => ({
-      key: school.id,
+      key: school.uuid,
       label: school.name
     }))
   } catch (error) {
@@ -99,7 +99,7 @@ async function loadPartnerSchools() {
     const schools = response.data?.schools || []
     assignedSchoolIds.value = schools
       .filter(s => s.is_active)
-      .map(s => s.school_id)
+      .map(s => s.school_uuid)
     originalAssignedIds.value = [...assignedSchoolIds.value]
   } catch (error) {
     ElMessage.error('获取渠道商学校失败')
@@ -115,8 +115,8 @@ async function handleSave() {
   saving.value = true
   try {
     await assignSchoolsToPartner({
-      channel_partner_id: selectedPartnerId.value,
-      school_ids: assignedSchoolIds.value
+      channel_partner_uuid: selectedPartnerId.value,
+      school_uuids: assignedSchoolIds.value
     })
     ElMessage.success('学校分配成功')
     originalAssignedIds.value = [...assignedSchoolIds.value]
