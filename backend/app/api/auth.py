@@ -79,7 +79,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         # 创建用户（默认为独立用户）
         hashed_password = get_password_hash(user_data.password)
         db_user = User(
-            email=user_data.email,  # 可以是 None
+            email=user_data.email or None,  # 空字符串转为 None，避免唯一索引冲突
             username=user_data.username,
             password_hash=hashed_password,
             role='individual',  # 默认为独立用户

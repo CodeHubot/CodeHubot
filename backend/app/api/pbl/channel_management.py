@@ -135,13 +135,14 @@ def create_channel_partner(
             return error_response(message="邮箱已被使用", code=400)
     
     # 创建渠道商账号
+    # 将空字符串转换为 None，避免唯一索引冲突
     new_partner = Admin(
         username=partner_data.username,
         password_hash=get_password_hash(partner_data.password),
         name=partner_data.name,
-        company_name=partner_data.company_name,
-        phone=partner_data.phone,
-        email=partner_data.email,
+        company_name=partner_data.company_name or None,
+        phone=partner_data.phone or None,
+        email=partner_data.email or None,  # 空字符串转为 None
         role='channel_partner',
         is_active=True,
         created_at=get_beijing_time_naive(),
@@ -232,6 +233,9 @@ def update_channel_partner(
     # 更新字段
     update_data = partner_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        # 将空字符串转换为 None，避免唯一索引冲突
+        if isinstance(value, str) and value == '':
+            value = None
         setattr(partner, field, value)
     
     partner.updated_at = get_beijing_time_naive()

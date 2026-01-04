@@ -192,7 +192,7 @@ async def create_user(
     # 创建用户
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
-        email=user_data.email,
+        email=user_data.email or None,  # 空字符串转为 None
         username=user_data.username,
         password_hash=hashed_password,
         role=user_data.role if user_data.role else 'user'

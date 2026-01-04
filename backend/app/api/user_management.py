@@ -190,13 +190,13 @@ async def create_school_admin(
     db_user = User(
         username=admin.username,
         password_hash=get_password_hash(admin.password),
-        real_name=admin.real_name,
-        email=admin.email,
-        phone=admin.phone,
+        real_name=admin.real_name or None,
+        email=admin.email or None,  # 空字符串转为 None
+        phone=admin.phone or None,  # 空字符串转为 None
         role='school_admin',
         school_id=admin.school_id,
         school_name=school.school_name,
-        teacher_number=admin.teacher_number,
+        teacher_number=admin.teacher_number or None,
         is_active=True,
         need_change_password=True  # 首次登录需修改密码
     )
