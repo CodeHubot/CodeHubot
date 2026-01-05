@@ -137,6 +137,14 @@ def verify_token(token: str, token_type: Optional[str] = "access") -> dict:
     Raises:
         HTTPException: token无效或类型不匹配
     """
+    # 检查token是否为None或空字符串
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         
