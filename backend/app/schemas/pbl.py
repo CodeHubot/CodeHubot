@@ -474,3 +474,34 @@ class UnitTemplateWithDetails(UnitTemplate):
     """单元模板详情（包含资源和任务）"""
     resources: Optional[List[ResourceTemplate]] = None
     tasks: Optional[List[TaskTemplate]] = None
+
+
+# --- Task Attachment Schemas ---
+class TaskAttachmentBase(BaseModel):
+    """作业附件基础Schema"""
+    filename: str
+    file_type: str  # word/pdf
+    file_ext: str  # .doc/.docx/.pdf
+    file_size: int  # 字节
+
+
+class TaskAttachmentCreate(TaskAttachmentBase):
+    """创建作业附件"""
+    progress_id: int
+    stored_filename: str
+    file_url: str
+
+
+class TaskAttachment(TaskAttachmentBase):
+    """作业附件响应"""
+    id: int
+    uuid: str
+    progress_id: int
+    user_id: int
+    stored_filename: str
+    file_url: str
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True

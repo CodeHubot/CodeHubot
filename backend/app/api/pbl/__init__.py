@@ -24,6 +24,18 @@ except ImportError as e:
     print(f"警告: 无法导入student_tasks: {e}")
 
 try:
+    from app.api.pbl.student_attachments import router as student_attachments_router
+    pbl_router.include_router(student_attachments_router, prefix="/student/attachments", tags=["PBL-学生附件"])
+except ImportError as e:
+    print(f"警告: 无法导入student_attachments: {e}")
+
+try:
+    from app.api.pbl.temp_attachments import router as temp_attachments_router
+    pbl_router.include_router(temp_attachments_router, prefix="/student/temp-attachments", tags=["PBL-临时附件"])
+except ImportError as e:
+    print(f"警告: 无法导入temp_attachments: {e}")
+
+try:
     from app.api.pbl.student_club import router as student_club_router
     pbl_router.include_router(student_club_router, prefix="/student/club", tags=["PBL-学生社团"])
 except ImportError as e:

@@ -245,6 +245,27 @@ class PBLTaskProgress(Base):
     updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive, nullable=False)
 
     task = relationship("PBLTask", back_populates="progress")
+    attachments = relationship("PBLTaskAttachment", back_populates="progress", cascade="all, delete-orphan")
+
+
+class PBLTaskAttachment(Base):
+    """作业附件表"""
+    __tablename__ = "pbl_task_attachments"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    uuid = Column(String(36), unique=True, default=generate_uuid, nullable=False)
+    progress_id = Column(BigInteger, ForeignKey("pbl_task_progress.id"), nullable=False)
+    user_id = Column(BigInteger, nullable=False)
+    filename = Column(String(255), nullable=False, comment='原始文件名')
+    stored_filename = Column(String(255), nullable=False, comment='存储文件名')
+    file_type = Column(String(50), nullable=False, comment='文件类型(word/pdf)')
+    file_ext = Column(String(20), nullable=False, comment='文件扩展名')
+    file_size = Column(BigInteger, nullable=False, comment='文件大小(字节)')
+    file_url = Column(String(500), nullable=False, comment='文件访问路径')
+    created_at = Column(DateTime, default=get_beijing_time_naive, nullable=False)
+    updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive, nullable=False)
+
+    progress = relationship("PBLTaskProgress", back_populates="attachments")
 
 
 class PBLSchoolCourse(Base):

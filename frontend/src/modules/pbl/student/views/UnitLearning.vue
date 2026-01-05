@@ -210,18 +210,108 @@
                       v-model="submissionContent" 
                       type="textarea" 
                       :rows="10" 
-                      placeholder="请输入你的作业内容"
+                      placeholder="请输入你的作业内容（如已上传附件，此项可选填）"
                       class="fixed-textarea"
                     />
                   </el-form-item>
+                  
+                  <!-- 附件上传 -->
+                  <el-form-item label="附件">
+                    <div class="attachment-section">
+                      <el-upload
+                        ref="uploadRef"
+                        :auto-upload="false"
+                        :on-change="handleFileChange"
+                        :before-upload="beforeUpload"
+                        :show-file-list="false"
+                        accept=".pdf,.doc,.docx"
+                        :disabled="uploading"
+                      >
+                        <el-button 
+                          type="default" 
+                          :icon="Upload" 
+                          :loading="uploading"
+                        >
+                          {{ uploading ? '上传中...' : '选择附件' }}
+                        </el-button>
+                        <template #tip>
+                          <div class="el-upload__tip">
+                            支持Word(.doc, .docx)和PDF(.pdf)格式，单个文件不超过10MB
+                          </div>
+                        </template>
+                      </el-upload>
+                      
+                      <!-- 待上传文件列表（已上传到临时目录） -->
+                      <div v-if="tempAttachments.length > 0" class="attachment-list">
+                        <div 
+                          v-for="(file, index) in tempAttachments" 
+                          :key="'temp-' + index"
+                          class="attachment-item pending"
+                        >
+                          <el-icon class="file-icon"><Document /></el-icon>
+                          <span class="file-name">{{ file.filename }}</span>
+                          <span class="file-size">{{ formatFileSize(file.file_size) }}</span>
+                          <el-tag type="info" size="small">已就绪</el-tag>
+                          <div class="attachment-actions">
+                            <el-button
+                              type="text"
+                              :icon="Delete"
+                              @click="removePendingFile(index)"
+                              size="small"
+                              style="color: #f56c6c;"
+                            >
+                              移除
+                            </el-button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- 已上传附件列表 -->
+                      <div v-if="attachments.length > 0" class="attachment-list" style="margin-top: 8px;">
+                        <div 
+                          v-for="attachment in attachments" 
+                          :key="attachment.uuid"
+                          class="attachment-item uploaded"
+                        >
+                          <el-icon class="file-icon"><Document /></el-icon>
+                          <span class="file-name">{{ attachment.filename }}</span>
+                          <span class="file-size">{{ formatFileSize(attachment.file_size) }}</span>
+                          <el-tag type="success" size="small">已上传</el-tag>
+                          <div class="attachment-actions">
+                            <el-button
+                              type="text"
+                              :icon="Download"
+                              @click="downloadAttachment(attachment)"
+                              size="small"
+                            >
+                              下载
+                            </el-button>
+                            <el-button
+                              type="text"
+                              :icon="Delete"
+                              @click="deleteAttachmentConfirm(attachment)"
+                              size="small"
+                              style="color: #f56c6c;"
+                            >
+                              删除
+                            </el-button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </el-form-item>
+                  
                   <el-form-item>
                     <el-button 
                       type="primary" 
                       @click="submitTask" 
                       :loading="submitting"
                     >
-                      {{ currentStep.submission && currentStep.submission.content ? '重新提交' : '提交作业' }}
+                      {{ getSubmitButtonText() }}
                     </el-button>
+                    <span v-if="tempAttachments.length > 0" class="submit-tip">
+                      （将提交 {{ tempAttachments.length }} 个附件）
+                    </span>
                   </el-form-item>
                 </el-form>
               </div>
@@ -285,7 +375,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, ArrowRight, Check, VideoPlay } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Check, VideoPlay, Upload, Document, Download, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FloatingAIAssistant from '../components/FloatingAIAssistant.vue'
 import VideoPlayer from '../components/VideoPlayer.vue'
@@ -301,6 +391,15 @@ import {
   submitTask as submitTaskAPI,
   resetLearningProgress
 } from '../api/student'
+import { 
+  uploadTempAttachment,
+  deleteTempAttachment,
+  deleteAttachment,
+  getAttachmentsByProgress,
+  getAttachmentDownloadUrl,
+  formatFileSize as formatFileSizeUtil,
+  isAllowedFileType
+} from '../api/attachment'
 import { getPublicConfigs } from '@/modules/device/api/systemConfig'
 
 const router = useRouter()
@@ -325,6 +424,12 @@ const submissionContent = ref('')
 const submitting = ref(false)
 const quizAnswers = ref({})
 const loading = ref(true)
+
+// 附件相关
+const attachments = ref([])  // 已上传的附件
+const tempAttachments = ref([])  // 临时上传的文件（已上传到临时目录，等待提交）
+const uploading = ref(false)
+const uploadRef = ref(null)
 
 // AI助手配置
 const showAIAssistant = ref(true) // 默认显示，从后台配置加载
@@ -660,12 +765,23 @@ const getStepTypeTag = (type) => {
 
 const selectStep = async (step) => {
   currentStep.value = step
+  
+  // 清空临时附件列表（切换任务时）
+  tempAttachments.value = []
+  
   // 加载之前的提交内容（如果有）
   if (step.type === 'task') {
     if (step.submission && step.submission.content) {
       submissionContent.value = step.submission.content
     } else {
       submissionContent.value = '' 
+    }
+    
+    // 加载已上传的附件列表
+    if (step.progress && step.progress.id) {
+      await loadAttachments(step.progress.id)
+    } else {
+      attachments.value = []
     }
   }
   // 重置测验
@@ -894,18 +1010,31 @@ const completeCurrentStep = async () => {
 
 // 提交作业处理
 const submitTask = async () => {
-  if (!submissionContent.value.trim()) {
-    ElMessage.warning('请输入作业内容')
+  // 验证：作业内容或附件至少有一个
+  const hasContent = submissionContent.value.trim().length > 0
+  const hasAttachments = tempAttachments.value.length > 0 || attachments.value.length > 0
+  
+  if (!hasContent && !hasAttachments) {
+    ElMessage.warning('请输入作业内容或上传附件')
     return
   }
   
   submitting.value = true
   try {
-    // 调用真实的任务提交API
+    // 一次性提交：作业内容 + 临时文件tokens
     const result = await submitTaskAPI(currentStep.value.uuid, {
-      content: submissionContent.value,
-      submitted_at: new Date().toISOString()
+      submission: {
+        content: submissionContent.value || '（仅提交附件）',
+        submitted_at: new Date().toISOString()
+      },
+      file_tokens: tempAttachments.value  // 传递临时文件信息列表
     })
+    
+    console.log('作业提交结果:', result)
+    
+    // 从返回结果中获取progress_id
+    const progressId = result.id || result.data?.id
+    console.log('获取到的progress_id:', progressId)
     
     // 更新当前步骤状态为已完成（提交后状态为 review，也视为完成）
     currentStep.value.status = 'completed'
@@ -917,6 +1046,12 @@ const submitTask = async () => {
     }
     currentStep.value.submission.content = submissionContent.value
     currentStep.value.submission.submitted_at = new Date().toISOString()
+    
+    // 更新progress对象
+    if (!currentStep.value.progress) {
+      currentStep.value.progress = {}
+    }
+    currentStep.value.progress.id = progressId
     
     // 清空评分信息（重新提交后需要重新评分）
     currentStep.value.score = null
@@ -930,7 +1065,22 @@ const submitTask = async () => {
     // 同时保存学习进度记录
     await saveProgress(currentStep.value, 'task_submit', 100)
     
-    ElMessage.success(result.message || '作业提交成功！')
+    // 清空临时附件列表（已经提交）
+    tempAttachments.value = []
+    
+    // 提示成功
+    const attachmentCount = result.attached_files?.length || 0
+    if (attachmentCount > 0) {
+      ElMessage.success(`作业提交成功！已上传 ${attachmentCount} 个附件`)
+    } else {
+      ElMessage.success(result.message || '作业提交成功！')
+    }
+    
+    // 加载已上传的附件列表
+    if (progressId) {
+      await loadAttachments(progressId)
+    }
+    
     checkAllStepsCompleted()
     
     // 重新加载学习进度，获取最新的评分等信息
@@ -946,6 +1096,20 @@ const submitTask = async () => {
     ElMessage.error(error.message || '提交失败，请重试')
   } finally {
     submitting.value = false
+  }
+}
+
+// 获取提交按钮文本
+const getSubmitButtonText = () => {
+  if (!currentStep.value) return '提交作业'
+  
+  const isResubmit = currentStep.value.submission && currentStep.value.submission.content
+  const hasTempFiles = tempAttachments.value.length > 0
+  
+  if (isResubmit) {
+    return hasTempFiles ? '重新提交（含附件）' : '重新提交'
+  } else {
+    return hasTempFiles ? '提交作业（含附件）' : '提交作业'
   }
 }
 
@@ -1000,6 +1164,139 @@ const manualCompleteStep = async () => {
     checkAllStepsCompleted()
   }
 }
+
+// ========== 附件管理函数 ==========
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  return formatFileSizeUtil(bytes)
+}
+
+// 文件选择变化（立即上传到临时目录）
+const handleFileChange = async (file) => {
+  console.log('文件选择:', file)
+  
+  // 检查文件类型
+  if (!isAllowedFileType(file.raw)) {
+    ElMessage.error('不支持的文件格式，仅支持Word(.doc, .docx)和PDF(.pdf)格式')
+    return
+  }
+  
+  // 检查文件大小（10MB）
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小超过限制（最大10MB）')
+    return
+  }
+  
+  // 检查是否已经选择了同名文件
+  const existsInTemp = tempAttachments.value.some(f => f.filename === file.name)
+  const existsInUploaded = attachments.value.some(a => a.filename === file.name)
+  
+  if (existsInTemp || existsInUploaded) {
+    ElMessage.warning(`文件"${file.name}"已存在`)
+    return
+  }
+  
+  // 立即上传到临时目录
+  uploading.value = true
+  try {
+    const result = await uploadTempAttachment(file.raw)
+    console.log('临时上传成功:', result)
+    
+    // 响应格式：{ success: true, data: { file_token, filename, ... }, message: '' }
+    const fileData = result.data
+    
+    // 保存file_token和元信息
+    tempAttachments.value.push({
+      file_token: fileData.file_token,
+      filename: fileData.filename,
+      file_type: fileData.file_type,
+      file_ext: fileData.file_ext,
+      file_size: fileData.file_size
+    })
+    
+    ElMessage.success(`文件"${file.name}"已准备好，提交时将一起上传`)
+  } catch (error) {
+    console.error('临时上传失败:', error)
+    ElMessage.error(error.message || '文件上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+// 移除临时文件
+const removePendingFile = async (index) => {
+  const file = tempAttachments.value[index]
+  
+  try {
+    // 调用后端删除临时文件
+    await deleteTempAttachment(file.file_token)
+    tempAttachments.value.splice(index, 1)
+    ElMessage.success(`已移除"${file.filename}"`)
+  } catch (error) {
+    console.error('删除临时文件失败:', error)
+    // 即使删除失败也从列表移除（因为临时文件会自动清理）
+    tempAttachments.value.splice(index, 1)
+    ElMessage.info(`已移除"${file.filename}"`)
+  }
+}
+
+// 上传前检查
+const beforeUpload = (file) => {
+  return true
+}
+
+// 下载附件
+const downloadAttachment = (attachment) => {
+  const downloadUrl = getAttachmentDownloadUrl(attachment.uuid)
+  window.open(downloadUrl, '_blank')
+}
+
+// 删除附件（带确认）
+const deleteAttachmentConfirm = async (attachment) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除附件"${attachment.filename}"吗？`,
+      '确认删除',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    // 执行删除
+    await deleteAttachment(attachment.uuid)
+    
+    // 从列表中移除
+    const index = attachments.value.findIndex(a => a.uuid === attachment.uuid)
+    if (index > -1) {
+      attachments.value.splice(index, 1)
+    }
+    
+    ElMessage.success('附件删除成功')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除附件失败:', error)
+      ElMessage.error(error.message || '删除失败')
+    }
+  }
+}
+
+// 加载附件列表
+const loadAttachments = async (progressId) => {
+  if (!progressId) return
+  
+  try {
+    const result = await getAttachmentsByProgress(progressId)
+    attachments.value = result.data || []
+  } catch (error) {
+    console.error('加载附件列表失败:', error)
+  }
+}
+
+// ========== 原有函数 ==========
 
 // 手动取消完成
 const manualUncompleteStep = async () => {
@@ -1559,5 +1856,81 @@ onMounted(async () => {
   min-height: 240px;
   max-height: 240px;
   overflow-y: auto;
+}
+
+/* 附件相关样式 */
+.attachment-section {
+  margin-top: 12px;
+}
+
+.attachment-list {
+  margin-top: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  transition: background-color 0.3s;
+}
+
+.attachment-item:last-child {
+  border-bottom: none;
+}
+
+.attachment-item:hover {
+  background-color: #f5f7fa;
+}
+
+.attachment-item.pending {
+  background-color: #f0f9ff;
+  border-left: 3px solid #409eff;
+}
+
+.attachment-item.uploaded {
+  background-color: #f0f9ff;
+  border-left: 3px solid #67c23a;
+}
+
+.file-icon {
+  font-size: 24px;
+  color: #909399;
+  margin-right: 12px;
+}
+
+.file-name {
+  flex: 1;
+  font-size: 14px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #909399;
+  margin: 0 16px;
+}
+
+.attachment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.el-upload__tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 8px;
+}
+
+.submit-tip {
+  margin-left: 12px;
+  font-size: 13px;
+  color: #409eff;
 }
 </style>

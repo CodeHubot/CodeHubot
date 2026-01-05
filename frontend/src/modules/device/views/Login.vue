@@ -278,8 +278,8 @@ const handleLogin = async () => {
       loading.value = true
       try {
         const loginData = {
-          email: loginForm.email,
-          password: loginForm.password,
+          email: loginForm.email.trim(),  // 去除前后空格
+          password: loginForm.password.trim(),  // 去除前后空格
           captcha_code: loginForm.captchaCode
         }
         

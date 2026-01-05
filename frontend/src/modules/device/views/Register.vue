@@ -265,9 +265,9 @@ const handleRegister = async () => {
         url: '/auth/register',
         method: 'post',
         data: {
-          username: registerForm.username,
-          email: registerForm.email || null,
-          password: registerForm.password
+          username: registerForm.username.trim(),  // 去除前后空格
+          email: registerForm.email ? registerForm.email.trim() : null,  // 去除前后空格
+          password: registerForm.password.trim()  // 去除前后空格
         }
       })
 

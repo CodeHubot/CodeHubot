@@ -259,8 +259,8 @@ async function handleGeneralLogin() {
     loading.value = true
     try {
       const loginData = {
-        email: generalForm.username,  // 支持用户名或邮箱
-        password: generalForm.password,
+        email: generalForm.username.trim(),  // 去除前后空格
+        password: generalForm.password.trim(),  // 去除前后空格
         captcha_code: generalForm.captchaCode
       }
       
