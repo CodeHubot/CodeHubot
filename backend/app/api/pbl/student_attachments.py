@@ -206,7 +206,7 @@ def delete_attachment(
     current_user: User = Depends(get_current_user)
 ):
     """
-    删除作业附件
+    软删除作业附件（标记为已删除，不物理删除）
     
     Args:
         attachment_uuid: 附件UUID
@@ -216,10 +216,17 @@ def delete_attachment(
         
     Raises:
         HTTPException: 附件不存在或无权删除
+        
+    Note:
+        - 使用软删除，不会真正删除文件和数据库记录
+        - 只标记 is_deleted=1 和记录删除时间
+        - 保留审计追踪，防止误删除
     """
-    logger.info(f"用户 {current_user.id} 删除附件: {attachment_uuid}")
+    from datetime import datetime
     
-    # 查询附件
+    logger.info(f"用户 {current_user.id} 软删除附件: {attachment_uuid}")
+    
+    # 查询附件（包括已删除的）
     attachment = db.query(PBLTaskAttachment).filter(
         PBLTaskAttachment.uuid == attachment_uuid
     ).first()
@@ -231,6 +238,14 @@ def delete_attachment(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
+    # 检查是否已删除
+    if attachment.is_deleted:
+        return error_response(
+            message="附件已被删除",
+            code=400,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
     # 检查权限（只能删除自己的附件）
     if attachment.user_id != current_user.id:
         return error_response(
@@ -239,30 +254,28 @@ def delete_attachment(
             status_code=status.HTTP_403_FORBIDDEN
         )
     
-    # 删除文件
-    file_path = UPLOAD_DIR / attachment.stored_filename
-    if file_path.exists():
-        try:
-            os.remove(file_path)
-            logger.info(f"文件删除成功: {file_path}")
-        except Exception as e:
-            logger.warning(f"删除文件失败: {str(e)}")
-    
-    # 删除数据库记录
+    # 软删除：标记为已删除，不删除物理文件
     try:
-        db.delete(attachment)
+        attachment.is_deleted = 1
+        attachment.deleted_at = datetime.now()
+        attachment.deleted_by = current_user.id
+        
         db.commit()
-        logger.info(f"附件记录删除成功 - UUID: {attachment_uuid}")
+        logger.info(f"附件软删除成功 - UUID: {attachment_uuid}, 文件保留: {attachment.stored_filename}")
         
         return success_response(
-            data={'uuid': attachment_uuid},
-            message="附件删除成功"
+            data={
+                'uuid': attachment_uuid,
+                'filename': attachment.filename,
+                'deleted_at': attachment.deleted_at.isoformat() if attachment.deleted_at else None
+            },
+            message="附件已删除"
         )
     except Exception as e:
         db.rollback()
-        logger.error(f"删除附件记录失败: {str(e)}", exc_info=True)
+        logger.error(f"软删除附件失败: {str(e)}", exc_info=True)
         return error_response(
-            message=f"附件删除失败: {str(e)}",
+            message=f"删除附件失败: {str(e)}",
             code=500,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
@@ -288,15 +301,16 @@ def download_attachment(
     """
     logger.info(f"用户 {current_user.id} 下载附件: {attachment_uuid}")
     
-    # 查询附件
+    # 查询附件（只允许下载未删除的附件）
     attachment = db.query(PBLTaskAttachment).filter(
-        PBLTaskAttachment.uuid == attachment_uuid
+        PBLTaskAttachment.uuid == attachment_uuid,
+        PBLTaskAttachment.is_deleted == 0  # 不能下载已删除的附件
     ).first()
     
     if not attachment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="附件不存在"
+            detail="附件不存在或已被删除"
         )
     
     # 检查文件是否存在
@@ -356,9 +370,10 @@ def get_attachments_by_progress(
             status_code=status.HTTP_404_NOT_FOUND
         )
     
-    # 查询附件列表
+    # 查询附件列表（只返回未删除的附件）
     attachments = db.query(PBLTaskAttachment).filter(
-        PBLTaskAttachment.progress_id == progress_id
+        PBLTaskAttachment.progress_id == progress_id,
+        PBLTaskAttachment.is_deleted == 0  # 只查询未删除的附件
     ).order_by(PBLTaskAttachment.created_at.desc()).all()
     
     result = []

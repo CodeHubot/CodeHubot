@@ -262,6 +262,9 @@ class PBLTaskAttachment(Base):
     file_ext = Column(String(20), nullable=False, comment='文件扩展名')
     file_size = Column(BigInteger, nullable=False, comment='文件大小(字节)')
     file_url = Column(String(500), nullable=False, comment='文件访问路径')
+    is_deleted = Column(Integer, default=0, nullable=False, comment='是否已删除(0:未删除 1:已删除)')
+    deleted_at = Column(DateTime, nullable=True, comment='删除时间')
+    deleted_by = Column(BigInteger, nullable=True, comment='删除操作人ID')
     created_at = Column(DateTime, default=get_beijing_time_naive, nullable=False)
     updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive, nullable=False)
 
