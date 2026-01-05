@@ -396,7 +396,7 @@ import {
   deleteTempAttachment,
   deleteAttachment,
   getAttachmentsByProgress,
-  getAttachmentDownloadUrl,
+  downloadAttachment as downloadAttachmentAPI,
   formatFileSize as formatFileSizeUtil,
   isAllowedFileType
 } from '../api/attachment'
@@ -870,6 +870,12 @@ const loadLearningProgress = async (unitUuid) => {
           step.feedback = progress.feedback
           step.originalStatus = progress.status  // 保存原始状态用于区分 review 和 completed
           
+          // ✅ 保存 progress 对象（包含真实的 progress_id），用于加载附件列表
+          step.progress = {
+            id: progress.id,  // progress_id，用于加载附件
+            status: progress.status
+          }
+          
           // 如果任务数据对象不存在，创建它
           if (!step.data) {
             step.data = {}
@@ -1248,9 +1254,26 @@ const beforeUpload = (file) => {
 }
 
 // 下载附件
-const downloadAttachment = (attachment) => {
-  const downloadUrl = getAttachmentDownloadUrl(attachment.uuid)
-  window.open(downloadUrl, '_blank')
+const downloadAttachment = async (attachment) => {
+  try {
+    const response = await downloadAttachmentAPI(attachment.uuid)
+    
+    // 创建Blob对象并触发下载
+    const blob = new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('附件下载成功')
+  } catch (error) {
+    console.error('下载附件失败:', error)
+    ElMessage.error(error.message || '下载失败')
+  }
 }
 
 // 删除附件（带确认）

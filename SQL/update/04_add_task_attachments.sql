@@ -23,13 +23,17 @@ CREATE TABLE IF NOT EXISTS `pbl_task_attachments` (
   `file_ext` VARCHAR(20) NOT NULL COMMENT '文件扩展名（.doc/.docx/.pdf）',
   `file_size` BIGINT(20) NOT NULL COMMENT '文件大小（字节）',
   `file_url` VARCHAR(500) NOT NULL COMMENT '文件访问路径',
+  `is_deleted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已删除（0:未删除 1:已删除）',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
+  `deleted_by` BIGINT(20) DEFAULT NULL COMMENT '删除操作人ID',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_uuid` (`uuid`),
   KEY `idx_progress_id` (`progress_id`),
   KEY `idx_user_id` (`user_id`),
-  KEY `idx_created_at` (`created_at`)
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_is_deleted` (`is_deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PBL作业附件表';
 
 -- ----------------------------
@@ -41,4 +45,7 @@ CREATE TABLE IF NOT EXISTS `pbl_task_attachments` (
 -- 4. stored_filename: 使用UUID生成的唯一文件名，防止文件名冲突
 -- 5. file_url: 相对路径，如 /uploads/task-attachments/xxx.pdf
 -- 6. 附件与任务进度绑定，删除任务进度时可级联删除附件
+-- 7. is_deleted: 软删除标记，0表示未删除，1表示已删除
+-- 8. deleted_at: 记录删除时间，用于审计追踪
+-- 9. deleted_by: 记录删除操作人，用于审计追踪
 

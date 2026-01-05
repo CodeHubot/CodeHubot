@@ -83,10 +83,14 @@ export function getAttachmentsByProgress(progressId) {
 /**
  * 下载附件
  * @param {string} attachmentUuid - 附件UUID
- * @returns {string} 下载链接
+ * @returns {Promise<Blob>} 文件数据
  */
-export function getAttachmentDownloadUrl(attachmentUuid) {
-  return `/api/pbl/student/attachments/${attachmentUuid}/download`
+export function downloadAttachment(attachmentUuid) {
+  return request({
+    url: `/pbl/student/attachments/${attachmentUuid}/download`,
+    method: 'get',
+    responseType: 'blob'
+  })
 }
 
 /**

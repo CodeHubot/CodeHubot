@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
 from typing import List
+from urllib.parse import quote
 import uuid
 import os
 import logging
@@ -329,13 +330,17 @@ def download_attachment(
     }
     content_type = content_type_map.get(attachment.file_ext, 'application/octet-stream')
     
+    # URL 编码文件名（支持中文）
+    # RFC 5987: filename*=UTF-8''encoded_filename
+    encoded_filename = quote(attachment.filename, safe='')
+    
     # 返回文件
     return FileResponse(
         path=file_path,
         media_type=content_type,
-        filename=attachment.filename,  # 使用原始文件名
+        filename=attachment.filename,  # 使用原始文件名（浏览器兼容）
         headers={
-            "Content-Disposition": f"attachment; filename*=UTF-8''{attachment.filename}"
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
         }
     )
 

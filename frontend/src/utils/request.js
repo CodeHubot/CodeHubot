@@ -113,6 +113,12 @@ request.interceptors.response.use(
       }
     }
     
+    // 处理文件下载响应（responseType: 'blob'）
+    if (response.config.responseType === 'blob') {
+      // 直接返回 Blob 数据，不进行 JSON 解析
+      return response.data
+    }
+    
     const res = response.data
     
     // 统一处理两种响应格式：

@@ -258,6 +258,7 @@ def get_unit_resources_progress(
         
         if task_prog:
             task_progress[f"task-{task.id}"] = {
+                'id': task_prog.id,  # ✅ 添加 progress_id，用于加载附件列表
                 'status': task_prog.status,
                 'progress_value': task_prog.progress,
                 'completed_at': task_prog.updated_at.isoformat() if task_prog.updated_at else None,
@@ -667,6 +668,7 @@ def get_student_detail_progress(
         'units': units_progress,
         'tasks': tasks_progress
     })
+
 
 
 
