@@ -221,14 +221,68 @@
     <el-dialog
       v-model="gradeDialogVisible"
       title="批改作业"
-      width="700px"
+      width="900px"
       :close-on-click-modal="false"
     >
-      <el-form :model="gradeForm" label-width="100px">
-        <el-form-item label="学生">
-          <el-input :value="currentSubmission?.student_name + ' (' + currentSubmission?.student_number + ')'" disabled />
-        </el-form-item>
+      <!-- 学生提交内容 -->
+      <el-card shadow="never" class="submission-card" v-if="currentSubmission">
+        <template #header>
+          <span>学生提交内容</span>
+        </template>
         
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="学生">
+            {{ currentSubmission.student_name }} ({{ currentSubmission.student_number }})
+          </el-descriptions-item>
+          <el-descriptions-item label="提交时间">
+            {{ formatDateTime(currentSubmission.submitted_at) }}
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <div v-if="currentSubmission.submission" class="submission-detail">
+          <div class="detail-label">提交内容：</div>
+          <div class="detail-content">
+            {{ currentSubmission.submission.content || '（学生未填写文字内容）' }}
+          </div>
+        </div>
+        
+        <!-- 附件列表 -->
+        <div v-if="attachments.length > 0" class="attachments-section">
+          <div class="detail-label">附件：</div>
+          <div class="attachments-list">
+            <div 
+              v-for="attachment in attachments" 
+              :key="attachment.uuid"
+              class="attachment-item"
+            >
+              <div class="attachment-info">
+                <el-icon class="file-icon"><Document /></el-icon>
+                <span class="file-name">{{ attachment.filename }}</span>
+                <span class="file-size">{{ formatFileSize(attachment.file_size) }}</span>
+              </div>
+              <el-button
+                type="primary"
+                link
+                :icon="Download"
+                @click="downloadAttachment(attachment)"
+                size="small"
+              >
+                下载
+              </el-button>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="loadingAttachments" class="loading-text">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          加载附件列表...
+        </div>
+      </el-card>
+      
+      <el-divider />
+      
+      <!-- 批改表单 -->
+      <el-form :model="gradeForm" label-width="100px">
         <el-form-item label="等级" required>
           <el-radio-group v-model="gradeForm.grade" @change="onGradeChange">
             <el-radio value="excellent">
@@ -308,9 +362,88 @@
       title="查看提交内容"
       width="800px"
     >
-      <div class="submission-content">
-        <pre>{{ JSON.stringify(currentSubmission?.submission, null, 2) }}</pre>
+      <div v-if="currentSubmission" class="view-submission-content">
+        <el-descriptions :column="1" border class="student-info">
+          <el-descriptions-item label="学生">
+            {{ currentSubmission.student_name }} ({{ currentSubmission.student_number }})
+          </el-descriptions-item>
+          <el-descriptions-item label="提交时间">
+            {{ formatDateTime(currentSubmission.submitted_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="getSubmissionStatusType(currentSubmission.status)">
+              {{ getSubmissionStatusName(currentSubmission.status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="等级" v-if="currentSubmission.grade">
+            <el-tag :type="getGradeTagType(currentSubmission.grade)">
+              {{ getGradeName(currentSubmission.grade) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="分数" v-if="currentSubmission.score !== null">
+            {{ currentSubmission.score }} 分
+          </el-descriptions-item>
+        </el-descriptions>
+        
+        <el-divider content-position="left">提交内容</el-divider>
+        
+        <div class="submission-detail">
+          <div v-if="currentSubmission.submission?.content" class="content-section">
+            <div class="section-label">作业内容：</div>
+            <div class="content-text">
+              {{ currentSubmission.submission.content }}
+            </div>
+          </div>
+          
+          <div v-else class="no-content">
+            （学生未填写文字内容）
+          </div>
+        </div>
+        
+        <!-- 附件列表 -->
+        <div v-if="attachments.length > 0" class="attachments-section">
+          <el-divider content-position="left">附件</el-divider>
+          <div class="attachments-list">
+            <div 
+              v-for="attachment in attachments" 
+              :key="attachment.uuid"
+              class="attachment-item"
+            >
+              <div class="attachment-info">
+                <el-icon class="file-icon"><Document /></el-icon>
+                <span class="file-name">{{ attachment.filename }}</span>
+                <span class="file-size">{{ formatFileSize(attachment.file_size) }}</span>
+              </div>
+              <el-button
+                type="primary"
+                link
+                :icon="Download"
+                @click="downloadAttachment(attachment)"
+                size="small"
+              >
+                下载
+              </el-button>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="loadingAttachments" class="loading-text">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          加载附件列表...
+        </div>
+        
+        <!-- 批改反馈 -->
+        <div v-if="currentSubmission.feedback" class="feedback-section">
+          <el-divider content-position="left">教师反馈</el-divider>
+          <div class="feedback-content">
+            {{ currentSubmission.feedback }}
+          </div>
+        </div>
       </div>
+      
+      <template #footer>
+        <el-button @click="viewSubmissionDialogVisible = false" size="large">关闭</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -320,11 +453,16 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  ArrowLeft, Edit, View
+  ArrowLeft, Edit, View, Document, Download, Loading
 } from '@element-plus/icons-vue'
 import { getClubClassDetail } from '@pbl/admin/api/club'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
+import {
+  getAttachmentsByProgress,
+  downloadAttachment as downloadAttachmentAPI,
+  formatFileSize
+} from '../../student/api/attachment'
 
 const route = useRoute()
 const router = useRouter()
@@ -343,6 +481,8 @@ const filterStatus = ref('')
 const submittingGrade = ref(false)
 const feedbackTemplates = ref([])
 const selectedTemplate = ref(null)
+const attachments = ref([])  // 附件列表
+const loadingAttachments = ref(false)
 
 const gradeForm = ref({
   grade: '',
@@ -438,8 +578,50 @@ const loadTaskSubmissions = async () => {
   }
 }
 
+// 加载附件列表
+const loadAttachments = async (progressId) => {
+  if (!progressId) {
+    attachments.value = []
+    return
+  }
+  
+  loadingAttachments.value = true
+  try {
+    const result = await getAttachmentsByProgress(progressId)
+    attachments.value = result.data || []
+  } catch (error) {
+    console.error('加载附件列表失败:', error)
+    attachments.value = []
+  } finally {
+    loadingAttachments.value = false
+  }
+}
+
+// 下载附件
+const downloadAttachment = async (attachment) => {
+  try {
+    const response = await downloadAttachmentAPI(attachment.uuid)
+    
+    // 创建Blob对象并触发下载
+    const blob = new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('附件下载成功')
+  } catch (error) {
+    console.error('下载附件失败:', error)
+    ElMessage.error(error.message || '下载失败')
+  }
+}
+
 // 打开批改对话框
-const openGradeDialog = (submission) => {
+const openGradeDialog = async (submission) => {
   currentSubmission.value = submission
   gradeForm.value = {
     grade: submission.grade || '',
@@ -447,6 +629,14 @@ const openGradeDialog = (submission) => {
     feedback: submission.feedback || ''
   }
   selectedTemplate.value = null
+  
+  // 加载附件列表
+  if (submission.submission_id) {
+    await loadAttachments(submission.submission_id)
+  } else {
+    attachments.value = []
+  }
+  
   gradeDialogVisible.value = true
 }
 
@@ -498,8 +688,16 @@ const submitGrade = async () => {
 }
 
 // 查看提交内容
-const viewSubmission = (submission) => {
+const viewSubmission = async (submission) => {
   currentSubmission.value = submission
+  
+  // 加载附件列表
+  if (submission.submission_id) {
+    await loadAttachments(submission.submission_id)
+  } else {
+    attachments.value = []
+  }
+  
   viewSubmissionDialogVisible.value = true
 }
 
@@ -754,6 +952,157 @@ onMounted(async () => {
     white-space: pre-wrap;
     word-wrap: break-word;
   }
+}
+
+/* 提交卡片样式 */
+.submission-card {
+  margin-bottom: 24px;
+  
+  .submission-detail {
+    margin-top: 16px;
+    
+    .detail-label {
+      color: #606266;
+      font-weight: 500;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .detail-content {
+      padding: 12px;
+      background: #f5f7fa;
+      border-radius: 6px;
+      color: #303133;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 60px;
+    }
+  }
+  
+  .attachments-section {
+    margin-top: 20px;
+  }
+}
+
+/* 查看提交对话框样式 */
+.view-submission-content {
+  .student-info {
+    margin-bottom: 24px;
+  }
+  
+  .submission-detail {
+    .content-section {
+      .section-label {
+        color: #606266;
+        font-weight: 500;
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+      
+      .content-text {
+        padding: 16px;
+        background: #f5f7fa;
+        border-radius: 8px;
+        color: #303133;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-break: break-word;
+        min-height: 100px;
+      }
+    }
+    
+    .no-content {
+      padding: 20px;
+      text-align: center;
+      color: #909399;
+      font-size: 14px;
+      background: #f5f7fa;
+      border-radius: 8px;
+    }
+  }
+  
+  .attachments-section {
+    margin-top: 24px;
+  }
+  
+  .feedback-section {
+    margin-top: 24px;
+    
+    .feedback-content {
+      padding: 16px;
+      background: #fff7ed;
+      border-left: 4px solid #f59e0b;
+      border-radius: 4px;
+      color: #475569;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  }
+}
+
+/* 附件列表样式 */
+.attachments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+.attachment-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+.attachment-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-info .file-icon {
+  color: #409eff;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.attachment-info .file-name {
+  color: #303133;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-info .file-size {
+  color: #909399;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.loading-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #909399;
+  font-size: 14px;
+  padding: 16px;
+  justify-content: center;
 }
 
 .form-tip {
