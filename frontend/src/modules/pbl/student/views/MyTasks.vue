@@ -87,8 +87,41 @@
               <div class="content-label">内容：</div>
               <div class="content-value">{{ submissionContent.content }}</div>
             </div>
-            <div v-if="submissionContent.files && submissionContent.files.length > 0" class="content-item">
+            
+            <!-- ✅ 显示真实的附件列表（从 pbl_task_attachments 表加载） -->
+            <div v-if="attachments.length > 0" class="content-item">
               <div class="content-label">附件：</div>
+              <div class="attachments-list">
+                <div 
+                  v-for="attachment in attachments" 
+                  :key="attachment.uuid"
+                  class="attachment-item"
+                >
+                  <div class="attachment-info">
+                    <el-icon class="file-icon"><Document /></el-icon>
+                    <span class="file-name">{{ attachment.filename }}</span>
+                    <span class="file-size">{{ formatFileSize(attachment.file_size) }}</span>
+                  </div>
+                  <el-button
+                    type="primary"
+                    link
+                    :icon="Download"
+                    @click="downloadAttachment(attachment)"
+                    size="small"
+                  >
+                    下载
+                  </el-button>
+                </div>
+              </div>
+              <div v-if="loadingAttachments" class="loading-text">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                加载附件列表...
+              </div>
+            </div>
+            
+            <!-- 保留旧格式的文件显示（兼容） -->
+            <div v-if="submissionContent.files && submissionContent.files.length > 0" class="content-item">
+              <div class="content-label">其他文件：</div>
               <div class="files-list">
                 <div v-for="(file, index) in submissionContent.files" :key="index" class="file-item">
                   <el-icon><Document /></el-icon>
@@ -96,6 +129,7 @@
                 </div>
               </div>
             </div>
+            
             <div v-if="submissionContent.url" class="content-item">
               <div class="content-label">链接：</div>
               <div class="content-value">
@@ -134,14 +168,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Document } from '@element-plus/icons-vue'
+import { Document, Download, Loading } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { 
+  getAttachmentsByProgress,
+  downloadAttachment as downloadAttachmentAPI,
+  formatFileSize
+} from '../api/attachment'
 
 const loading = ref(false)
 const tasks = ref([])
 const dialogVisible = ref(false)
 const currentTask = ref(null)
 const submissionContent = ref(null)
+const attachments = ref([])  // 真实的附件列表
+const loadingAttachments = ref(false)
 
 // 加载任务列表
 const loadTasks = async () => {
@@ -155,6 +196,48 @@ const loadTasks = async () => {
     ElMessage.error('加载任务列表失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载附件列表
+const loadAttachments = async (progressId) => {
+  if (!progressId) {
+    attachments.value = []
+    return
+  }
+  
+  loadingAttachments.value = true
+  try {
+    const result = await getAttachmentsByProgress(progressId)
+    attachments.value = result.data || []
+  } catch (error) {
+    console.error('加载附件列表失败:', error)
+    attachments.value = []
+  } finally {
+    loadingAttachments.value = false
+  }
+}
+
+// 下载附件
+const downloadAttachment = async (attachment) => {
+  try {
+    const response = await downloadAttachmentAPI(attachment.uuid)
+    
+    // 创建Blob对象并触发下载
+    const blob = new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('附件下载成功')
+  } catch (error) {
+    console.error('下载附件失败:', error)
+    ElMessage.error(error.message || '下载失败')
   }
 }
 
@@ -172,6 +255,13 @@ const viewSubmission = async (task) => {
     }
     submissionContent.value = taskDetail.progress?.submission || null
     dialogVisible.value = true
+    
+    // 加载附件列表（使用 progress_id）
+    if (taskDetail.progress?.id) {
+      await loadAttachments(taskDetail.progress.id)
+    } else {
+      attachments.value = []
+    }
   } catch (error) {
     console.error('获取提交内容失败:', error)
     ElMessage.error('获取提交内容失败')
@@ -341,6 +431,73 @@ onMounted(() => {
 .file-item .el-icon {
   color: #3b82f6;
   font-size: 18px;
+}
+
+/* 附件列表样式 */
+.attachments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+.attachment-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.attachment-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-info .file-icon {
+  color: #3b82f6;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.attachment-info .file-name {
+  color: #1e293b;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-info .file-size {
+  color: #94a3b8;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.loading-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 14px;
+  padding: 12px;
+  justify-content: center;
+}
+
+.loading-text .el-icon {
+  font-size: 16px;
 }
 
 .feedback-content {
