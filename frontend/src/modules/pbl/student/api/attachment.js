@@ -81,6 +81,18 @@ export function getAttachmentsByProgress(progressId) {
 }
 
 /**
+ * 管理员获取任务进度的所有附件
+ * @param {number} progressId - 任务进度ID
+ * @returns {Promise<Array>} 附件列表
+ */
+export function adminGetAttachmentsByProgress(progressId) {
+  return request({
+    url: `/pbl/student/attachments/admin/progress/${progressId}`,
+    method: 'get'
+  })
+}
+
+/**
  * 下载附件
  * @param {string} attachmentUuid - 附件UUID
  * @returns {Promise<Blob>} 文件数据

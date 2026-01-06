@@ -13,8 +13,8 @@ import os
 import logging
 
 from ...core.response import success_response, error_response
-from ...core.deps import get_db, get_current_user
-from ...models.admin import User
+from ...core.deps import get_db, get_current_user, get_current_admin
+from ...models.admin import User, Admin
 from ...models.pbl import PBLTaskProgress, PBLTaskAttachment
 from ...schemas.pbl import TaskAttachment
 
@@ -374,6 +374,69 @@ def get_attachments_by_progress(
             code=404,
             status_code=status.HTTP_404_NOT_FOUND
         )
+    
+    # 查询附件列表（只返回未删除的附件）
+    attachments = db.query(PBLTaskAttachment).filter(
+        PBLTaskAttachment.progress_id == progress_id,
+        PBLTaskAttachment.is_deleted == 0  # 只查询未删除的附件
+    ).order_by(PBLTaskAttachment.created_at.desc()).all()
+    
+    result = []
+    for attachment in attachments:
+        result.append({
+            'id': attachment.id,
+            'uuid': attachment.uuid,
+            'filename': attachment.filename,
+            'file_type': attachment.file_type,
+            'file_ext': attachment.file_ext,
+            'file_size': attachment.file_size,
+            'file_url': attachment.file_url,
+            'created_at': attachment.created_at.isoformat() if attachment.created_at else None
+        })
+    
+    return success_response(data=result)
+
+
+@router.get("/admin/progress/{progress_id}")
+def admin_get_attachments_by_progress(
+    progress_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """
+    管理员获取指定任务进度的所有附件
+    
+    Args:
+        progress_id: 任务进度ID
+        
+    Returns:
+        附件列表
+        
+    权限: 管理员可以查看本校学生的附件
+    """
+    logger.info(f"管理员 {current_admin.id} 获取进度 {progress_id} 的附件列表")
+    
+    # 验证任务进度是否存在
+    progress = db.query(PBLTaskProgress).filter(
+        PBLTaskProgress.id == progress_id
+    ).first()
+    
+    if not progress:
+        return error_response(
+            message="任务进度不存在或无权访问",
+            code=404,
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    # 权限检查：管理员只能查看本校学生的数据
+    if current_admin.role != 'platform_admin':
+        student = db.query(User).filter(User.id == progress.user_id).first()
+        if not student or student.school_id != current_admin.school_id:
+            return error_response(
+                message="无权限访问",
+                code=403,
+                status_code=status.HTTP_403_FORBIDDEN
+            )
     
     # 查询附件列表（只返回未删除的附件）
     attachments = db.query(PBLTaskAttachment).filter(

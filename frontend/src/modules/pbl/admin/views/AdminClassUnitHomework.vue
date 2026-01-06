@@ -247,11 +247,11 @@
         </div>
         
         <!-- 附件列表 -->
-        <div v-if="attachments.length > 0" class="attachments-section">
+        <div v-if="submissionAttachments.length > 0" class="attachments-section">
           <div class="detail-label">附件：</div>
           <div class="attachments-list">
             <div 
-              v-for="attachment in attachments" 
+              v-for="attachment in submissionAttachments" 
               :key="attachment.uuid"
               class="attachment-item"
             >
@@ -401,11 +401,11 @@
         </div>
         
         <!-- 附件列表 -->
-        <div v-if="attachments.length > 0" class="attachments-section">
+        <div v-if="submissionAttachments.length > 0" class="attachments-section">
           <el-divider content-position="left">附件</el-divider>
           <div class="attachments-list">
             <div 
-              v-for="attachment in attachments" 
+              v-for="attachment in submissionAttachments" 
               :key="attachment.uuid"
               class="attachment-item"
             >
@@ -460,6 +460,7 @@ import request from '@/utils/request'
 import dayjs from 'dayjs'
 import {
   getAttachmentsByProgress,
+  adminGetAttachmentsByProgress,
   downloadAttachment as downloadAttachmentAPI,
   formatFileSize
 } from '../../student/api/attachment'
@@ -481,8 +482,12 @@ const filterStatus = ref('')
 const submittingGrade = ref(false)
 const feedbackTemplates = ref([])
 const selectedTemplate = ref(null)
-const attachments = ref([])  // 附件列表
+
+// 提交详情和附件相关
+const loadingSubmissionContent = ref(false)
 const loadingAttachments = ref(false)
+const submissionDetailContent = ref('')
+const submissionAttachments = ref([])
 
 const gradeForm = ref({
   grade: '',
@@ -581,18 +586,54 @@ const loadTaskSubmissions = async () => {
 // 加载附件列表
 const loadAttachments = async (progressId) => {
   if (!progressId) {
-    attachments.value = []
+    submissionAttachments.value = []
     return
   }
   
   loadingAttachments.value = true
   try {
     const result = await getAttachmentsByProgress(progressId)
-    attachments.value = result.data || []
+    submissionAttachments.value = result.data || []
   } catch (error) {
     console.error('加载附件列表失败:', error)
-    attachments.value = []
+    submissionAttachments.value = []
   } finally {
+    loadingAttachments.value = false
+  }
+}
+
+// 加载提交详情（内容+附件）
+const loadSubmissionDetails = async (submission) => {
+  loadingSubmissionContent.value = true
+  loadingAttachments.value = true
+  submissionDetailContent.value = ''
+  submissionAttachments.value = []
+  
+  try {
+    // 1. 提取提交内容（从submission对象中）
+    if (submission.submission) {
+      if (typeof submission.submission === 'string') {
+        try {
+          const parsed = JSON.parse(submission.submission)
+          submissionDetailContent.value = parsed.content || ''
+        } catch {
+          submissionDetailContent.value = submission.submission
+        }
+      } else if (submission.submission.content) {
+        submissionDetailContent.value = submission.submission.content
+      }
+    }
+    
+    // 2. 加载附件列表（使用管理员API）
+    if (submission.submission_id) {
+      const attachmentsRes = await adminGetAttachmentsByProgress(submission.submission_id)
+      submissionAttachments.value = attachmentsRes.data || []
+    }
+  } catch (error) {
+    console.error('加载提交详情失败:', error)
+    ElMessage.error(error.message || '加载提交详情失败')
+  } finally {
+    loadingSubmissionContent.value = false
     loadingAttachments.value = false
   }
 }
@@ -623,19 +664,16 @@ const downloadAttachment = async (attachment) => {
 // 打开批改对话框
 const openGradeDialog = async (submission) => {
   currentSubmission.value = submission
+  
+  // 加载提交详情和附件
+  await loadSubmissionDetails(submission)
+  
   gradeForm.value = {
     grade: submission.grade || '',
     score: submission.score,
     feedback: submission.feedback || ''
   }
   selectedTemplate.value = null
-  
-  // 加载附件列表
-  if (submission.submission_id) {
-    await loadAttachments(submission.submission_id)
-  } else {
-    attachments.value = []
-  }
   
   gradeDialogVisible.value = true
 }
@@ -691,12 +729,8 @@ const submitGrade = async () => {
 const viewSubmission = async (submission) => {
   currentSubmission.value = submission
   
-  // 加载附件列表
-  if (submission.submission_id) {
-    await loadAttachments(submission.submission_id)
-  } else {
-    attachments.value = []
-  }
+  // 加载提交详情和附件
+  await loadSubmissionDetails(submission)
   
   viewSubmissionDialogVisible.value = true
 }
