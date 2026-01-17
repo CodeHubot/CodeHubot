@@ -25,8 +25,6 @@ def is_admin_user(user: User) -> bool:
     
     管理员权限判断规则：
     1. platform_admin 角色（平台管理员）
-    """
-    判断用户是否为管理员
     基于角色判断，更安全且易于管理
     """
     return user.role in ['platform_admin', 'super_admin', 'admin']
