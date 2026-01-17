@@ -1,102 +1,142 @@
 <template>
   <div class="login-container">
-    <div class="login-card">
-      <div class="login-header">
-        <h1>{{ platformName }}</h1>
-        <p>{{ platformDescription }}</p>
+    <!-- 背景装饰 -->
+    <div class="bg-decoration">
+      <div class="floating-shape shape-1"></div>
+      <div class="floating-shape shape-2"></div>
+      <div class="floating-shape shape-3"></div>
+    </div>
+    
+    <!-- 主要内容 -->
+    <div class="login-content">
+      <!-- 左侧品牌区域 -->
+      <div class="brand-section">
+        <div class="brand-content">
+          <div class="logo">
+            <el-icon size="48" color="#FFFFFF">
+              <Monitor />
+            </el-icon>
+          </div>
+          <h1 class="brand-title">CODEHUBOT</h1>
+          <p class="brand-subtitle">CodeHubot智能体开发</p>
+          <div class="feature-list">
+
+            <div class="feature-item">
+              <el-icon color="#67C23A"><CircleCheck /></el-icon>
+              <span>AI智能设备管理</span>
+            </div>
+            <div class="feature-item">
+              <el-icon color="#67C23A"><CircleCheck /></el-icon>
+              <span>MQTT 实时通信</span>
+            </div>
+            <div class="feature-item">
+              <el-icon color="#67C23A"><CircleCheck /></el-icon>
+              <span>智能体构建</span>
+            </div>
+
+          </div>
+        </div>
       </div>
       
-      <el-form
-        ref="generalFormRef"
-        :model="generalForm"
-        :rules="generalRules"
-        @submit.prevent="handleGeneralLogin"
-        class="login-form"
-      >
-        <el-form-item prop="username">
-          <el-input
-            v-model="generalForm.username"
-            placeholder="用户名/邮箱"
-            prefix-icon="User"
-            size="large"
-            clearable
-          />
-        </el-form-item>
-        
-        <el-form-item prop="password">
-          <el-input
-            v-model="generalForm.password"
-            type="password"
-            placeholder="密码"
-            prefix-icon="Lock"
-            size="large"
-            show-password
-            @keyup.enter="handleGeneralLogin"
-            @blur="checkLoginAttempts"
-          />
-        </el-form-item>
-        
-        <!-- 验证码输入框（登录失败3次后显示） -->
-        <el-form-item v-if="needsCaptcha" prop="captchaCode">
-          <div class="captcha-container">
-            <el-input
-              v-model="generalForm.captchaCode"
-              placeholder="请输入验证码"
-              size="large"
-              prefix-icon="Key"
-              class="captcha-input"
-              autocomplete="off"
-              maxlength="4"
-              @keyup.enter="handleGeneralLogin"
-            />
-            <div class="captcha-image-wrapper" @click="refreshCaptcha">
-              <img 
-                v-if="captchaUrl" 
-                :src="captchaUrl" 
-                alt="验证码"
-                class="captcha-image"
-              />
-              <el-icon class="refresh-icon" title="点击刷新验证码">
-                <Refresh />
-              </el-icon>
-            </div>
+      <!-- 右侧登录表单 -->
+      <div class="form-section">
+        <div class="form-container">
+          <div class="form-header">
+            <h2>欢迎回来</h2>
           </div>
-        </el-form-item>
-        
-        <!-- 用户协议勾选 -->
-        <el-form-item prop="agreePolicy">
-          <el-checkbox v-model="generalForm.agreePolicy">
-            <span class="agreement-text">
-              我已阅读并同意
-              <el-link type="primary" :underline="false" @click.stop="showUserAgreement">
-                《用户协议》
-              </el-link>
-              和
-              <el-link type="primary" :underline="false" @click.stop="showPrivacyPolicy">
-                《隐私政策》
-              </el-link>
-            </span>
-          </el-checkbox>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button
-            type="primary"
-            size="large"
-            style="width: 100%"
-            :loading="loading"
-            :disabled="!generalForm.agreePolicy"
-            @click="handleGeneralLogin"
+
+          <!-- 登录表单 -->
+          <el-form
+            ref="generalFormRef"
+            :model="generalForm"
+            :rules="generalRules"
+            class="login-form"
+            autocomplete="off"
+            @submit.prevent="handleGeneralLogin"
           >
-            登录
-          </el-button>
-        </el-form-item>
-      </el-form>
-      
-      <div class="login-footer" v-if="canRegister">
-        <el-link type="primary" :underline="false" @click="$router.push('/register')">
-          没有账号？注册
-        </el-link>
+            <el-form-item prop="username">
+              <el-input
+                v-model="generalForm.username"
+                placeholder="请输入用户名"
+                size="large"
+                prefix-icon="User"
+                class="form-input"
+                autocomplete="off"
+              />
+            </el-form-item>
+            
+            <el-form-item prop="password">
+              <el-input
+                v-model="generalForm.password"
+                type="password"
+                placeholder="请输入密码"
+                size="large"
+                prefix-icon="Lock"
+                show-password
+                class="form-input"
+                autocomplete="off"
+                @keyup.enter="handleGeneralLogin"
+                @blur="checkLoginAttempts"
+              />
+            </el-form-item>
+            
+            <!-- 验证码输入框（登录失败3次后显示） -->
+            <el-form-item v-if="needsCaptcha" prop="captchaCode">
+              <div class="captcha-container">
+                <el-input
+                  v-model="generalForm.captchaCode"
+                  placeholder="请输入验证码"
+                  size="large"
+                  prefix-icon="Key"
+                  class="captcha-input form-input"
+                  autocomplete="off"
+                  maxlength="4"
+                  @keyup.enter="handleGeneralLogin"
+                />
+                <div class="captcha-image-wrapper" @click="refreshCaptcha">
+                  <img 
+                    v-if="captchaUrl" 
+                    :src="captchaUrl" 
+                    alt="验证码"
+                    class="captcha-image"
+                  />
+                  <el-icon class="refresh-icon" title="点击刷新验证码">
+                    <Refresh />
+                  </el-icon>
+                </div>
+              </div>
+            </el-form-item>
+            
+            <el-form-item>
+              <el-button
+                type="primary"
+                size="large"
+                class="login-btn"
+                :loading="loading"
+                @click="handleGeneralLogin"
+              >
+                <span v-if="!loading">登录</span>
+                <span v-else>登录中...</span>
+              </el-button>
+            </el-form-item>
+          </el-form>
+          
+          <div class="form-footer" v-if="canRegister">
+            <p>还没有账户？ <el-link type="primary" @click="$router.push('/register')">立即注册</el-link></p>
+          </div>
+          
+          <!-- 用户协议和隐私政策 -->
+          <div class="form-policies">
+            <span class="policy-text">登录即表示您已阅读并同意</span>
+            <el-link type="info" :underline="false" @click="showUserAgreement">
+              《用户协议》
+            </el-link>
+            <span class="policy-divider">和</span>
+            <el-link type="info" :underline="false" @click="showPrivacyPolicy">
+              《隐私政策》
+            </el-link>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -144,7 +184,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePlatformStore } from '@/stores/platform'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Monitor, CircleCheck } from '@element-plus/icons-vue'
 import { login } from '@shared/api/auth'
 
 const router = useRouter()
@@ -305,70 +345,301 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .login-container {
-  position: relative;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
   overflow: hidden;
 }
 
-.login-card {
-  position: relative;
-  z-index: 10;
-  background: white;
-  border-radius: 20px;
-  padding: 50px 40px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  width: 450px;
-  max-width: 90vw;
+/* 背景装饰 */
+.bg-decoration {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
-.login-header {
+.floating-shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  animation: float 6s ease-in-out infinite;
+}
+
+.shape-1 {
+  width: 200px;
+  height: 200px;
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.shape-2 {
+  width: 150px;
+  height: 150px;
+  top: 60%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.shape-3 {
+  width: 100px;
+  height: 100px;
+  bottom: 20%;
+  left: 20%;
+  animation-delay: 4s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(180deg); }
+}
+
+/* 主要内容布局 */
+.login-content {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* 左侧品牌区域 */
+.brand-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.brand-content {
   text-align: center;
-  margin-bottom: 40px;
+  color: white;
+  max-width: 400px;
+}
+
+.logo {
+  margin-bottom: 30px;
   
-  h1 {
-    font-size: 36px;
-    font-weight: bold;
-    color: #2c3e50;
-    margin-bottom: 10px;
+  .el-icon {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  }
+}
+
+.brand-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: white;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.brand-subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 40px;
+  opacity: 0.95;
+  font-weight: 300;
+}
+
+.feature-list {
+  text-align: left;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  opacity: 0.9;
+  
+  .el-icon {
+    margin-right: 12px;
+    font-size: 1.3rem;
+  }
+}
+
+/* 右侧表单区域 */
+.form-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  background: #f5f5f5;
+}
+
+.form-container {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 24px;
+  padding: 48px 40px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 32px;
+  
+  h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 8px;
   }
   
   p {
-    font-size: 16px;
-    color: #999;
+    color: #666;
+    font-size: 1rem;
   }
 }
 
 .login-form {
-  margin-top: 30px;
+  margin-bottom: 20px;
+}
+
+.form-input {
+  height: 50px;
   
-  .el-form-item {
-    margin-bottom: 24px;
+  :deep(.el-input__wrapper) {
+    border-radius: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #e8e8e8;
+    box-shadow: none;
+    transition: all 0.3s ease;
+    padding: 0 16px;
+    
+    &:hover {
+      border-color: #409eff;
+      background-color: white;
+    }
+    
+    &.is-focus {
+      border-color: #409eff;
+      background-color: white;
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+    }
+  }
+  
+  :deep(.el-input__inner) {
+    height: 48px;
+    line-height: 48px;
+  }
+  
+  :deep(.el-input__prefix) {
+    display: flex;
+    align-items: center;
   }
 }
 
-.login-footer {
+.login-btn {
+  width: 100%;
+  height: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
+  border: none;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(64, 158, 255, 0.35);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.form-footer {
   text-align: center;
-  margin-top: 30px;
+  margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #f0f0f0;
   
-  .el-divider {
-    margin: 0 15px;
+  p {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
   }
 }
 
-.agreement-text {
-  font-size: 14px;
-  color: #606266;
+.form-policies {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #999;
+  
+  .policy-text {
+    margin-right: 5px;
+  }
+  
+  .policy-divider {
+    margin: 0 5px;
+  }
   
   .el-link {
-    font-size: 14px;
-    margin: 0 2px;
+    font-size: 13px;
   }
+}
+
+/* 验证码容器样式 */
+.captcha-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.captcha-input {
+  flex: 1;
+}
+
+.captcha-image-wrapper {
+  position: relative;
+  width: 120px;
+  height: 50px;
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #409eff;
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  }
+}
+
+.captcha-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.captcha-image-wrapper .refresh-icon {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  padding: 4px;
+  font-size: 14px;
+  color: #409eff;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.captcha-image-wrapper:hover .refresh-icon {
+  opacity: 1;
 }
 
 .policy-content {
@@ -401,7 +672,8 @@ onMounted(async () => {
     text-indent: 2em;
   }
   
-  :deep(ul), :deep(ol) {
+  :deep(ul),
+  :deep(ol) {
     margin: 10px 0;
     padding-left: 40px;
   }
@@ -411,121 +683,68 @@ onMounted(async () => {
   }
 }
 
-/* 验证码容器样式 */
-.captcha-container {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.captcha-input {
-  flex: 1;
-}
-
-.captcha-image-wrapper {
-  position: relative;
-  width: 120px;
-  height: 40px;
-  cursor: pointer;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #dcdfe6;
-  transition: all 0.3s ease;
-}
-
-.captcha-image-wrapper:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
-}
-
-.captcha-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.captcha-image-wrapper .refresh-icon {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  padding: 4px;
-  font-size: 14px;
-  color: #409eff;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.captcha-image-wrapper:hover .refresh-icon {
-  opacity: 1;
-}
-
-.login-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.bg-shape {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  animation: float 20s infinite ease-in-out;
-}
-
-.shape-1 {
-  width: 300px;
-  height: 300px;
-  top: 10%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.shape-2 {
-  width: 200px;
-  height: 200px;
-  bottom: 20%;
-  right: 15%;
-  animation-delay: 3s;
-}
-
-.shape-3 {
-  width: 150px;
-  height: 150px;
-  top: 50%;
-  right: 25%;
-  animation-delay: 6s;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .login-content {
+    flex-direction: column;
   }
-  25% {
-    transform: translateY(-30px) rotate(90deg);
+  
+  .brand-section {
+    padding: 40px 20px;
+    min-height: 40vh;
   }
-  50% {
-    transform: translateY(0) rotate(180deg);
+  
+  .form-section {
+    padding: 40px 20px;
+    min-height: 60vh;
   }
-  75% {
-    transform: translateY(30px) rotate(270deg);
+  
+  .brand-title {
+    font-size: 2.5rem;
+  }
+  
+  .form-header h2 {
+    font-size: 1.75rem;
   }
 }
 
 @media (max-width: 768px) {
-  .login-card {
-    padding: 40px 30px;
+  .brand-section,
+  .form-section {
+    padding: 30px 20px;
   }
   
-  .login-header h1 {
-    font-size: 28px;
+  .brand-title {
+    font-size: 2rem;
   }
+  
+  .form-container {
+    padding: 36px 28px;
+  }
+  
+  .form-header h2 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-section,
+  .form-section {
+    padding: 20px;
+  }
+  
+  .brand-title {
+    font-size: 1.8rem;
+  }
+  
+  .form-container {
+    max-width: 100%;
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+}
+
+.login-bg {
+  display: none;
 }
 </style>
