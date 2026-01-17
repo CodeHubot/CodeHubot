@@ -66,8 +66,8 @@ export const searchIndividualUsers = (params) => {
 /**
  * 分配角色（独立用户→教师/学生）
  */
-export const assignRole = (userId, data) => {
-  return request.post(`user-management/users/${userId}/assign-role`, data)
+export const assignRole = (userUuid, data) => {
+  return request.post(`user-management/users/${userUuid}/assign-role`, data)
 }
 
 // ===== 用户信息更新 =====
@@ -75,14 +75,14 @@ export const assignRole = (userId, data) => {
 /**
  * 更新用户信息
  */
-export const updateUser = (userId, data) => {
-  return request.put(`user-management/users/${userId}`, data)
+export const updateUser = (userUuid, data) => {
+  return request.put(`user-management/users/${userUuid}`, data)
 }
 
 /**
  * 删除用户
  */
-export const deleteUser = (userId) => {
-  return request.delete(`user-management/users/${userId}`)
+export const deleteUser = (userUuid) => {
+  return request.delete(`user-management/users/${userUuid}`)
 }
 

@@ -168,9 +168,9 @@ export const addStudentToCourse = (courseUuid, data) => {
 /**
  * 移除学生从课程
  */
-export const removeStudentFromCourse = (courseUuid, studentId) => {
+export const removeStudentFromCourse = (courseUuid, studentUuid) => {
   return request({
-    url: `/courses/${courseUuid}/students/${studentId}`,
+    url: `/courses/${courseUuid}/students/${studentUuid}`,
     method: 'delete'
   })
 }

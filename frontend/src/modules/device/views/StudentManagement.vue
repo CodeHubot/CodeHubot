@@ -263,7 +263,7 @@ const handleDelete = async (student) => {
       type: 'warning'
     })
     
-    await deleteUser(student.id)
+    await deleteUser(student.uuid)
     ElMessage.success('学生删除成功')
     loadStudents()
   } catch (error) {

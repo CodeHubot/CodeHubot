@@ -6,7 +6,7 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.models.user import User
 from app.models.device import Device
-from app.schemas.user import UserResponse, UserCreate, UserUpdate
+from app.schemas.user import UserResponse, UserCreate, UserUpdate, AdminResetPasswordRequest
 from app.api.auth import get_current_user
 from app.core.security import verify_password, get_password_hash
 from app.core.constants import ErrorMessages, SuccessMessages
@@ -350,7 +350,7 @@ async def toggle_user_status(
 @router.post("/{user_uuid}/reset-password")
 async def reset_user_password(
     user_uuid: str,
-    new_password: str = Query(..., description="新密码"),
+    request_data: AdminResetPasswordRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -373,19 +373,8 @@ async def reset_user_password(
             detail=ErrorMessages.USER_NOT_FOUND
         )
     
-    # 验证密码强度（使用UserCreate的验证逻辑）
-    from app.schemas.user import UserCreate
-    try:
-        # 临时创建UserCreate对象来验证密码
-        temp_user = UserCreate(email=user.email or "", username=user.username, password=new_password)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"密码不符合要求: {str(e)}"
-        )
-    
-    # 更新密码
-    user.password_hash = get_password_hash(new_password)
+    # 更新密码（密码验证已在Schema中完成）
+    user.password_hash = get_password_hash(request_data.new_password)
     db.commit()
     
     logger.info(f"✅ 管理员 {current_user.username} 重置用户密码: {user.email} (UUID: {user_uuid})")

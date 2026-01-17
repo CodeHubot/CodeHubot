@@ -1,0 +1,342 @@
+# ==========================================
+# 🔧 CodeHubot 本地开发环境配置 - 仅支持服务
+# ==========================================
+# 
+# 用途：本地开发前后端源代码时使用
+# 说明：
+#   - 只启动支持服务（MySQL、Redis、MQTT等）
+#   - 不启动前端和后端容器
+#   - 开放所有必要端口供本地代码访问
+#   - 前后端需要在本地手动启动
+#
+# 使用方法：
+#   启动: docker-compose -f docker-compose.dev-services.yml up -d
+#   停止: docker-compose -f docker-compose.dev-services.yml down
+#
+# 本地启动前后端：
+#   后端: cd ../backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+#   前端: cd ../frontend && npm run dev
+#
+# ==========================================
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: codehubot-mysql-dev
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-aiot_admin}
+      MYSQL_USER: ${MYSQL_USER:-aiot_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+    volumes:
+      - mysql_data_dev:/var/lib/mysql
+      - ../SQL/01_init_database.sql:/docker-entrypoint-initdb.d/01_init_database.sql:ro
+      - ../SQL/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
+    ports:
+      - "3306:3306"  # ✓ 开放端口供本地开发使用
+    command: --default-authentication-plugin=mysql_native_password --innodb-use-native-aio=0 --log-bin-trust-function-creators=1
+    networks:
+      - aiot-network-dev
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: codehubot-redis-dev
+    ports:
+      - "6379:6379"  # ✓ 开放端口供本地开发使用
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - aiot-network-dev
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # MQTT Broker
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: codehubot-mqtt-dev
+    ports:
+      - "1883:1883"  # ✓ MQTT端口
+      - "9001:9001"  # ✓ MQTT WebSocket端口
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data_dev:/mosquitto/data
+      - mqtt_logs_dev:/mosquitto/log
+    networks:
+      - aiot-network-dev
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health/check", "-m", "ping", "-i", "health-check-client"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # MQTT服务 - 设备消息处理（独立服务）
+  mqtt-service:
+    build:
+      context: ../service/mqtt-service
+      dockerfile: Dockerfile
+    container_name: codehubot-mqtt-service-dev
+    environment:
+      # MQTT Broker配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+    networks:
+      - aiot-network-dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Celery Worker - 异步任务处理（独立服务）
+  celery_worker:
+    build:
+      context: ..
+      dockerfile: service/celery-service/Dockerfile
+    container_name: codehubot-celery-worker-dev
+    environment:
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+      # JWT密钥
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # 阿里云API密钥
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      # 文件存储路径
+      KNOWLEDGE_BASE_STORAGE: /app/backend/data/knowledge-bases
+    volumes:
+      - knowledge_bases_data_dev:/app/backend/data/knowledge-bases
+    networks:
+      - aiot-network-dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Flower - Celery任务监控面板（独立服务）
+  flower:
+    build:
+      context: ..
+      dockerfile: service/celery-service/Dockerfile
+    container_name: codehubot-flower-dev
+    command: ["bash", "start_flower.sh"]
+    ports:
+      - "5555:5555"  # ✓ Flower监控界面
+    environment:
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+      # JWT密钥
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # Flower配置
+      FLOWER_PORT: 5555
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:admin}
+    networks:
+      - aiot-network-dev
+    depends_on:
+      - redis
+      - celery_worker
+    restart: unless-stopped
+
+  # 配置服务
+  config-service:
+    build:
+      context: ../service/config-service
+      dockerfile: Dockerfile
+      args:
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+    container_name: codehubot-config-service-dev
+    environment:
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+      # 后端服务地址（指向本地开发的后端）
+      API_SERVER: ${BACKEND_URL:-http://host.docker.internal:8000}
+      OTA_SERVER: ${BACKEND_URL:-http://host.docker.internal:8000}
+      # 环境配置
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    ports:
+      - "8001:8001"  # ✓ 配置服务端口
+    networks:
+      - aiot-network-dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # 插件后端服务（直接访问数据库和MQTT）
+  plugin-backend-service:
+    build:
+      context: ../service/plugin-backend-service
+      dockerfile: Dockerfile
+    container_name: codehubot-plugin-backend-service-dev
+    environment:
+      # 服务配置
+      SERVICE_PORT: 9002
+      SERVICE_HOST: 0.0.0.0
+      # 数据库配置
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
+      # MQTT配置
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+    ports:
+      - "9002:9002"  # ✓ 插件后端服务端口
+    networks:
+      - aiot-network-dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # 插件服务（接收外部请求）
+  plugin-service:
+    build:
+      context: ../service/plugin-service
+      dockerfile: Dockerfile
+      args:
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
+    container_name: codehubot-plugin-service-dev
+    environment:
+      # 服务配置
+      PORT: ${PLUGIN_SERVICE_PORT:-9000}
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      RELOAD: "false"
+      # 后端服务配置（指向本地开发的后端）
+      PLUGIN_BACKEND_URL: http://plugin-backend-service:9002
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8000}
+      BACKEND_API_KEY: ${INTERNAL_API_KEY:-your-internal-api-key}
+      # 安全配置
+      CORS_ENABLED: ${PLUGIN_CORS_ENABLED:-true}
+      CORS_ORIGINS: ${PLUGIN_CORS_ORIGINS:-*}
+      # 其他配置
+      REQUEST_TIMEOUT: ${PLUGIN_REQUEST_TIMEOUT:-30}
+      DEBUG_MODE: ${PLUGIN_DEBUG_MODE:-true}
+    ports:
+      - "9000:9000"  # ✓ 插件服务端口
+    networks:
+      - aiot-network-dev
+    depends_on:
+      plugin-backend-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # phpMyAdmin 数据库管理工具
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: codehubot-phpmyadmin-dev
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 50M
+    ports:
+      - "8081:80"  # ✓ phpMyAdmin管理界面
+    networks:
+      - aiot-network-dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data_dev:
+  redis_data_dev:
+  mqtt_data_dev:
+  mqtt_logs_dev:
+  knowledge_bases_data_dev:
+
+networks:
+  aiot-network-dev:
+    driver: bridge

@@ -589,6 +589,32 @@ main() {
             COMPOSE_FILE="docker-compose.external-db.yml"
             ACTION="logs"
             ;;
+        # 开发模式命令（仅启动支持服务，不启动前后端）
+        start-dev-services)
+            DEPLOY_MODE="dev-services"
+            COMPOSE_FILE="docker-compose.dev-services.yml"
+            ACTION="start-dev"
+            ;;
+        stop-dev-services)
+            DEPLOY_MODE="dev-services"
+            COMPOSE_FILE="docker-compose.dev-services.yml"
+            ACTION="stop"
+            ;;
+        restart-dev-services)
+            DEPLOY_MODE="dev-services"
+            COMPOSE_FILE="docker-compose.dev-services.yml"
+            ACTION="restart-dev"
+            ;;
+        status-dev-services)
+            DEPLOY_MODE="dev-services"
+            COMPOSE_FILE="docker-compose.dev-services.yml"
+            ACTION="status"
+            ;;
+        logs-dev-services)
+            DEPLOY_MODE="dev-services"
+            COMPOSE_FILE="docker-compose.dev-services.yml"
+            ACTION="logs"
+            ;;
     esac
     
     case "${ACTION}" in
@@ -657,6 +683,68 @@ main() {
             check_dependencies
             clean_volumes
             ;;
+        # 开发模式命令
+        start-dev)
+            check_dependencies
+            log_info "=========================================="
+            log_info "启动开发环境支持服务"
+            log_info "=========================================="
+            log_info ""
+            log_info "模式: 本地开发（仅支持服务）"
+            log_info "说明: 前后端需要在本地手动启动"
+            log_info ""
+            
+            cd "${DOCKER_DIR}"
+            docker-compose -f "${COMPOSE_FILE}" up -d
+            
+            log_info ""
+            log_info "等待服务启动..."
+            sleep 15
+            
+            log_info ""
+            log_info "=========================================="
+            log_info "✓ 开发环境支持服务已启动"
+            log_info "=========================================="
+            log_info ""
+            log_info "已启动的服务："
+            log_info "  - MySQL (端口 3306) - 数据库"
+            log_info "  - Redis (端口 6379) - 缓存"
+            log_info "  - MQTT (端口 1883, 9001) - 消息队列"
+            log_info "  - Celery Worker - 异步任务处理"
+            log_info "  - Flower (端口 5555) - 任务监控"
+            log_info "  - Config Service (端口 8001) - 配置服务"
+            log_info "  - Plugin Services (端口 9000, 9002) - 插件服务"
+            log_info "  - phpMyAdmin (端口 8081) - 数据库管理"
+            log_info ""
+            log_info "接下来请手动启动前后端："
+            log_info ""
+            log_info "启动后端："
+            log_info "  cd ${PROJECT_ROOT}/backend"
+            log_info "  uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+            log_info ""
+            log_info "启动前端："
+            log_info "  cd ${PROJECT_ROOT}/frontend"
+            log_info "  npm run dev"
+            log_info ""
+            log_info "数据库连接信息："
+            log_info "  Host: localhost"
+            log_info "  Port: 3306"
+            log_info "  Database: aiot_admin"
+            log_info "  Username: aiot_user"
+            log_info "  Password: aiot_password"
+            log_info ""
+            log_info "Redis连接信息："
+            log_info "  Host: localhost"
+            log_info "  Port: 6379"
+            log_info ""
+            ;;
+        restart-dev)
+            check_dependencies
+            log_info "重启开发环境支持服务..."
+            cd "${DOCKER_DIR}"
+            docker-compose -f "${COMPOSE_FILE}" restart
+            log_info "✓ 服务已重启"
+            ;;
         *)
             echo "用法: $0 {deploy|build|start|stop|restart|status|logs [服务名]|clean}"
             echo ""
@@ -678,6 +766,28 @@ main() {
             echo "  restart-external-db - 重启服务"
             echo "  status-external-db  - 查看服务状态"
             echo "  logs-external-db    - 查看日志（可指定服务名）"
+            echo ""
+            echo "开发模式命令（本地开发前后端源代码）："
+            echo "  start-dev-services   - 启动开发环境支持服务（不含前后端）"
+            echo "  stop-dev-services    - 停止开发环境服务"
+            echo "  restart-dev-services - 重启开发环境服务"
+            echo "  status-dev-services  - 查看开发环境服务状态"
+            echo "  logs-dev-services    - 查看开发环境日志"
+            echo ""
+            echo "开发模式说明："
+            echo "  开发模式仅启动支持服务（MySQL、Redis、MQTT、Celery等）"
+            echo "  前后端需要在本地手动启动以便实时调试："
+            echo "    后端: cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+            echo "    前端: cd frontend && npm run dev"
+            echo ""
+            echo "  开放的端口："
+            echo "    - MySQL: 3306"
+            echo "    - Redis: 6379"
+            echo "    - MQTT: 1883, 9001"
+            echo "    - Flower: 5555"
+            echo "    - Config Service: 8001"
+            echo "    - Plugin Service: 9000"
+            echo "    - phpMyAdmin: 8081"
             echo ""
             echo "外部数据库模式使用前："
             echo "  1. 复制环境配置: cp docker/.env.external-db.example docker/.env"

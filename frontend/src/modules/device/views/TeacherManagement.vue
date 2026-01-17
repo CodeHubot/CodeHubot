@@ -375,7 +375,7 @@ const handleAssign = async () => {
     
     submitting.value = true
     try {
-      await assignRole(selectedUser.value.id, {
+      await assignRole(selectedUser.value.uuid, {
         new_role: 'teacher',
         teacher_number: assignForm.teacher_number,
         subject: assignForm.subject
@@ -399,7 +399,7 @@ const handleDelete = async (teacher) => {
       type: 'warning'
     })
     
-    await deleteUser(teacher.id)
+    await deleteUser(teacher.uuid)
     ElMessage.success('教师删除成功')
     loadTeachers()
   } catch (error) {

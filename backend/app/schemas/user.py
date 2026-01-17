@@ -226,6 +226,49 @@ class ChangePasswordRequest(BaseModel):
         
         return v
 
+class AdminResetPasswordRequest(BaseModel):
+    """管理员重置用户密码请求Schema"""
+    new_password: str = Field(
+        ...,
+        min_length=MIN_PASSWORD_LENGTH,
+        max_length=MAX_PASSWORD_LENGTH,
+        description="新密码"
+    )
+    
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        """验证新密码强度"""
+        errors = []
+        
+        # 检查长度
+        if len(v) < MIN_PASSWORD_LENGTH:
+            errors.append(f'密码长度至少{MIN_PASSWORD_LENGTH}个字符')
+        
+        # 检查是否包含字母
+        if not re.search(r'[a-zA-Z]', v):
+            errors.append('密码必须包含至少一个字母')
+        
+        # 检查是否包含数字
+        if not re.search(r'[0-9]', v):
+            errors.append('密码必须包含至少一个数字')
+        
+        # 检查是否包含空格
+        if ' ' in v:
+            errors.append('密码不能包含空格')
+        
+        # 检查常见弱密码
+        weak_passwords = [
+            'password', '12345678', 'qwerty', 'abc123', 
+            'password123', 'admin123', '123456789', '11111111'
+        ]
+        if v.lower() in weak_passwords:
+            errors.append('密码过于简单，请使用更强的密码')
+        
+        if errors:
+            raise ValueError('；'.join(errors))
+        
+        return v
+
 class UpdateProfileRequest(BaseModel):
     """修改个人信息请求Schema"""
     email: Optional[EmailStr] = Field(None, description="邮箱")

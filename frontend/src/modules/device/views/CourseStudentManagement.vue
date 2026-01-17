@@ -328,7 +328,7 @@ const removeStudent = async (student) => {
       }
     )
     
-    await removeStudentFromCourse(courseUuid, student.id)
+    await removeStudentFromCourse(courseUuid, student.uuid)
     ElMessage.success('学生已移除')
     loadStudents()
   } catch (error) {

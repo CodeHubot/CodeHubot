@@ -28,39 +28,39 @@ export const createUser = (data) => {
 
 /**
  * 更新用户信息
- * @param {number} userId - 用户ID
+ * @param {string} userUuid - 用户UUID
  * @param {Object} data - 更新数据
  * @param {string} data.username - 用户名
  * @param {boolean} data.is_active - 是否启用
  */
-export const updateUser = (userId, data) => {
-  return request.put(`users/${userId}`, data)
+export const updateUser = (userUuid, data) => {
+  return request.put(`users/${userUuid}`, data)
 }
 
 /**
  * 删除用户
- * @param {number} userId - 用户ID
+ * @param {string} userUuid - 用户UUID
  */
-export const deleteUser = (userId) => {
-  return request.delete(`users/${userId}`)
+export const deleteUser = (userUuid) => {
+  return request.delete(`users/${userUuid}`)
 }
 
 /**
  * 切换用户启用/禁用状态
- * @param {number} userId - 用户ID
+ * @param {string} userUuid - 用户UUID
  */
-export const toggleUserStatus = (userId) => {
-  return request.put(`users/${userId}/toggle-status`)
+export const toggleUserStatus = (userUuid) => {
+  return request.put(`users/${userUuid}/toggle-status`)
 }
 
 /**
  * 重置用户密码
- * @param {number} userId - 用户ID
+ * @param {string} userUuid - 用户UUID
  * @param {string} newPassword - 新密码
  */
-export const resetUserPassword = (userId, newPassword) => {
-  return request.post(`users/${userId}/reset-password`, null, {
-    params: { new_password: newPassword }
+export const resetUserPassword = (userUuid, newPassword) => {
+  return request.post(`users/${userUuid}/reset-password`, {
+    new_password: newPassword
   })
 }
 

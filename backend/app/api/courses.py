@@ -604,10 +604,10 @@ async def list_course_teachers(
     return success_response(data={"teachers": teacher_list})
 
 
-@router.delete("/{course_uuid}/teachers/{teacher_id}", response_model=dict)
+@router.delete("/{course_uuid}/teachers/{teacher_uuid}", response_model=dict)
 async def remove_course_teacher(
     course_uuid: str,
-    teacher_id: int,
+    teacher_uuid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(check_school_admin_or_teacher)
 ):
@@ -621,6 +621,15 @@ async def remove_course_teacher(
     if not course:
         return error_response(message="课程不存在", code=404)
     
+    # 查找教师
+    teacher = db.query(User).filter(
+        User.uuid == teacher_uuid,
+        User.deleted_at.is_(None)
+    ).first()
+    
+    if not teacher:
+        return error_response(message="教师不存在", code=404)
+    
     # 权限检查
     if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
         return error_response(message="无权操作该课程", code=403)
@@ -628,7 +637,7 @@ async def remove_course_teacher(
     # 查找关联记录
     course_teacher = db.query(CourseTeacher).filter(
         CourseTeacher.course_id == course.id,
-        CourseTeacher.teacher_id == teacher_id,
+        CourseTeacher.teacher_id == teacher.id,
         CourseTeacher.deleted_at.is_(None)
     ).first()
     
@@ -961,10 +970,10 @@ async def update_enrollment(
     return success_response(message="选课信息更新成功")
 
 
-@router.delete("/{course_uuid}/students/{student_id}", response_model=dict)
+@router.delete("/{course_uuid}/students/{student_uuid}", response_model=dict)
 async def drop_course(
     course_uuid: str,
-    student_id: int,
+    student_uuid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -978,8 +987,17 @@ async def drop_course(
     if not course:
         return error_response(message="课程不存在", code=404)
     
+    # 查找学生
+    student = db.query(User).filter(
+        User.uuid == student_uuid,
+        User.deleted_at.is_(None)
+    ).first()
+    
+    if not student:
+        return error_response(message="学生不存在", code=404)
+    
     # 权限检查：学生只能为自己退课
-    if current_user.role == 'student' and current_user.id != student_id:
+    if current_user.role == 'student' and current_user.uuid != student_uuid:
         return error_response(message="只能为自己退课", code=403)
     elif current_user.role not in ['platform_admin', 'school_admin', 'student']:
         return error_response(message="无权退课", code=403)
@@ -987,7 +1005,7 @@ async def drop_course(
     # 查找选课记录
     enrollment = db.query(CourseStudent).filter(
         CourseStudent.course_id == course.id,
-        CourseStudent.student_id == student_id,
+        CourseStudent.student_id == student.id,
         CourseStudent.status == 'enrolled',
         CourseStudent.deleted_at.is_(None)
     ).first()
@@ -1468,11 +1486,11 @@ async def set_group_leader(
     return success_response(message="组长设置成功")
 
 
-@router.delete("/{course_uuid}/groups/{group_uuid}/members/{student_id}", response_model=dict)
+@router.delete("/{course_uuid}/groups/{group_uuid}/members/{student_uuid}", response_model=dict)
 async def remove_group_member(
     course_uuid: str,
     group_uuid: str,
-    student_id: int,
+    student_uuid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(check_school_admin_or_teacher)
 ):
@@ -1496,10 +1514,19 @@ async def remove_group_member(
     if not group:
         return error_response(message="分组不存在", code=404)
     
+    # 查找学生
+    student = db.query(User).filter(
+        User.uuid == student_uuid,
+        User.deleted_at.is_(None)
+    ).first()
+    
+    if not student:
+        return error_response(message="学生不存在", code=404)
+    
     # 查找成员记录
     member = db.query(GroupMember).filter(
         GroupMember.group_id == group.id,
-        GroupMember.student_id == student_id,
+        GroupMember.student_id == student.id,
         GroupMember.left_at.is_(None)
     ).first()
     

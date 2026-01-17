@@ -7,20 +7,86 @@
 - `docker-compose.yml` - 开发环境配置（仅包含基础服务：MySQL、Redis、MQTT）
 - `docker-compose.prod.yml` - 生产环境配置（包含所有服务，含 MySQL 容器）
 - `docker-compose.external-db.yml` - 外部数据库模式配置（使用已有 MySQL 服务）
+- `docker-compose.dev-services.yml` - **本地开发配置（仅支持服务，开放所有端口）** ⭐ 新增
 - `.env.example` - 标准模式环境变量配置示例
 - `.env.external-db.example` - 外部数据库模式环境变量配置示例
 - `mosquitto.conf` - MQTT 服务配置
+- `DEV-SERVICES-README.md` - 本地开发环境详细说明文档 ⭐ 新增
 
 ## 🚀 快速开始
 
 ### 部署模式选择
 
-CodeHubot 支持两种部署模式：
+CodeHubot 支持三种部署模式：
 
 | 模式 | 说明 | 适用场景 |
 |------|------|----------|
+| **本地开发模式** ⭐ | 仅启动支持服务，前后端本地运行 | **本地开发调试、热更新** |
 | **标准模式** | MySQL 运行在 Docker 容器中 | 开发、测试、小型部署 |
 | **外部数据库模式** | 使用已有的 MySQL 服务 | 生产环境、云数据库、数据持久化 |
+
+### 模式 0：本地开发模式（推荐用于开发调试）⭐ 新增
+
+**适用场景**：本地开发前后端源代码，需要热更新和实时调试
+
+#### 0.1 一键启动支持服务
+
+```bash
+# 方式1: 使用快捷脚本（推荐）
+bash script/start-dev.sh
+
+# 方式2: 使用部署脚本
+bash script/deploy.sh start-dev-services
+
+# 方式3: 直接使用 docker-compose
+cd docker
+docker-compose -f docker-compose.dev-services.yml up -d
+```
+
+#### 0.2 启动后端（新终端）
+
+```bash
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### 0.3 启动前端（新终端）
+
+```bash
+cd frontend
+npm run dev
+```
+
+#### 0.4 已启动的服务和端口
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| MySQL | 3306 | 数据库（已开放） |
+| Redis | 6379 | 缓存（已开放） |
+| MQTT | 1883, 9001 | 消息队列 |
+| Celery Worker | - | 异步任务 |
+| Flower | 5555 | 任务监控 |
+| Config Service | 8001 | 配置服务 |
+| Plugin Service | 9000 | 插件服务 |
+| phpMyAdmin | 8081 | 数据库管理 |
+
+#### 0.5 管理命令
+
+```bash
+# 停止服务
+bash script/deploy.sh stop-dev-services
+
+# 重启服务
+bash script/deploy.sh restart-dev-services
+
+# 查看状态
+bash script/deploy.sh status-dev-services
+
+# 查看日志
+bash script/deploy.sh logs-dev-services
+```
+
+**📖 详细文档**：[DEV-SERVICES-README.md](./DEV-SERVICES-README.md)
 
 ### 模式 1：标准模式（MySQL 容器化）
 

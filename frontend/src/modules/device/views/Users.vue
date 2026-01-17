@@ -601,7 +601,7 @@ const handleSaveUser = async () => {
       try {
         if (editingUser.value) {
           // 更新用户
-          await updateUser(editingUser.value.id, {
+          await updateUser(editingUser.value.uuid, {
             username: userForm.username,
             is_active: editingUser.value.is_active // 保持原有状态
           })
@@ -641,7 +641,7 @@ const handleDeleteUser = async (user) => {
       }
     )
     
-    await deleteUser(user.id)
+    await deleteUser(user.uuid)
     ElMessage.success('用户删除成功')
     loadUsers()
   } catch (error) {
@@ -653,7 +653,7 @@ const handleDeleteUser = async (user) => {
 
 const handleToggleStatus = async (user) => {
   try {
-    await toggleUserStatus(user.id)
+    await toggleUserStatus(user.uuid)
     ElMessage.success(`用户已${user.is_active ? '启用' : '禁用'}`)
     loadUsers()
   } catch (error) {
@@ -677,7 +677,7 @@ const handleConfirmResetPassword = async () => {
     if (valid) {
       resetting.value = true
       try {
-        await resetUserPassword(resettingUser.value.id, passwordForm.newPassword)
+        await resetUserPassword(resettingUser.value.uuid, passwordForm.newPassword)
         ElMessage.success('密码重置成功')
         showPasswordDialog.value = false
         passwordForm.newPassword = ''
