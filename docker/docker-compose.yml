@@ -1,5 +1,15 @@
 version: '3.8'
 
+# ==========================================
+# ⚠️ 开发环境配置 - 仅供本地测试使用
+# ==========================================
+# 生产环境部署请使用 docker-compose.prod.yml
+# 必须修改以下默认密码和密钥：
+#   - MYSQL_PASSWORD
+#   - MYSQL_ROOT_PASSWORD  
+#   - SECRET_KEY
+# ==========================================
+
 services:
   # MySQL数据库
   mysql:
@@ -8,11 +18,13 @@ services:
     environment:
       MYSQL_DATABASE: aiot_admin
       MYSQL_USER: aiot_user
+      # ⚠️ 开发环境示例密码 - 生产环境必须修改！
       MYSQL_PASSWORD: aiot_password
       MYSQL_ROOT_PASSWORD: root_password
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+      - ../SQL/01_init_database.sql:/docker-entrypoint-initdb.d/01_init_database.sql:ro
+      - ../SQL/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
     ports:
       - "3306:3306"
     command: --default-authentication-plugin=mysql_native_password --innodb-use-native-aio=0
@@ -71,11 +83,14 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: aiot_user
+      # ⚠️ 开发环境示例密码 - 生产环境必须修改！
       DB_PASSWORD: aiot_password
       DB_NAME: aiot_admin
       # Redis配置
       REDIS_URL: redis://redis:6379
       # JWT配置
+      # ⚠️ 开发环境示例密钥 - 生产环境必须使用强密钥！
+      # 生成密钥：python3 -c "import secrets; print(secrets.token_urlsafe(32))"
       SECRET_KEY: your-secret-key-change-in-production
       # MQTT配置
       MQTT_BROKER_HOST: mqtt
@@ -107,19 +122,16 @@ services:
       dockerfile: Dockerfile
     container_name: codehubot-mqtt-service
     environment:
-      # MQTT Broker配置（内部连接）
-      MQTT_BROKER: mqtt
-      MQTT_PORT: 1883
+      # MQTT Broker配置（mqtt-service连接到Broker，统一变量名）
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
-      # 设备MQTT配置（提供给设备的外部MQTT地址）
-      DEVICE_MQTT_BROKER: ${DEVICE_MQTT_BROKER}
-      DEVICE_MQTT_PORT: ${DEVICE_MQTT_PORT:-1883}
-      DEVICE_MQTT_USE_SSL: ${DEVICE_MQTT_USE_SSL:-false}
       # 数据库配置
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: aiot_user
+      # ⚠️ 开发环境示例密码 - 生产环境必须修改！
       DB_PASSWORD: aiot_password
       DB_NAME: aiot_admin
     networks:

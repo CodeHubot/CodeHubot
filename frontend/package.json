@@ -1,6 +1,7 @@
 {
-  "name": "codehubot-unified-frontend",
+  "name": "codehubot-aiot-platform",
   "version": "1.0.0",
+  "description": "CodeHubot - AIoT智能体开发与管理平台前端",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",

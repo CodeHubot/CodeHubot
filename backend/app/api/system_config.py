@@ -19,7 +19,9 @@ from app.schemas.system_config import (
     PlatformConfigResponse,
     PlatformConfigUpdate,
     PoliciesConfigResponse,
-    PoliciesConfigUpdate
+    PoliciesConfigUpdate,
+    DeviceMqttConfigResponse,
+    DeviceMqttConfigUpdate
 )
 from app.core.deps import get_current_user
 from app.models.user import User
@@ -60,6 +62,56 @@ def set_config_value(db: Session, key: str, value: str, config_type: str = "stri
     db.commit()
     db.refresh(config)
     return config
+
+
+def _get_module_config_data(db: Session) -> ModuleConfigResponse:
+    """内部函数：获取模块配置数据"""
+    def get_bool_config(key: str, default: bool = True) -> bool:
+        value = get_config_value(db, key, str(default).lower())
+        return value.lower() in ('true', '1', 'yes') if value else default
+    
+    return ModuleConfigResponse(
+        enable_user_registration=get_bool_config("enable_user_registration", True),
+        enable_device_module=get_bool_config("enable_device_module", True),
+        enable_ai_module=get_bool_config("enable_ai_module", True),
+        enable_pbl_module=get_bool_config("enable_pbl_module", True)
+    )
+
+
+def _get_platform_config_data(db: Session, include_policies: bool = False) -> PlatformConfigResponse:
+    """内部函数：获取平台配置数据"""
+    def get_string_config(key: str, default: str = "") -> str:
+        value = get_config_value(db, key, default)
+        return value if value else default
+    
+    def get_bool_config(key: str, default: bool = False) -> bool:
+        value = get_config_value(db, key, str(default).lower())
+        return value.lower() in ('true', '1', 'yes') if value else default
+    
+    response_data = {
+        "platform_name": get_string_config("platform_name", "CodeHubot"),
+        "platform_description": get_string_config("platform_description", "智能物联网管理平台"),
+        "enable_user_registration": get_bool_config("enable_user_registration", False)
+    }
+    
+    # 只有明确请求时才返回协议内容，以节省网络流量
+    if include_policies:
+        response_data["user_agreement"] = get_string_config("user_agreement", "")
+        response_data["privacy_policy"] = get_string_config("privacy_policy", "")
+    
+    return PlatformConfigResponse(**response_data)
+
+
+def _get_policies_config_data(db: Session) -> PoliciesConfigResponse:
+    """内部函数：获取协议配置数据"""
+    def get_text_config(key: str, default: str = "") -> str:
+        value = get_config_value(db, key, default)
+        return value if value else default
+    
+    return PoliciesConfigResponse(
+        user_agreement=get_text_config("user_agreement", ""),
+        privacy_policy=get_text_config("privacy_policy", "")
+    )
 
 
 @router.get("/configs", response_model=List[SystemConfigInDB])
@@ -232,16 +284,7 @@ async def get_module_config(db: Session = Depends(get_db)):
     获取模块配置（公开接口，无需认证）
     返回各个模块的启用状态
     """
-    def get_bool_config(key: str, default: bool = True) -> bool:
-        value = get_config_value(db, key, str(default).lower())
-        return value.lower() in ('true', '1', 'yes') if value else default
-    
-    return ModuleConfigResponse(
-        enable_user_registration=get_bool_config("enable_user_registration", True),
-        enable_device_module=get_bool_config("enable_device_module", True),
-        enable_ai_module=get_bool_config("enable_ai_module", True),
-        enable_pbl_module=get_bool_config("enable_pbl_module", True)
-    )
+    return _get_module_config_data(db)
 
 
 @router.put("/modules", response_model=ModuleConfigResponse)
@@ -281,7 +324,7 @@ async def update_module_config(
         )
     
     # 返回更新后的配置
-    return await get_module_config(db)
+    return _get_module_config_data(db)
 
 
 @router.post("/modules/init")
@@ -346,26 +389,7 @@ async def get_platform_config(
         include_policies: 是否包含用户协议和隐私政策（默认false）
                          如需获取协议内容，请使用 /policies 接口或设置此参数为true
     """
-    def get_string_config(key: str, default: str = "") -> str:
-        value = get_config_value(db, key, default)
-        return value if value else default
-    
-    def get_bool_config(key: str, default: bool = False) -> bool:
-        value = get_config_value(db, key, str(default).lower())
-        return value.lower() in ('true', '1', 'yes') if value else default
-    
-    response_data = {
-        "platform_name": get_string_config("platform_name", "CodeHubot"),
-        "platform_description": get_string_config("platform_description", "智能物联网管理平台"),
-        "enable_user_registration": get_bool_config("enable_user_registration", False)
-    }
-    
-    # 只有明确请求时才返回协议内容，以节省网络流量
-    if include_policies:
-        response_data["user_agreement"] = get_string_config("user_agreement", "")
-        response_data["privacy_policy"] = get_string_config("privacy_policy", "")
-    
-    return PlatformConfigResponse(**response_data)
+    return _get_platform_config_data(db, include_policies)
 
 
 @router.put("/platform", response_model=PlatformConfigResponse)
@@ -464,3 +488,89 @@ async def update_policies_config(
     
     # 返回更新后的配置
     return await get_policies_config(db)
+
+
+# ==================== 设备MQTT配置专用接口 ====================
+
+@router.get("/device-mqtt", response_model=DeviceMqttConfigResponse)
+async def get_device_mqtt_config(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    获取设备MQTT配置（仅平台管理员）
+    返回设备连接MQTT Broker的配置信息
+    """
+    if not is_platform_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有平台管理员可以查看设备MQTT配置"
+        )
+    
+    def get_string_config(key: str, default: str = "") -> str:
+        value = get_config_value(db, key, default)
+        return value if value else default
+    
+    def get_int_config(key: str, default: int = 1883) -> int:
+        value = get_config_value(db, key, str(default))
+        try:
+            return int(value) if value else default
+        except ValueError:
+            return default
+    
+    def get_bool_config(key: str, default: bool = False) -> bool:
+        value = get_config_value(db, key, str(default).lower())
+        return value.lower() in ('true', '1', 'yes') if value else default
+    
+    return DeviceMqttConfigResponse(
+        device_mqtt_broker=get_string_config("device_mqtt_broker", "mqtt.example.com"),
+        device_mqtt_port=get_int_config("device_mqtt_port", 1883),
+        device_mqtt_use_ssl=get_bool_config("device_mqtt_use_ssl", False)
+    )
+
+
+@router.put("/device-mqtt", response_model=DeviceMqttConfigResponse)
+async def update_device_mqtt_config(
+    mqtt_config: DeviceMqttConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    更新设备MQTT配置（仅平台管理员）
+    更新后config-service需要刷新配置缓存才能生效
+    """
+    if not is_platform_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有平台管理员可以更新设备MQTT配置"
+        )
+    
+    update_data = mqtt_config.model_dump(exclude_unset=True)
+    
+    config_mapping = {
+        "device_mqtt_broker": ("设备连接的MQTT Broker地址", "device", "string"),
+        "device_mqtt_port": ("设备连接的MQTT Broker端口", "device", "integer"),
+        "device_mqtt_use_ssl": ("设备连接MQTT是否使用SSL/TLS", "device", "boolean")
+    }
+    
+    for key, value in update_data.items():
+        description, category, config_type = config_mapping[key]
+        # 布尔值转字符串
+        if isinstance(value, bool):
+            value = str(value).lower()
+        # 整数转字符串
+        elif isinstance(value, int):
+            value = str(value)
+        
+        set_config_value(
+            db=db,
+            key=key,
+            value=value,
+            config_type=config_type,
+            description=description,
+            category=category,
+            is_public=False  # 设备MQTT配置不公开
+        )
+    
+    # 返回更新后的配置
+    return await get_device_mqtt_config(db, current_user)

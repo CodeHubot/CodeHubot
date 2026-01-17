@@ -43,9 +43,5 @@ RUN mkdir -p /app/celery-service/logs
 # 设置环境变量
 ENV PYTHONPATH="/app/celery-service:/app/backend:$PYTHONPATH"
 
-# 给脚本执行权限
-RUN chmod +x start_worker.sh start_flower.sh stop_all.sh
-
-# Worker入口
+# Worker入口（直接使用Python脚本启动）
 CMD ["python", "worker.py"]
-

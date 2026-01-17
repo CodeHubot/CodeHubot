@@ -42,8 +42,7 @@ CodeHubot/
 │   ├── docker-compose.external-db.yml  # 生产环境编排（外部数据库模式）
 │   ├── .env.example                 # 环境变量示例（标准模式）
 │   ├── .env.external-db.example     # 环境变量示例（外部数据库模式）
-│   ├── mosquitto.conf               # MQTT 配置
-│   └── verify-env.sh                # 环境检查脚本
+│   └── mosquitto.conf               # MQTT 配置
 ├── backend/
 │   ├── Dockerfile                   # 后端镜像构建
 │   ├── requirements.txt             # Python 依赖
@@ -61,7 +60,8 @@ CodeHubot/
 ├── deploy.sh                        # 一键部署脚本
 ├── start-all.sh                     # 启动所有服务
 ├── stop-all.sh                      # 停止所有服务
-└── update_and_deploy.sh             # 更新并重新部署
+└── script/
+    └── update_and_deploy.sh             # 更新并重新部署
 ```
 
 ## Dockerfile 配置
@@ -346,32 +346,17 @@ QIANWEN_API_KEY=your-api-key
 
 ### 环境变量验证
 
-**文件位置**: `docker/verify-env.sh`
+**说明**：`script/deploy.sh` 部署脚本会自动检查必需的环境变量。
+
+如果需要手动验证，可以使用以下命令：
 
 ```bash
-#!/bin/bash
+# 检查 .env 文件是否存在
+test -f docker/.env && echo "✅ .env 文件存在" || echo "❌ .env 文件不存在"
 
-# 检查必需的环境变量
-required_vars=(
-  "DB_HOST"
-  "DB_PORT"
-  "DB_USER"
-  "DB_PASSWORD"
-  "SECRET_KEY"
-)
-
-missing_vars=()
-
-for var in "${required_vars[@]}"; do
-  if [ -z "${!var}" ]; then
-    missing_vars+=("$var")
-  fi
-done
-
-if [ ${#missing_vars[@]} -ne 0 ]; then
-  echo "❌ 缺少必需的环境变量:"
-  printf '%s\n' "${missing_vars[@]}"
-  exit 1
+# 查看配置的环境变量（脱敏）
+cd docker
+grep "^[A-Z]" .env | grep -v "PASSWORD\|SECRET\|KEY" | head -20
 fi
 
 echo "✅ 环境变量检查通过"
@@ -445,7 +430,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 ### 更新部署
 
-**文件位置**: `update_and_deploy.sh`
+**文件位置**: `script/update_and_deploy.sh`
 
 ```bash
 #!/bin/bash

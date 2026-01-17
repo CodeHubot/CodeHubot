@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://plugin.codehubot.hello1023.com",
+      "url": "https://plugin.codehubot.com",
       "description": "生产服务器"
     }
   ],

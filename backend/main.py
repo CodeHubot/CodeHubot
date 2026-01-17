@@ -47,7 +47,7 @@ class CustomJSONResponse(JSONResponse):
 
 # 创建数据库表（已禁用，直接在数据库中初始化）
 # 注意：需要先导入所有模型，SQLAlchemy会自动处理外键依赖关系
-from app.models import school, course_model, device_group, knowledge_base, document, kb_analytics, pbl_group_device_authorization  # 导入所有模型
+from app.models import school, course_model, device_group, knowledge_base, document, kb_analytics  # 导入所有模型
 # user.Base.metadata.create_all(bind=engine)
 # device.Base.metadata.create_all(bind=engine)
 # product.Base.metadata.create_all(bind=engine)
@@ -62,7 +62,7 @@ from app.models import school, course_model, device_group, knowledge_base, docum
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 应用启动时
-    logger.info("🚀 启动物联网设备服务系统")
+    logger.info("🚀 启动 CodeHubot AIoT 智能体平台")
     
     # 初始化管理员账号
     from app.core.init_admin import init_admin_on_startup
@@ -78,12 +78,12 @@ async def lifespan(app: FastAPI):
     yield
     
     # 应用关闭时
-    logger.info("🛑 关闭物联网设备服务系统")
+    logger.info("🛑 关闭 CodeHubot AIoT 智能体平台")
     # mqtt_service.stop()
 
 app = FastAPI(
-    title="物联网设备服务系统",
-    description="一个开源的物联网设备管理平台",
+    title="CodeHubot - AIoT智能体平台",
+    description="开源的AIoT智能体开发与管理平台，支持AI Agent与IoT设备的深度融合",
     version="1.0.0",
     lifespan=lifespan,
     default_response_class=CustomJSONResponse  # 使用自定义JSONResponse

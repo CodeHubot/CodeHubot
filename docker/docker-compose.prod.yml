@@ -1,3 +1,22 @@
+# ==========================================
+# 🚀 CodeHubot 生产环境部署配置
+# ==========================================
+# 
+# ⚠️ 安全警告：
+# 1. 必须配置 .env 文件中的所有密钥和密码
+# 2. 不要使用默认值部署到生产环境
+# 3. 确保以下环境变量已正确设置：
+#    - SECRET_KEY (JWT密钥，必须强密钥)
+#    - INTERNAL_API_KEY (内部服务API密钥)
+#    - MYSQL_PASSWORD (数据库密码)
+#    - MYSQL_ROOT_PASSWORD (数据库Root密码)
+#    - DASHSCOPE_API_KEY (阿里云AI密钥)
+#
+# 生成强密钥命令：
+#   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+#
+# ==========================================
+
 services:
   # MySQL数据库
   mysql:
@@ -6,11 +25,13 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-aiot_admin}
       MYSQL_USER: ${MYSQL_USER:-aiot_user}
+      # ⚠️ 生产环境必须在 .env 文件中设置强密码！
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+      - ../SQL/01_init_database.sql:/docker-entrypoint-initdb.d/01_init_database.sql:ro
+      - ../SQL/02_init_data.sql:/docker-entrypoint-initdb.d/02_init_data.sql:ro
     # 不暴露端口到外部，仅在Docker网络内部访问（安全考虑）
     # ports:
     #   - "${MYSQL_PORT:-3306}:3306"
@@ -48,7 +69,7 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: codehubot-mqtt
     ports:
-      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_BROKER_PORT:-1883}:1883"
       - "${MQTT_WS_PORT:-9001}:9001"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
@@ -79,6 +100,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${MYSQL_USER:-aiot_user}
+      # ⚠️ 生产环境必须在 .env 文件中设置强密码！
       DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
       DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
       # Redis配置
@@ -86,23 +108,23 @@ services:
       # 阿里云API密钥（向量化需要）
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
       # 阿里云VOD配置（视频点播）
-      ALIYUN_ACCESS_KEY_ID: ${ALIYUN_ACCESS_KEY_ID:-}
-      ALIYUN_ACCESS_KEY_SECRET: ${ALIYUN_ACCESS_KEY_SECRET:-}
-      ALIYUN_VOD_REGION_ID: ${ALIYUN_VOD_REGION_ID:-cn-shanghai}
       # 服务器配置
       SERVER_BASE_URL: ${SERVER_BASE_URL:-http://localhost:8000}
       # JWT配置
+      # ⚠️ 生产环境必须在 .env 文件中设置强密钥！
+      # 生成命令：python3 -c "import secrets; print(secrets.token_urlsafe(32))"
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-120}
       REFRESH_TOKEN_EXPIRE_MINUTES: ${REFRESH_TOKEN_EXPIRE_MINUTES:-10080}
       # MQTT配置
-      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
-      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mqtt}
       MQTT_BROKER_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       # 内部API密钥
+      # ⚠️ 生产环境必须在 .env 文件中设置强密钥！
+      # 用于内部服务间通信认证
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       # 环境配置
       ENVIRONMENT: ${ENVIRONMENT:-production}
@@ -158,9 +180,9 @@ services:
       dockerfile: Dockerfile
     container_name: codehubot-mqtt-service
     environment:
-      # MQTT Broker配置
-      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
-      MQTT_PORT: 1883
+      # MQTT Broker配置（mqtt-service连接到Broker，统一变量名）
+      MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mqtt}
+      MQTT_BROKER_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       # 数据库配置
@@ -199,8 +221,7 @@ services:
       # JWT密钥
       SECRET_KEY: ${SECRET_KEY}
       # MQTT配置
-      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
-      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mqtt}
       MQTT_BROKER_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
@@ -244,8 +265,7 @@ services:
       # JWT密钥
       SECRET_KEY: ${SECRET_KEY}
       # MQTT配置
-      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
-      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mqtt}
       MQTT_BROKER_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
@@ -276,11 +296,10 @@ services:
       DB_USER: ${MYSQL_USER:-aiot_user}
       DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
       DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
-      # MQTT配置
-      MQTT_BROKER: ${MQTT_BROKER:-mqtt}
-      MQTT_PORT: 1883
+      # 设备MQTT配置已迁移到数据库管理，通过系统配置页面进行配置
       # 后端服务地址（用于内部调用）
-      BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+      API_SERVER: ${BACKEND_URL:-http://backend:8000}
+      OTA_SERVER: ${BACKEND_URL:-http://backend:8000}
       # 环境配置
       ENVIRONMENT: ${ENVIRONMENT:-production}
     ports:
@@ -333,12 +352,12 @@ services:
       # 数据库配置 - 使用内置MySQL
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: ${DB_USER:-aiot_user}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME:-aiot_admin}
+      DB_USER: ${MYSQL_USER:-aiot_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-aiot_password}
+      DB_NAME: ${MYSQL_DATABASE:-aiot_admin}
       # MQTT配置
-      MQTT_BROKER: mqtt
-      MQTT_PORT: 1883
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
     # 不暴露端口到外部,仅在Docker网络内部访问

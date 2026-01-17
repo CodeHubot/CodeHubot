@@ -50,13 +50,13 @@ cp .env.example .env
 nano .env
 
 # 启动所有服务（包含 MQTT 服务）
-docker-compose -f docker-compose.with-mqtt.yml up -d
+docker-compose -f docker/docker-compose.prod.yml up -d
 
 # 查看服务状态
-docker-compose -f docker-compose.with-mqtt.yml ps
+docker-compose -f docker/docker-compose.prod.yml ps
 
 # 查看 MQTT 服务日志
-docker-compose -f docker-compose.with-mqtt.yml logs -f mqtt-service
+docker-compose -f docker/docker-compose.prod.yml logs -f mqtt-service
 ```
 
 ### 方式二：Systemd 服务部署
@@ -278,7 +278,7 @@ MQTT 服务支持两种数据格式，自动识别并转换为统一的存储格
 
 ```bash
 # Docker 部署
-docker-compose -f docker-compose.with-mqtt.yml logs -f mqtt-service
+docker-compose -f docker/docker-compose.prod.yml logs -f mqtt-service
 
 # Systemd 服务
 sudo journalctl -u mqtt-service -f
@@ -557,21 +557,21 @@ echo '{"temperature": 25.5}' | jq .
 **解决：**
 ```bash
 # 1. 查看容器日志
-docker-compose -f docker-compose.with-mqtt.yml logs mqtt-service
+docker-compose -f docker/docker-compose.prod.yml logs mqtt-service
 
 # 2. 检查环境变量
-docker-compose -f docker-compose.with-mqtt.yml config
+docker-compose -f docker/docker-compose.prod.yml config
 
 # 3. 检查网络连接
 docker network ls
 docker network inspect codehubot_codehubot-network
 
 # 4. 重新构建镜像
-docker-compose -f docker-compose.with-mqtt.yml build mqtt-service
+docker-compose -f docker/docker-compose.prod.yml build mqtt-service
 
 # 5. 清理并重新启动
-docker-compose -f docker-compose.with-mqtt.yml down -v
-docker-compose -f docker-compose.with-mqtt.yml up -d
+docker-compose -f docker/docker-compose.prod.yml down -v
+docker-compose -f docker/docker-compose.prod.yml up -d
 ```
 
 ### 问题8：性能下降
@@ -764,8 +764,8 @@ sudo systemctl restart mqtt-service
 # Docker 方式
 cd docker
 git pull
-docker-compose -f docker-compose.with-mqtt.yml build mqtt-service
-docker-compose -f docker-compose.with-mqtt.yml up -d mqtt-service
+docker-compose -f docker/docker-compose.prod.yml build mqtt-service
+docker-compose -f docker/docker-compose.prod.yml up -d mqtt-service
 ```
 
 ### 备份和恢复
@@ -794,9 +794,9 @@ git checkout <commit-hash>
 sudo systemctl restart mqtt-service
 
 # Docker 回滚
-docker-compose -f docker-compose.with-mqtt.yml down
+docker-compose -f docker/docker-compose.prod.yml down
 git checkout <commit-hash>
-docker-compose -f docker-compose.with-mqtt.yml up -d
+docker-compose -f docker/docker-compose.prod.yml up -d
 ```
 
 ## 📚 常见问题 FAQ

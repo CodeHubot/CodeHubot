@@ -70,15 +70,16 @@ export default [
         component: () => import('@device/views/DeviceDetailByUUID.vue'),
         meta: { title: '设备详情' }
       },
-      {
-        path: 'products',
-        name: 'ProductList',
-        component: () => import('@device/views/Products.vue'),
-        meta: { 
-          title: '产品管理',
-          requiresPlatformAdmin: true 
-        }
-      },
+      // 产品管理已移至平台管理系统
+      // {
+      //   path: 'products',
+      //   name: 'ProductList',
+      //   component: () => import('@device/views/Products.vue'),
+      //   meta: { 
+      //     title: '产品管理',
+      //     requiresPlatformAdmin: true 
+      //   }
+      // },
       // 设备分组暂时移除
       // {
       //   path: 'device-groups',
@@ -86,15 +87,16 @@ export default [
       //   component: () => import('@device/views/DeviceGroups.vue'),
       //   meta: { title: '设备分组' }
       // },
-      {
-        path: 'device-pbl-authorization',
-        name: 'DevicePBLAuthorization',
-        component: () => import('@device/views/DevicePBLAuthorization.vue'),
-        meta: { 
-          title: '设备授权',
-          requiresTeacherOrAdmin: true 
-        }
-      },
+      // PBL设备授权功能已删除
+      // {
+      //   path: 'device-pbl-authorization',
+      //   name: 'DevicePBLAuthorization',
+      //   component: () => import('@device/views/DevicePBLAuthorization.vue'),
+      //   meta: { 
+      //     title: '设备授权',
+      //     requiresTeacherOrAdmin: true 
+      //   }
+      // },
       {
         path: 'firmware',
         name: 'FirmwareManagement',
@@ -103,12 +105,6 @@ export default [
           title: '固件管理',
           requiresPlatformAdmin: true 
         }
-      },
-      {
-        path: 'system-config',
-        name: 'SystemConfig',
-        component: () => import('@device/views/SystemConfig.vue'),
-        meta: { title: '系统配置（旧）', requiresPlatformAdmin: true }
       },
       {
         path: 'platform-config',

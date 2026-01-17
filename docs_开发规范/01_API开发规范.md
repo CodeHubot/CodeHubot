@@ -294,7 +294,7 @@ export function getCourses(params) {
 
 ```javascript
 // 组件中调用 API
-import { getCourses } from '@/modules/pbl/api/courses'
+import { getAgents } from '@/modules/ai/api/agents'
 
 async function loadCourses() {
   try {

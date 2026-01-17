@@ -268,23 +268,10 @@ async function handleGeneralLogin() {
       
       ElMessage.success('登录成功')
       
-      // 根据角色跳转到对应的PBL平台页面
-      let targetPath = '/pbl'
+      // 根据角色跳转到对应页面
+      let targetPath = '/device/dashboard'
       if (route.query.redirect) {
         targetPath = route.query.redirect
-      } else {
-        // 根据用户角色确定默认页面
-        if (authStore.isStudent) {
-          targetPath = '/pbl/student/courses'
-        } else if (authStore.isTeacher) {
-          targetPath = '/pbl/school/dashboard'
-        } else if (authStore.isSchoolAdmin) {
-          targetPath = '/pbl/school/dashboard'
-        } else if (authStore.isChannelPartner) {
-          targetPath = '/pbl/channel/schools'
-        } else if (authStore.isAdmin || authStore.isChannelManager) {
-          targetPath = '/pbl/admin/schools'
-        }
       }
       router.push(targetPath)
     } catch (error) {

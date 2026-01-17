@@ -64,8 +64,12 @@
         </div>
         
         <div class="header-right">
-          <el-button text @click="backToPortal">
-            <el-icon><Grid /></el-icon> 切换系统
+          <el-button type="success" plain @click="goToDeviceSystem">
+            <el-icon><Cpu /></el-icon> 设备管理
+          </el-button>
+          
+          <el-button v-if="authStore.isAdmin" type="warning" plain @click="goToPlatformSystem">
+            <el-icon><Setting /></el-icon> 平台管理
           </el-button>
           
           <el-dropdown @command="handleCommand">
@@ -117,7 +121,7 @@ import { useConfigStore } from '@/stores/config'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   HomeFilled, MagicStick, ChatDotRound, Avatar, Connection, Collection,
-  Expand, Fold, Grid, Setting, User, Lock, SwitchButton, Document
+  Expand, Fold, Grid, Setting, User, Lock, SwitchButton, Document, Cpu
 } from '@element-plus/icons-vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
 
@@ -155,8 +159,14 @@ function toggleCollapse() {
   isCollapse.value = !isCollapse.value
 }
 
-function backToPortal() {
-  router.push('/')
+// 跳转到设备管理系统
+function goToDeviceSystem() {
+  router.push('/device/dashboard')
+}
+
+// 跳转到平台管理系统
+function goToPlatformSystem() {
+  router.push('/platform/dashboard')
 }
 
 function handleCommand(command) {

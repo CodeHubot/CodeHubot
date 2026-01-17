@@ -20,8 +20,8 @@ router = APIRouter()
 
 
 def is_admin_user(user: User) -> bool:
-    """判断用户是否为管理员"""
-    return user.email == "admin@aiot.com" or user.username == "admin" or user.role == "admin"
+    """判断用户是否为管理员（基于角色判断）"""
+    return user.role in ['platform_admin', 'super_admin', 'admin']
 
 @router.get("/", response_model=PromptTemplateList)
 def get_prompt_templates(

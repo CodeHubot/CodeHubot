@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     # MQTT配置（必须从环境变量读取）
     mqtt_broker_host: str
     mqtt_broker_port: int = 1883
-    mqtt_username: str
-    mqtt_password: str
+    mqtt_username: str = ""  # 支持空值（Mosquitto默认无需认证）
+    mqtt_password: str = ""  # 支持空值（Mosquitto默认无需认证）
     
     # 邮件服务配置（可选）
     mail_username: Optional[str] = None
@@ -57,11 +57,6 @@ class Settings(BaseSettings):
     mail_ssl: bool = False
     use_credentials: bool = True
     validate_certs: bool = True
-    
-    # 阿里云VOD配置（可选）
-    aliyun_access_key_id: Optional[str] = None
-    aliyun_access_key_secret: Optional[str] = None
-    aliyun_vod_region_id: str = "cn-beijing"  # 默认北京区域
     
     # 交互日志配置
     log_batch_size: int = 1000  # 批量写入大小

@@ -90,3 +90,18 @@ class PoliciesConfigUpdate(BaseModel):
     """协议配置更新Schema"""
     user_agreement: Optional[str] = Field(None, description="用户协议内容")
     privacy_policy: Optional[str] = Field(None, description="隐私政策内容")
+
+
+class DeviceMqttConfigResponse(BaseModel):
+    """设备MQTT配置响应Schema"""
+    device_mqtt_broker: str = Field(..., description="MQTT Broker地址（设备连接用）")
+    device_mqtt_port: int = Field(..., description="MQTT Broker端口")
+    device_mqtt_use_ssl: bool = Field(..., description="是否启用SSL/TLS")
+
+
+class DeviceMqttConfigUpdate(BaseModel):
+    """设备MQTT配置更新Schema"""
+    device_mqtt_broker: Optional[str] = Field(None, min_length=3, max_length=255, description="MQTT Broker地址")
+    device_mqtt_port: Optional[int] = Field(None, ge=1, le=65535, description="MQTT Broker端口")
+    device_mqtt_use_ssl: Optional[bool] = Field(None, description="是否启用SSL/TLS")
+

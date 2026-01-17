@@ -22,6 +22,7 @@ from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from dotenv import load_dotenv
+from config_manager import ConfigManager
 
 # 加载 .env 文件
 load_dotenv()
@@ -34,8 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ==================== 配置 ====================
-# 从环境变量读取配置
-# 从独立配置项构建数据库连接URL
+# 从环境变量读取数据库配置（数据库配置仍然从环境变量读取）
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT", "3306")
 db_user = os.getenv("DB_USER")
@@ -46,13 +46,8 @@ if not all([db_host, db_user, db_password, db_name]):
     raise ValueError("数据库配置不完整：请提供 DB_HOST、DB_USER、DB_PASSWORD、DB_NAME（DB_PORT 可选，默认 3306）")
 
 DATABASE_URL = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-MQTT_BROKER = os.getenv("DEVICE_MQTT_BROKER", "mqtt.example.com")
-MQTT_PORT = int(os.getenv("DEVICE_MQTT_PORT", "1883"))
-MQTT_USE_SSL = os.getenv("DEVICE_MQTT_USE_SSL", "false").lower() == "true"
-API_SERVER = os.getenv("API_SERVER", "http://api.example.com")
-OTA_SERVER = os.getenv("OTA_SERVER", "http://ota.example.com")
 
-# 速率限制配置
+# 速率限制配置（从环境变量读取）
 RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
 RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 
@@ -60,6 +55,32 @@ RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 Base = declarative_base()
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# ==================== 配置管理器 ====================
+# 初始化配置管理器（5分钟缓存）
+config_manager = ConfigManager(SessionLocal, cache_ttl=300)
+
+# 从数据库读取MQTT配置
+def get_mqtt_config() -> dict:
+    """获取MQTT配置（从数据库读取）"""
+    return {
+        'broker': config_manager.get_string(
+            'device_mqtt_broker', 
+            'mqtt.example.com'
+        ),
+        'port': config_manager.get_int(
+            'device_mqtt_port',
+            1883
+        ),
+        'use_ssl': config_manager.get_bool(
+            'device_mqtt_use_ssl',
+            False
+        )
+    }
+
+# 其他服务配置（仍从环境变量读取，可按需迁移）
+API_SERVER = os.getenv("API_SERVER", "http://api.example.com")
+OTA_SERVER = os.getenv("OTA_SERVER", "http://ota.example.com")
 
 
 class DeviceRecord(Base):
@@ -354,13 +375,16 @@ def _get_device_info_impl(
         f"IP={client_ip}"
     )
     
+    # 获取MQTT配置（从数据库读取）
+    mqtt_config_data = get_mqtt_config()
+    
     # 构建MQTT配置（精简版，只包含固件需要的字段）
     mqtt_config = {
-        "broker": MQTT_BROKER,
-        "port": MQTT_PORT,
+        "broker": mqtt_config_data['broker'],
+        "port": mqtt_config_data['port'],
         "username": device.device_id,
         "password": device.device_secret,  # device_secret在这里使用，不需要单独返回
-        "use_ssl": MQTT_USE_SSL,
+        "use_ssl": mqtt_config_data['use_ssl'],
         "topics": {
             "data": f"devices/{device.uuid}/data",
             "control": f"devices/{device.uuid}/control",
@@ -536,18 +560,58 @@ async def check_firmware_update(
 @app.get("/")
 async def root():
     """根路径"""
+    mqtt_config_data = get_mqtt_config()
     return {
         "service": "AIOT Device Provisioning Service",
         "version": "1.0.0",
         "status": "running",
+        "mqtt_config": {
+            "broker": mqtt_config_data['broker'],
+            "port": mqtt_config_data['port'],
+            "use_ssl": mqtt_config_data['use_ssl'],
+            "source": "database"  # 标识配置来源
+        },
         "endpoints": {
             "health": "GET /health",
             "device_info_get": "GET /device/info?mac=AA:BB:CC:DD:EE:FF (推荐)",
             "device_info_post": "POST /device/info (兼容)",
-            "firmware_check": "POST /firmware/check"
+            "firmware_check": "POST /firmware/check",
+            "refresh_config": "POST /admin/refresh-config"
         },
         "example": "curl http://localhost:8001/device/info?mac=AA:BB:CC:DD:EE:FF"
     }
+
+
+@app.post("/admin/refresh-config")
+async def refresh_config(config_key: Optional[str] = None):
+    """
+    刷新配置缓存（管理接口）
+    
+    Args:
+        config_key: 可选，指定要刷新的配置键；如果为空则刷新所有配置
+    
+    示例:
+        - 刷新所有: POST /admin/refresh-config
+        - 刷新指定配置: POST /admin/refresh-config?config_key=device_mqtt_broker
+    """
+    try:
+        config_manager.refresh(config_key)
+        
+        # 重新加载MQTT配置验证
+        mqtt_config_data = get_mqtt_config()
+        
+        return {
+            "status": "success",
+            "message": f"配置缓存已刷新: {config_key if config_key else '所有配置'}",
+            "current_mqtt_config": mqtt_config_data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"刷新配置缓存失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"刷新配置失败: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
@@ -556,8 +620,12 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8001"))
     
     logger.info(f"🚀 启动设备配置服务，端口: {port}")
-    logger.info(f"📡 MQTT服务器: {MQTT_BROKER}:{MQTT_PORT}")
+    
+    # 预加载MQTT配置
+    mqtt_config_data = get_mqtt_config()
+    logger.info(f"📡 MQTT服务器: {mqtt_config_data['broker']}:{mqtt_config_data['port']} (SSL: {mqtt_config_data['use_ssl']})")
     logger.info(f"🌐 API服务器: {API_SERVER}")
+    logger.info(f"💾 配置来源: 数据库 (缓存TTL: 300秒)")
     
     uvicorn.run(
         "main:app",

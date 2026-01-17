@@ -4,8 +4,11 @@
 .env
 .env.*
 *.env
+# 示例配置文件除外（可以提交）
 !.env.example
 !.env.*.example
+!**/.env.example
+!**/.env.*.example
 config.local.*
 secrets.json
 *.key

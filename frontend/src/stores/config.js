@@ -4,7 +4,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import request from '@/utils/request'
 
 export const useConfigStore = defineStore('config', () => {
   // ==================== 状态 ====================
@@ -121,12 +121,12 @@ export const useConfigStore = defineStore('config', () => {
     loading.value = true
     try {
       // 调用后端公开配置接口（无需认证）
-      const response = await axios.get('/api/system-config/configs/public')
+      const response = await request.get('/system-config/configs/public')
       
       // 转换为键值对形式
       const configMap = {}
-      if (response.data && response.data.data) {
-        response.data.data.forEach(config => {
+      if (response.data) {
+        response.data.forEach(config => {
           configMap[config.config_key] = config
         })
       }

@@ -605,9 +605,7 @@ backend/
 │   ├── api/                     # API 路由
 │   │   ├── __init__.py          # 路由注册
 │   │   ├── auth.py              # 认证相关
-│   │   ├── devices.py           # 设备管理
-│   │   ├── courses.py           # 课程管理
-│   │   └── pbl/                 # PBL 模块路由
+│   │   └── devices.py           # 设备管理
 │   ├── core/                    # 核心模块
 │   │   ├── config.py            # 配置
 │   │   ├── security.py          # 安全

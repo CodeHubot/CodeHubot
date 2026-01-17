@@ -32,7 +32,7 @@
 <type>(<scope>): <subject>
 
 # 示例:
-feat(pbl): 添加课程模板权限管理功能
+feat(ai): 添加智能体管理功能
 fix(api): 修复用户登录token过期问题
 docs(readme): 更新部署文档
 ```
@@ -41,7 +41,7 @@ docs(readme): 更新部署文档
 
 | Type | 说明 | 示例 |
 |------|------|------|
-| **feat** | 新功能 | feat(pbl): 添加课程模板管理 |
+| **feat** | 新功能 | feat(ai): 添加智能体管理 |
 | **fix** | 修复bug | fix(api): 修复分页查询错误 |
 | **docs** | 文档更新 | docs(api): 更新API接口文档 |
 | **style** | 代码格式调整（不影响功能） | style(vue): 统一代码缩进格式 |
@@ -49,7 +49,7 @@ docs(readme): 更新部署文档
 | **perf** | 性能优化 | perf(query): 优化课程列表查询 |
 | **test** | 测试相关 | test(api): 添加课程API测试 |
 | **chore** | 构建/工具链相关 | chore(deps): 升级依赖包版本 |
-| **revert** | 回滚提交 | revert: 回滚feat(pbl): xxx |
+| **revert** | 回滚提交 | revert: 回滚feat(ai): xxx |
 
 ### 3. Scope 范围
 
@@ -58,7 +58,7 @@ docs(readme): 更新部署文档
 ```bash
 # 后端模块
 api         # API 接口
-pbl         # PBL 模块
+ai          # AI 模块
 auth        # 认证模块
 device      # 设备模块
 ai          # AI 模块
@@ -87,7 +87,7 @@ sql         # SQL 脚本
 #### ✅ 好的示例
 
 ```bash
-feat(pbl): 添加课程模板权限管理功能
+feat(ai): 添加智能体管理功能
 fix(api): 修复用户登录token过期导致的401错误
 docs(readme): 更新Docker部署说明
 refactor(auth): 简化权限检查逻辑
@@ -108,9 +108,9 @@ Fix Bug.                              # 英文不规范，有句号
 详细说明修改内容、原因和影响：
 
 ```bash
-feat(pbl): 添加课程模板权限管理功能
+feat(ai): 添加智能体管理功能
 
-- 新增模板权限表 pbl_template_school_permissions
+- 新增智能体配置表 aiot_agents
 - 实现平台管理员分配模板权限给学校
 - 学校管理员可查看可用模板列表
 - 支持按难度、类别筛选模板
@@ -163,7 +163,7 @@ git pull origin main
 
 # 2. 开发和提交
 git add .
-git commit -m "feat(pbl): 添加新功能"
+git commit -m "feat(ai): 添加新功能"
 
 # 3. 推送
 git push origin main
@@ -179,7 +179,7 @@ git checkout -b feat/template-permissions
 
 # 2. 开发和提交
 git add .
-git commit -m "feat(pbl): 添加模板权限管理"
+git commit -m "feat(ai): 添加智能体管理"
 
 # 3. 推送到远程
 git push origin feat/template-permissions
@@ -242,11 +242,11 @@ git diff
 # 5. 暂存修改
 git add .
 # 或选择性添加
-git add backend/app/api/pbl/templates.py
-git add frontend/src/modules/pbl/views/Templates.vue
+git add backend/app/api/ai/agents.py
+git add frontend/src/modules/ai/views/AgentList.vue
 
 # 6. 提交
-git commit -m "feat(pbl): 添加课程模板管理功能"
+git commit -m "feat(ai): 添加智能体管理功能"
 
 # 7. 推送
 git push origin feat/new-feature
@@ -284,7 +284,7 @@ git diff --staged
 
 ```bash
 # 修改最后一次提交信息
-git commit --amend -m "feat(pbl): 修正后的提交信息"
+git commit --amend -m "feat(ai): 修正后的提交信息"
 
 # 修改多次提交（交互式rebase）
 git rebase -i HEAD~3  # 修改最近3次提交
@@ -381,9 +381,9 @@ git push origin feat/new-feature
 
 ```bash
 # ✅ 好的提交: 一个提交只做一件事
-git commit -m "feat(pbl): 添加课程模板列表API"
-git commit -m "feat(pbl): 添加模板详情API"
-git commit -m "style(pbl): 优化模板列表页面样式"
+git commit -m "feat(ai): 添加智能体列表API"
+git commit -m "feat(ai): 添加智能体详情API"
+git commit -m "style(ai): 优化智能体列表页面样式"
 
 # ❌ 不好的提交: 一个提交做多件事
 git commit -m "添加课程模板功能并修复登录bug"  # 应该拆分

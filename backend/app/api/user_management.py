@@ -641,9 +641,9 @@ async def search_individual_users(
         }
     )
 
-@router.post("/users/{user_id}/assign-role", response_model=dict)
+@router.post("/users/{user_uuid}/assign-role", response_model=dict)
 async def assign_role(
-    user_id: int,
+    user_uuid: str,
     assign_request: AssignRoleRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(check_school_admin)
@@ -652,7 +652,7 @@ async def assign_role(
     
     # 查找用户
     user = db.query(User).filter(
-        User.id == user_id,
+        User.uuid == user_uuid,
         User.deleted_at.is_(None)
     ).first()
     
@@ -800,9 +800,9 @@ async def assign_role(
 # 用户信息更新
 # ============================================================================
 
-@router.put("/users/{user_id}", response_model=dict)
+@router.put("/users/{user_uuid}", response_model=dict)
 async def update_user(
-    user_id: int,
+    user_uuid: str,
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -818,7 +818,7 @@ async def update_user(
     
     # 查找用户
     user = db.query(User).filter(
-        User.id == user_id,
+        User.uuid == user_uuid,
         User.deleted_at.is_(None)
     ).first()
     
@@ -845,9 +845,9 @@ async def update_user(
         message="用户信息更新成功"
     )
 
-@router.delete("/users/{user_id}", response_model=dict)
+@router.delete("/users/{user_uuid}", response_model=dict)
 async def delete_user(
-    user_id: int,
+    user_uuid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -862,7 +862,7 @@ async def delete_user(
     
     # 查找用户
     user = db.query(User).filter(
-        User.id == user_id,
+        User.uuid == user_uuid,
         User.deleted_at.is_(None)
     ).first()
     
@@ -877,9 +877,9 @@ async def delete_user(
                 detail="只能删除本校用户"
             )
     
-    # 不能删除自己
+    # 管理员不能删除自己
     if user.id == current_user.id:
-        return error_response(message="不能删除自己", code=400)
+        return error_response(message="管理员不能删除自己", code=400)
     
     # 软删除
     user.deleted_at = get_beijing_time_naive()

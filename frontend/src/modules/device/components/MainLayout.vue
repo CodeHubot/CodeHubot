@@ -148,21 +148,6 @@
                 <div class="item-indicator"></div>
               </div>
 
-              <div 
-                class="nav-item"
-                :class="{ active: $route.path === '/device/device-pbl-authorization' }"
-                @click="handleNavItemClick({route: '/device/device-pbl-authorization'}, $event)"
-              >
-                <div class="item-icon">
-                  <el-icon size="20"><Key /></el-icon>
-                </div>
-                <div class="item-content" v-if="!sidebarCollapsed">
-                  <span class="item-title">设备授权</span>
-                  <span class="item-desc">授权设备给小组</span>
-                </div>
-                <div class="item-indicator"></div>
-              </div>
-
             </div>
           </div>
 
@@ -321,27 +306,6 @@
             </div>
           </div>
 
-          <!-- 原有的教师课程管理区域（临时保留）TODO: 待删除 -->
-          <div class="nav-section" v-if="false && isTeacher">
-            <div class="section-label" v-if="!sidebarCollapsed">OLD-课程管理</div>
-            <div class="nav-items">
-              <div 
-                class="nav-item"
-                :class="{ active: $route.path === '/device/students' }"
-                @click="handleNavItemClick({route: '/device/students'}, $event)"
-              >
-                <div class="item-icon">
-                  <el-icon size="20"><User /></el-icon>
-                </div>
-                <div class="item-content" v-if="!sidebarCollapsed">
-                  <span class="item-title">学生管理</span>
-                  <span class="item-desc">管理班级学生</span>
-                </div>
-                <div class="item-indicator"></div>
-              </div>
-            </div>
-          </div>
-
           <!-- 系统管理区域（保留旧的管理功能） -->
           <div class="nav-section" v-if="canAccessSystemManagement">
             <div class="section-label" v-if="!sidebarCollapsed">系统管理</div>
@@ -358,21 +322,6 @@
                 <div class="item-content" v-if="!sidebarCollapsed">
                   <span class="item-title">用户管理</span>
                   <span class="item-desc">账户权限</span>
-                </div>
-                <div class="item-indicator"></div>
-              </div>
-
-              <div 
-                class="nav-item"
-                :class="{ active: $route.path === '/device/system-config' }"
-                @click="handleNavItemClick({route: '/device/system-config'}, $event)"
-              >
-                <div class="item-icon">
-                  <el-icon size="20"><Setting /></el-icon>
-                </div>
-                <div class="item-content" v-if="!sidebarCollapsed">
-                  <span class="item-title">系统配置</span>
-                  <span class="item-desc">参数设置</span>
                 </div>
                 <div class="item-indicator"></div>
               </div>
@@ -514,7 +463,6 @@ const pageConfig = {
   '/device/device-register': { title: '设备注册', icon: 'Plus', color: '#67C23A' },
   '/devices': { title: '设备列表', icon: 'List', color: '#409EFF' },
   '/device': { title: '设备详情', icon: 'Monitor', color: '#409EFF' },
-  '/device-pbl-authorization': { title: '设备授权', icon: 'Key', color: '#409EFF' },
 
   // AI 智能体
   '/agents': { title: '智能体管理', icon: 'ChatDotRound', color: '#409EFF' },
@@ -538,7 +486,6 @@ const pageConfig = {
   '/users': { title: '用户列表', icon: 'UserFilled', color: '#E6A23C' },
   '/roles': { title: '角色管理', icon: 'UserFilled', color: '#E6A23C' },
   '/permissions': { title: '权限管理', icon: 'UserFilled', color: '#E6A23C' },
-  '/system-config': { title: '系统配置', icon: 'Setting', color: '#909399' },
   '/system-logs': { title: '系统日志', icon: 'Setting', color: '#909399' },
   '/system-backup': { title: '数据备份', icon: 'Setting', color: '#909399' }
 }
@@ -622,8 +569,6 @@ const breadcrumbs = computed(() => {
     crumbs.push('用户管理', '角色管理')
   } else if (path.startsWith('/permissions')) {
     crumbs.push('用户管理', '权限管理')
-  } else if (path.startsWith('/system-config')) {
-    crumbs.push('系统管理', '系统配置')
   } else if (path.startsWith('/system-logs')) {
     crumbs.push('系统管理', '系统日志')
   } else if (path.startsWith('/system-backup')) {

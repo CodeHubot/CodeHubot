@@ -89,26 +89,6 @@
           </div>
         </el-form-item>
 
-        <el-divider />
-
-        <!-- PBL模块 -->
-        <el-form-item>
-          <template #label>
-            <div class="form-label">
-              <el-icon><Reading /></el-icon>
-              <span>PBL教学模块</span>
-            </div>
-          </template>
-          <div class="form-control">
-            <el-switch
-              v-model="moduleConfig.enable_pbl_module"
-              active-text="开启"
-              inactive-text="关闭"
-              size="large"
-            />
-            <span class="description">包含项目式学习、课程管理、任务管理、评估等功能</span>
-          </div>
-        </el-form-item>
       </el-form>
     </el-card>
 
@@ -131,11 +111,6 @@
         <el-descriptions-item label="AI智能模块">
           <el-tag :type="moduleConfig.enable_ai_module ? 'success' : 'danger'">
             {{ moduleConfig.enable_ai_module ? '已开启' : '已关闭' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="PBL教学模块">
-          <el-tag :type="moduleConfig.enable_pbl_module ? 'success' : 'danger'">
-            {{ moduleConfig.enable_pbl_module ? '已开启' : '已关闭' }}
           </el-tag>
         </el-descriptions-item>
       </el-descriptions>
@@ -179,15 +154,14 @@ const initializing = ref(false)
 const moduleConfig = reactive({
   enable_user_registration: true,
   enable_device_module: true,
-  enable_ai_module: true,
-  enable_pbl_module: true
+  enable_ai_module: true
 })
 
 // 获取模块配置
 const fetchConfig = async () => {
   loading.value = true
   try {
-    const response = await request.get('/api/system-config/modules')
+    const response = await request.get('/system-config/modules')
     Object.assign(moduleConfig, response.data)
   } catch (error) {
     console.error('获取模块配置失败:', error)
@@ -211,7 +185,7 @@ const saveConfig = async () => {
     )
 
     saving.value = true
-    const response = await request.put('/api/system-config/modules', moduleConfig)
+    const response = await request.put('/system-config/modules', moduleConfig)
     Object.assign(moduleConfig, response.data)
     ElMessage.success('配置保存成功')
     
@@ -250,7 +224,7 @@ const initConfig = async () => {
     )
 
     initializing.value = true
-    const response = await request.post('/api/system-config/modules/init')
+    const response = await request.post('/system-config/modules/init')
     ElMessage.success(response.data.message || '配置初始化成功')
     
     // 重新获取配置

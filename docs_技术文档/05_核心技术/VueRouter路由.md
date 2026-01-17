@@ -294,7 +294,6 @@ import { useAuthStore } from '@/stores/auth'
 // 导入各模块路由
 import aiRoutes from './ai'
 import deviceRoutes from './device'
-import pblRoutes from './pbl'
 
 const routes = [
   {
@@ -315,9 +314,6 @@ const routes = [
   
   // 设备模块
   ...deviceRoutes,
-  
-  // PBL 模块
-  ...pblRoutes,
   
   // 404
   {

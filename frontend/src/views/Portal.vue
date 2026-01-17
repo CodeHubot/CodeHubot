@@ -41,30 +41,12 @@
     </div>
     
     <div v-if="!loading" class="portal-cards">
-      <!-- Device管理系统 -->
-      <div v-if="canAccessDevice" class="portal-card device-card" @click="enterDevice">
-        <div class="card-icon">
-          <el-icon :size="40"><Setting /></el-icon>
-        </div>
-        <h2>设备管理系统</h2>
-        <p class="card-description">管理物联网设备、查看实时数据、远程控制</p>
-        <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 设备监控与管理</li>
-          <li><el-icon><Check /></el-icon> 实时数据分析</li>
-          <li><el-icon><Check /></el-icon> 远程控制</li>
-          <li><el-icon><Check /></el-icon> 固件管理</li>
-        </ul>
-        <el-button type="primary" size="large" class="enter-btn">
-          进入系统 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
-      </div>
-      
-      <!-- 智能体开发系统 -->
+      <!-- 智能体开发系统 - 放在第一位突出显示 -->
       <div v-if="canAccessAI" class="portal-card ai-card" @click="enterAI">
         <div class="card-icon">
           <el-icon :size="40"><MagicStick /></el-icon>
         </div>
-        <h2>智能体开发系统</h2>
+        <h2>AI智能体系统</h2>
         <p class="card-description">{{ aiDescription }}</p>
         <ul class="card-features">
           <li v-for="feature in aiFeatures" :key="feature.label">
@@ -76,60 +58,38 @@
         </el-button>
       </div>
       
-      <!-- PBL学习平台 - 仅学生可见 -->
-      <div v-if="canAccessPBL && authStore.isStudent" class="portal-card pbl-card" @click="enterPBLLearning">
+      <!-- AIoT设备管理系统 -->
+      <div v-if="canAccessDevice" class="portal-card device-card" @click="enterDevice">
         <div class="card-icon">
-          <el-icon :size="40"><Reading /></el-icon>
+          <el-icon :size="40"><Connection /></el-icon>
         </div>
-        <h2>PBL学习系统</h2>
-        <p class="card-description">项目式学习、课程管理、学习进度跟踪</p>
+        <h2>AIoT设备系统</h2>
+        <p class="card-description">物联网设备管理、实时数据监控、智能体设备联动</p>
         <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 我的课程</li>
-          <li><el-icon><Check /></el-icon> 项目学习</li>
-          <li><el-icon><Check /></el-icon> 作业管理</li>
-          <li><el-icon><Check /></el-icon> 学习档案</li>
+          <li><el-icon><Check /></el-icon> 设备远程管理</li>
+          <li><el-icon><Check /></el-icon> 实时数据采集</li>
+          <li><el-icon><Check /></el-icon> 智能体控制设备</li>
+          <li><el-icon><Check /></el-icon> 固件OTA升级</li>
         </ul>
-        <el-button type="primary" size="large" class="enter-btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none;">
+        <el-button type="success" size="large" class="enter-btn">
           进入系统 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
       </div>
       
-      <!-- 学校管理平台 - 教师和学校管理员统一入口 -->
-      <div v-if="canAccessPBL && (authStore.isTeacher || isSchoolAdmin)" class="portal-card school-card" @click="enterSchoolManagement">
-        <div class="card-icon">
-          <el-icon :size="40"><School /></el-icon>
-        </div>
-        <h2 v-if="authStore.isTeacher">PBL教学系统</h2>
-        <h2 v-else>学校管理系统</h2>
-        <p v-if="authStore.isTeacher" class="card-description">我的课程管理、作业批改、学生管理、班级管理</p>
-        <p v-else class="card-description">本校师生管理、班级管理、课程配置、数据统计</p>
-        <ul class="card-features">
-          <li v-if="authStore.isTeacher"><el-icon><Check /></el-icon> 我的课程</li>
-          <li v-if="authStore.isTeacher"><el-icon><Check /></el-icon> 作业批改</li>
-          <li v-if="!authStore.isTeacher"><el-icon><Check /></el-icon> 教师管理</li>
-          <li v-if="!authStore.isTeacher"><el-icon><Check /></el-icon> 学生管理</li>
-          <li><el-icon><Check /></el-icon> 班级管理</li>
-          <li><el-icon><Check /></el-icon> 课程模板库</li>
-        </ul>
-        <el-button type="warning" size="large" class="enter-btn">
-          {{ authStore.isTeacher ? '教学入口' : '管理入口' }} <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
-      </div>
-      
-      <!-- 系统管理平台 - 统一的管理后台（管理员和渠道管理员可见） -->
+      <!-- 系统管理 - 统一的管理后台（管理员可见） -->
       <div 
-        v-if="isAdmin || isChannelManager" 
+        v-if="isAdmin" 
         class="portal-card admin-card" 
         @click="enterManagement">
         <div class="card-icon">
           <el-icon :size="40"><User /></el-icon>
         </div>
-        <h2>平台管理系统</h2>
-        <p class="card-description">PBL系统管理、渠道管理、用户管理、数据统计</p>
+        <h2>系统管理</h2>
+        <p class="card-description">用户管理、设备管理、系统配置</p>
         <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 用户与学校管理</li>
-          <li><el-icon><Check /></el-icon> 课程模板配置</li>
-          <li><el-icon><Check /></el-icon> 渠道商管理</li>
+          <li><el-icon><Check /></el-icon> 用户与权限管理</li>
+          <li><el-icon><Check /></el-icon> 产品与固件管理</li>
+          <li><el-icon><Check /></el-icon> 系统配置</li>
           <li><el-icon><Check /></el-icon> 数据统计分析</li>
         </ul>
         <el-button type="danger" size="large" class="enter-btn">
@@ -137,30 +97,6 @@
         </el-button>
       </div>
       
-      <!-- 渠道商平台 -->
-      <div 
-        v-if="authStore.isAuthenticated && authStore.isChannelPartner" 
-        class="portal-card channel-card" 
-        @click="enterChannel">
-        <div class="card-icon">
-          <el-icon :size="40"><Connection /></el-icon>
-        </div>
-        <h2>渠道商系统</h2>
-        <p class="card-description">合作学校管理、课程监控、数据查看</p>
-        <ul class="card-features">
-          <li><el-icon><Check /></el-icon> 学校管理</li>
-          <li><el-icon><Check /></el-icon> 课程监控</li>
-          <li><el-icon><Check /></el-icon> 数据统计</li>
-          <li><el-icon><Check /></el-icon> 进度跟踪</li>
-        </ul>
-        <el-button 
-          type="info" 
-          size="large" 
-          class="enter-btn">
-          渠道商入口 
-          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
-      </div>
     </div>
     
     <!-- 个人信息和修改密码对话框 -->
@@ -198,22 +134,20 @@ const forceChangePassword = ref(false)
 // 模块配置（默认值为 false，防止配置加载失败时显示未授权模块）
 const moduleConfig = ref({
   enable_device_module: false,
-  enable_ai_module: false,
-  enable_pbl_module: false
+  enable_ai_module: false
 })
 
 // 简化计算属性
 const canAccessDevice = computed(() => authStore.isAuthenticated && moduleConfig.value.enable_device_module)
 const canAccessAI = computed(() => authStore.isAuthenticated && moduleConfig.value.enable_ai_module)
-const canAccessPBL = computed(() => authStore.isAuthenticated && moduleConfig.value.enable_pbl_module)
 
 // AI 模块功能列表（根据配置动态显示）
 const aiFeatures = computed(() => {
   const features = [
-    { label: 'AI对话与智能体', show: configStore.aiAgentEnabled },
+    { label: '智能体对话', show: configStore.aiAgentEnabled },
     { label: '工作流编排', show: configStore.aiWorkflowEnabled },
-    { label: '知识库管理', show: configStore.aiKnowledgeBaseEnabled },
-    { label: '插件开发', show: configStore.aiPromptTemplateEnabled }
+    { label: 'RAG知识库', show: configStore.aiKnowledgeBaseEnabled },
+    { label: '插件系统', show: configStore.aiPromptTemplateEnabled }
   ]
   return features.filter(f => f.show)
 })
@@ -222,8 +156,8 @@ const aiFeatures = computed(() => {
 const aiDescription = computed(() => {
   const enabledFeatures = aiFeatures.value.map(f => f.label)
   return enabledFeatures.length > 0 
-    ? enabledFeatures.join('、') 
-    : '智能体开发系统'
+    ? `AI智能体开发、${enabledFeatures.join('、')}` 
+    : 'AI智能体开发平台'
 })
 
 // 检查是否需要强制修改密码
@@ -267,27 +201,9 @@ function enterAI() {
   router.push('/ai/dashboard')
 }
 
-// 进入 PBL 学习平台 - 学生专用
-function enterPBLLearning() {
-  // 学生 -> 学习平台
-  router.push('/pbl/student/courses')
-}
-
-// 进入学校管理平台 - 教师和学校管理员统一入口
-function enterSchoolManagement() {
-  // 教师和学校管理员都进入学校管理平台
-  // 内部通过权限控制显示不同的功能菜单
-  router.push('/pbl/school/dashboard')
-}
-
-// 进入系统管理平台 - 统一的管理后台
+// 进入系统管理平台
 function enterManagement() {
-  // 统一进入管理后台，内部通过侧边栏菜单和权限控制显示不同模块
-  router.push('/pbl/admin/schools')
-}
-
-function enterChannel() {
-  router.push('/pbl/channel/schools')
+  router.push('/device/dashboard')
 }
 
 // 用户下拉菜单命令处理
@@ -555,14 +471,6 @@ function handleProfileUpdated() {
 
 .ai-card .card-icon {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.pbl-card .card-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.school-card .card-icon {
-  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
 }
 
 .admin-card .card-icon {

@@ -642,7 +642,7 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default='individual')
-    school_id = Column(Integer, ForeignKey('pbl_schools.id'), nullable=True)
+    school_id = Column(Integer, ForeignKey('core_schools.id'), nullable=True)
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

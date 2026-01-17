@@ -1,141 +1,224 @@
-# CodeHubot 部署快速参考
+# 快速参考手册
 
-本文档提供常用的部署命令和配置信息快速参考。
+> 常用命令和配置速查
 
-## 服务端口
+---
 
-- **后端服务**: 8000
-- **配置服务**: 8001
-- **插件服务**: 9000
-- **MQTT 服务**: 1883 (Docker 容器)
-- **前端**: 80 (通过 Nginx)
+## 🔌 服务端口
 
-## 常用命令
+| 服务 | 端口 | 用途 |
+|------|------|------|
+| 前端 | 8080 | Web界面 |
+| 后端API | 8000 | 主服务 |
+| 配置服务 | 8001 | 设备配置 |
+| 插件服务 | 9000 | 插件管理 |
+| MQTT | 1883 | 设备通信 |
+| MySQL | 3306 | 数据库 |
+| Redis | 6379 | 缓存 |
 
-### 服务管理
+---
+
+## 🐳 Docker命令
+
+### 基本操作
 
 ```bash
+# 一键部署
+./deploy.sh
+
 # 查看服务状态
-sudo systemctl status codehubot-backend
-sudo systemctl status codehubot-config
-sudo systemctl status codehubot-plugin
+docker-compose -f docker/docker-compose.yml ps
+
+# 查看日志
+docker-compose -f docker/docker-compose.yml logs -f [服务名]
 
 # 重启服务
-sudo systemctl restart codehubot-backend
-sudo systemctl restart codehubot-config
-sudo systemctl restart codehubot-plugin
+docker-compose -f docker/docker-compose.yml restart [服务名]
 
-# 查看服务日志
-sudo journalctl -u codehubot-backend -f
+# 停止所有服务
+docker-compose -f docker/docker-compose.yml down
 ```
 
-### MQTT 容器管理
+### 常用服务名
+- `backend` - 后端服务
+- `frontend` - 前端服务
+- `mqtt-service` - MQTT消息处理
+- `config-service` - 配置服务
+- `mysql` - 数据库
+- `redis` - 缓存
+- `mqtt` - MQTT Broker
+
+---
+
+## 📝 配置文件位置
+
+### Docker部署
+- 环境变量：`docker/.env`
+- 数据库初始化：`SQL/init_database.sql`
+- MQTT配置：`docker/mosquitto.conf`
+
+### 本地开发
+- 后端：`backend/.env`
+- MQTT服务：`service/mqtt-service/.env`
+- 配置服务：`service/config-service/.env`
+- 前端：`frontend/.env.development`
+
+---
+
+## 🔍 健康检查
 
 ```bash
-cd /opt/codehubot/docker
+# 后端服务
+curl http://localhost:8000/api/health
 
-# 启动/停止/重启
-docker-compose up -d mqtt
-docker-compose stop mqtt
-docker-compose restart mqtt
+# 配置服务
+curl http://localhost:8001/health
 
-# 查看状态和日志
-docker-compose ps mqtt
-docker-compose logs -f mqtt
-```
+# 插件服务
+curl http://localhost:9000/
 
-### 健康检查
-
-```bash
-curl http://localhost:8000/health  # 后端
-curl http://localhost:8001/health # 配置服务
-curl http://localhost:9000/        # 插件服务
-```
-
-## 配置文件位置
-
-- **后端**: `/opt/codehubot/backend/.env`
-- **配置服务**: `/opt/codehubot/config-service/.env`
-- **插件服务**: `/opt/codehubot/plugin-service/.env`
-- **MQTT**: `/opt/codehubot/docker/mosquitto.conf`
-
-## 关键配置
-
-### 后端服务 (.env)
-
-```bash
-DATABASE_URL=mysql+pymysql://aiot_user:password@localhost:3306/aiot_admin
-SECRET_KEY=your-secret-key-at-least-32-characters
-INTERNAL_API_KEY=your-internal-api-key
-MQTT_BROKER_HOST=localhost
-MQTT_USERNAME=
-MQTT_PASSWORD=
-```
-
-### 插件服务 (.env)
-
-```bash
-BACKEND_URL=http://localhost:8000
-BACKEND_API_KEY=your-internal-api-key  # 必须与后端 INTERNAL_API_KEY 一致
-```
-
-## 数据库操作
-
-```bash
-# 连接数据库
-mysql -u aiot_user -p aiot_admin
-
-# 备份数据库
-mysqldump -u aiot_user -p aiot_admin > backup.sql
-
-# 恢复数据库
-mysql -u aiot_user -p aiot_admin < backup.sql
-```
-
-## 代码更新
-
-### 后端更新
-
-```bash
-cd /opt/codehubot/backend
-git pull
-pip install -r requirements.txt
-sudo systemctl restart codehubot-backend
-```
-
-### 前端更新
-
-```bash
-cd /opt/codehubot/frontend
-git pull
-npm install
-npm run build
-sudo systemctl restart nginx
-```
-
-## 生成密钥
-
-```bash
-# 生成 SECRET_KEY 或 INTERNAL_API_KEY
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-## 故障排查
-
-```bash
-# 查看服务状态和日志
-sudo systemctl status <service-name>
-sudo journalctl -u <service-name> -f
-
-# 检查端口占用
-sudo lsof -i :8000
-
-# 检查数据库连接
-mysql -u aiot_user -p
+# 前端
+curl http://localhost:8080
 ```
 
 ---
 
-更多详细信息请参考：
-- [Docker 部署指南](./docker-deployment.md) - 推荐使用
-- [手动部署指南](./manual-deployment.md) - 传统方式
+## 🛠️ 故障排查
+
+### 服务无法启动
+
+```bash
+# 1. 查看日志
+docker-compose -f docker/docker-compose.yml logs [服务名]
+
+# 2. 检查端口占用
+lsof -i:8000  # 后端
+lsof -i:3306  # MySQL
+
+# 3. 检查配置
+docker-compose -f docker/docker-compose.yml config
+```
+
+### 数据库连接失败
+
+```bash
+# 检查MySQL状态
+docker-compose -f docker/docker-compose.yml ps mysql
+
+# 进入MySQL容器
+docker-compose -f docker/docker-compose.yml exec mysql mysql -uroot -p
+
+# 测试连接
+mysql -h127.0.0.1 -uaiot_user -p aiot_admin
+```
+
+### MQTT连接问题
+
+```bash
+# 检查MQTT状态
+docker-compose -f docker/docker-compose.yml ps mqtt
+
+# 查看MQTT日志
+docker-compose -f docker/docker-compose.yml logs mqtt
+
+# 测试MQTT连接（需安装mosquitto-clients）
+mosquitto_sub -h localhost -t '#' -v
+```
+
+---
+
+## 🔑 关键环境变量
+
+### 必须配置
+
+```bash
+# JWT密钥（生产环境必改！）
+SECRET_KEY=your-secret-key-here
+
+# 内部API密钥
+INTERNAL_API_KEY=your-internal-api-key-here
+
+# 阿里云密钥（AI功能需要）
+DASHSCOPE_API_KEY=sk-your-key-here
+
+# 设备MQTT地址（设备需要连接的地址）
+DEVICE_MQTT_BROKER=mqtt.example.com
+```
+
+### 数据库配置
+
+```bash
+# Docker内置MySQL
+MYSQL_USER=aiot_user
+MYSQL_PASSWORD=your-password
+MYSQL_DATABASE=aiot_admin
+
+# 外部MySQL
+EXTERNAL_DB_HOST=192.168.1.100
+EXTERNAL_DB_PORT=3306
+EXTERNAL_DB_USER=aiot_user
+EXTERNAL_DB_PASSWORD=your-password
+EXTERNAL_DB_NAME=aiot_admin
+```
+
+---
+
+## 📊 数据库管理
+
+### 备份
+
+```bash
+# 导出数据库
+docker-compose -f docker/docker-compose.yml exec mysql \
+  mysqldump -uroot -p aiot_admin > backup_$(date +%Y%m%d).sql
+
+# 或使用Docker外部命令
+mysqldump -h127.0.0.1 -uroot -p aiot_admin > backup.sql
+```
+
+### 恢复
+
+```bash
+# 导入数据库
+docker-compose -f docker/docker-compose.yml exec -T mysql \
+  mysql -uroot -p aiot_admin < backup.sql
+
+# 或
+mysql -h127.0.0.1 -uroot -p aiot_admin < backup.sql
+```
+
+### 初始化
+
+```bash
+# 首次部署自动初始化
+# 手动初始化
+mysql -h127.0.0.1 -uroot -p aiot_admin < SQL/init_database.sql
+```
+
+---
+
+## 🔒 安全检查清单
+
+部署前务必检查：
+
+- [ ] SECRET_KEY 已修改（不是示例值）
+- [ ] INTERNAL_API_KEY 已修改
+- [ ] 数据库密码已修改
+- [ ] 管理员密码已修改（首次登录后）
+- [ ] 阿里云密钥已配置
+- [ ] DEVICE_MQTT_BROKER 已配置
+
+---
+
+## 📞 获取帮助
+
+- 📖 [完整部署文档](README.md)
+- 📖 [环境变量说明](../../docs/环境变量配置说明.md)
+- 📖 [快速开始指南](../../QUICK_START.md)
+- 💬 [提交Issue](https://gitee.com/codehubot/CodeHubot/issues)
+- 📖 [查看文档](../README.md)
+- 🌐 [Gitee仓库](https://gitee.com/codehubot/CodeHubot)
+
+---
+
+**更新时间**：2026-01-15

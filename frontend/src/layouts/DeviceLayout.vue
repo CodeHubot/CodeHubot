@@ -28,15 +28,6 @@
           <span>设备列表</span>
         </el-menu-item>
         
-        <!-- 教师、学校管理员、平台管理员可以看到设备授权 -->
-        <el-menu-item 
-          v-if="canAccessAuthorization"
-          index="/device/device-pbl-authorization"
-        >
-          <el-icon><Key /></el-icon>
-          <span>设备授权</span>
-        </el-menu-item>
-        
         <!-- 固件烧录 -->
         <el-menu-item index="/device/firmware-flasher">
           <el-icon><Upload /></el-icon>
@@ -55,14 +46,7 @@
           <span>设备分组</span>
         </el-menu-item> -->
         
-        <!-- 只有平台管理员可以看到产品管理 -->
-        <el-menu-item 
-          v-if="isPlatformAdmin"
-          index="/device/products"
-        >
-          <el-icon><Box /></el-icon>
-          <span>产品管理</span>
-        </el-menu-item>
+        <!-- 产品管理已移至平台管理系统 -->
         
         <!-- 固件管理暂时隐藏 -->
         <!-- <el-menu-item 
@@ -90,8 +74,12 @@
         </div>
         
         <div class="header-right">
-          <el-button text @click="backToPortal">
-            <el-icon><Grid /></el-icon> 切换系统
+          <el-button type="primary" plain @click="goToAISystem">
+            <el-icon><MagicStick /></el-icon> AI智能体
+          </el-button>
+          
+          <el-button v-if="isPlatformAdmin" type="warning" plain @click="goToPlatformSystem">
+            <el-icon><Setting /></el-icon> 平台管理
           </el-button>
           
           <el-dropdown @command="handleCommand">
@@ -143,7 +131,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   HomeFilled, Cpu, FolderOpened, Box, Document, Key, Upload, Monitor,
-  Expand, Fold, Grid, Setting, Plus, User, Lock, SwitchButton
+  Expand, Fold, Grid, Setting, Plus, User, Lock, SwitchButton, MagicStick
 } from '@element-plus/icons-vue'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
 
@@ -191,8 +179,14 @@ function toggleCollapse() {
   isCollapse.value = !isCollapse.value
 }
 
-function backToPortal() {
-  router.push('/')
+// 跳转到AI智能体系统
+function goToAISystem() {
+  router.push('/ai/dashboard')
+}
+
+// 跳转到平台管理系统
+function goToPlatformSystem() {
+  router.push('/platform/dashboard')
 }
 
 function handleCommand(command) {

@@ -11,6 +11,7 @@ from app.api.auth import get_current_user
 from app.core.security import verify_password, get_password_hash
 from app.core.constants import ErrorMessages, SuccessMessages
 from app.core.response import success_response
+from app.utils.timezone import get_beijing_time_naive
 from datetime import datetime, timedelta
 import logging
 
@@ -18,8 +19,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def is_admin_user(user: User) -> bool:
-    """判断用户是否为管理员"""
-    return user.email == "admin@aiot.com" or user.username == "admin" or user.role == "admin"
+    """判断用户是否为管理员（基于角色判断）"""
+    return user.role in ['platform_admin', 'super_admin', 'admin']
 
 class ProfileUpdate(BaseModel):
     username: str = None
@@ -122,7 +123,8 @@ async def get_users(
             detail="无权访问用户列表"
         )
     
-    query = db.query(User)
+    # 查询未删除的用户
+    query = db.query(User).filter(User.deleted_at.is_(None))
     
     # 应用筛选条件
     if username:
@@ -205,9 +207,9 @@ async def create_user(
     
     return db_user
 
-@router.put("/{user_id}", response_model=UserResponse)
+@router.put("/{user_uuid}", response_model=UserResponse)
 async def update_user(
-    user_id: int,
+    user_uuid: str,
     user_update: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -220,8 +222,11 @@ async def update_user(
             detail="无权更新用户"
         )
     
-    # 查找用户
-    user = db.query(User).filter(User.id == user_id).first()
+    # 查找用户（排除已删除的）
+    user = db.query(User).filter(
+        User.uuid == user_uuid,
+        User.deleted_at.is_(None)
+    ).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -229,7 +234,7 @@ async def update_user(
         )
     
     # 不能修改自己的状态
-    if user_id == current_user.id:
+    if user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="不能修改自己的账户状态"
@@ -240,7 +245,8 @@ async def update_user(
         # 检查新用户名是否已被使用
         existing_user = db.query(User).filter(
             User.username == user_update.username,
-            User.id != user_id
+            User.id != user.id,
+            User.deleted_at.is_(None)
         ).first()
         if existing_user:
             raise HTTPException(
@@ -255,17 +261,17 @@ async def update_user(
     db.commit()
     db.refresh(user)
     
-    logger.info(f"✅ 管理员 {current_user.username} 更新用户: {user.email} (ID: {user_id})")
+    logger.info(f"✅ 管理员 {current_user.username} 更新用户: {user.email} (UUID: {user_uuid})")
     
     return user
 
-@router.delete("/{user_id}")
+@router.delete("/{user_uuid}")
 async def delete_user(
-    user_id: int,
+    user_uuid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """删除用户 - 仅管理员可访问"""
+    """删除用户（软删除） - 仅管理员可访问"""
     # 权限检查：只有管理员可以删除用户
     if not is_admin_user(current_user):
         raise HTTPException(
@@ -273,46 +279,36 @@ async def delete_user(
             detail="无权删除用户"
         )
     
-    # 查找用户
-    user = db.query(User).filter(User.id == user_id).first()
+    # 查找用户（排除已删除的）
+    user = db.query(User).filter(
+        User.uuid == user_uuid,
+        User.deleted_at.is_(None)
+    ).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ErrorMessages.USER_NOT_FOUND
         )
     
-    # 不能删除自己
-    if user_id == current_user.id:
+    # 管理员不能删除自己
+    if user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="不能删除自己的账户"
+            detail="管理员不能删除自己的账户"
         )
     
-    # 不能删除管理员账户（可选，根据需求决定）
-    if is_admin_user(user):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="不能删除管理员账户"
-        )
-    
-    # 检查用户是否有设备
-    device_count = db.query(Device).filter(Device.user_id == user_id).count()
-    if device_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"该用户还有 {device_count} 个设备，请先解绑或删除设备后再删除用户"
-        )
-    
-    db.delete(user)
+    # 软删除用户
+    user.deleted_at = get_beijing_time_naive()
+    user.is_active = False
     db.commit()
     
-    logger.info(f"✅ 管理员 {current_user.username} 删除用户: {user.email} (ID: {user_id})")
+    logger.info(f"✅ 管理员 {current_user.username} 删除用户: {user.email} (UUID: {user_uuid})")
     
     return success_response(message=SuccessMessages.DELETE_SUCCESS)
 
-@router.put("/{user_id}/toggle-status", response_model=UserResponse)
+@router.put("/{user_uuid}/toggle-status", response_model=UserResponse)
 async def toggle_user_status(
-    user_id: int,
+    user_uuid: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -324,8 +320,11 @@ async def toggle_user_status(
             detail="无权修改用户状态"
         )
     
-    # 查找用户
-    user = db.query(User).filter(User.id == user_id).first()
+    # 查找用户（排除已删除的）
+    user = db.query(User).filter(
+        User.uuid == user_uuid,
+        User.deleted_at.is_(None)
+    ).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -333,7 +332,7 @@ async def toggle_user_status(
         )
     
     # 不能修改自己的状态
-    if user_id == current_user.id:
+    if user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="不能修改自己的账户状态"
@@ -344,13 +343,13 @@ async def toggle_user_status(
     db.commit()
     db.refresh(user)
     
-    logger.info(f"✅ 管理员 {current_user.username} {'启用' if user.is_active else '禁用'}用户: {user.email} (ID: {user_id})")
+    logger.info(f"✅ 管理员 {current_user.username} {'启用' if user.is_active else '禁用'}用户: {user.email} (UUID: {user_uuid})")
     
     return user
 
-@router.post("/{user_id}/reset-password")
+@router.post("/{user_uuid}/reset-password")
 async def reset_user_password(
-    user_id: int,
+    user_uuid: str,
     new_password: str = Query(..., description="新密码"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -363,8 +362,11 @@ async def reset_user_password(
             detail="无权重置用户密码"
         )
     
-    # 查找用户
-    user = db.query(User).filter(User.id == user_id).first()
+    # 查找用户（排除已删除的）
+    user = db.query(User).filter(
+        User.uuid == user_uuid,
+        User.deleted_at.is_(None)
+    ).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -375,7 +377,7 @@ async def reset_user_password(
     from app.schemas.user import UserCreate
     try:
         # 临时创建UserCreate对象来验证密码
-        temp_user = UserCreate(email=user.email, username=user.username, password=new_password)
+        temp_user = UserCreate(email=user.email or "", username=user.username, password=new_password)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -386,6 +388,6 @@ async def reset_user_password(
     user.password_hash = get_password_hash(new_password)
     db.commit()
     
-    logger.info(f"✅ 管理员 {current_user.username} 重置用户密码: {user.email} (ID: {user_id})")
+    logger.info(f"✅ 管理员 {current_user.username} 重置用户密码: {user.email} (UUID: {user_uuid})")
     
     return success_response(message="密码重置成功")

@@ -1,6 +1,6 @@
 /**
  * 统一路由配置
- * 整合Device和PBL所有路由
+ * 整合Device和AI所有路由
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -9,8 +9,8 @@ import { ElMessage } from 'element-plus'
 
 // 导入路由模块
 import deviceRoutes from './device'
-import pblRoutes from './pbl'
 import aiRoutes from './ai'
+import platformRoutes from './platform'
 
 const routes = [
   // 登录页
@@ -21,38 +21,29 @@ const routes = [
     meta: { title: '登录', public: true }
   },
   
-  // 根路径重定向到PBL平台
+  // 根路径重定向到设备管理系统
   {
     path: '/',
-    redirect: () => {
-      const authStore = useAuthStore()
-      // 根据用户角色重定向到对应的PBL页面
-      if (authStore.isStudent) return '/pbl/student/courses'
-      if (authStore.isTeacher) return '/pbl/school/dashboard'
-      if (authStore.isSchoolAdmin) return '/pbl/school/dashboard'
-      if (authStore.isChannelPartner) return '/pbl/channel/schools'
-      if (authStore.isAdmin || authStore.isChannelManager) return '/pbl/admin/schools'
-      return '/pbl'
-    },
+    redirect: '/device/dashboard',
     meta: { requiresAuth: true }
   },
   
-  // 门户页（系统选择）- 保留但不作为默认页
-  {
-    path: '/portal',
-    name: 'Portal',
-    component: () => import('@/views/Portal.vue'),
-    meta: { title: '系统门户', requiresAuth: true }
-  },
+  // 门户页（保留但不作为默认页面）
+  // {
+  //   path: '/portal',
+  //   name: 'Portal',
+  //   component: () => import('@/views/Portal.vue'),
+  //   meta: { title: '系统门户', requiresAuth: true }
+  // },
   
   // Device系统路由
   ...deviceRoutes,
   
-  // PBL系统路由
-  ...pblRoutes,
-  
   // AI系统路由
   ...aiRoutes,
+  
+  // 平台管理系统路由
+  ...platformRoutes,
   
   // 404页面
   {
@@ -98,20 +89,9 @@ router.beforeEach(async (to, from, next) => {
     // 检查是否有 token
     const hasToken = localStorage.getItem('access_token')
     
-    // 如果有token且访问登录页，跳转到PBL平台
+    // 如果有token且访问登录页，跳转到设备管理系统
     if (to.path === '/login' && hasToken && authStore.isAuthenticated) {
-      // 根据用户角色跳转到对应的PBL页面
-      let targetPath = '/pbl'
-      if (authStore.isStudent) {
-        targetPath = '/pbl/student/courses'
-      } else if (authStore.isTeacher || authStore.isSchoolAdmin) {
-        targetPath = '/pbl/school/dashboard'
-      } else if (authStore.isChannelPartner) {
-        targetPath = '/pbl/channel/schools'
-      } else if (authStore.isAdmin || authStore.isChannelManager) {
-        targetPath = '/pbl/admin/schools'
-      }
-      next(targetPath)
+      next('/device/dashboard')
       return
     }
     next()
@@ -138,18 +118,7 @@ router.beforeEach(async (to, from, next) => {
     }
     if (!to.meta.roles.includes(userRole)) {
       ElMessage.error('没有权限访问该页面')
-      // 跳转到用户对应的默认页面
-      if (authStore.isStudent) {
-        next('/pbl/student/courses')
-      } else if (authStore.isTeacher || authStore.isSchoolAdmin) {
-        next('/pbl/school/dashboard')
-      } else if (authStore.isChannelPartner) {
-        next('/pbl/channel/schools')
-      } else if (authStore.isAdmin || authStore.isChannelManager) {
-        next('/pbl/admin/schools')
-      } else {
-        next('/pbl')
-      }
+      next('/device/dashboard')
       return
     }
   }
@@ -158,7 +127,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAdmin) {
     if (!authStore.isAdmin) {
       ElMessage.error('只有管理员可以访问该页面')
-      next('/pbl')
+      next('/device/dashboard')
       return
     }
   }
@@ -168,7 +137,7 @@ router.beforeEach(async (to, from, next) => {
     const userRole = authStore.userInfo?.role
     if (userRole !== 'platform_admin') {
       ElMessage.error('只有平台管理员可以访问该页面')
-      next('/pbl')
+      next('/device/dashboard')
       return
     }
   }

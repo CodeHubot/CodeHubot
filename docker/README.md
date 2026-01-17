@@ -39,7 +39,7 @@ vim .env
 ```bash
 # 从项目根目录执行
 cd ..
-./deploy.sh deploy
+./script/deploy.sh deploy
 ```
 
 #### 1.3 手动部署
@@ -92,7 +92,7 @@ vim .env
 ```bash
 # 从项目根目录执行
 cd ..
-./deploy.sh deploy-external-db
+./script/deploy.sh deploy-external-db
 ```
 
 #### 2.4 手动部署
@@ -142,12 +142,12 @@ docker-compose -f docker-compose.prod.yml ps
 
 ```bash
 # 使用部署脚本（推荐）
-../deploy.sh deploy-external-db   # 完整部署
-../deploy.sh start-external-db    # 启动服务
-../deploy.sh stop-external-db     # 停止服务
-../deploy.sh restart-external-db  # 重启服务
-../deploy.sh status-external-db   # 查看状态
-../deploy.sh logs-external-db     # 查看日志
+../script/deploy.sh deploy-external-db   # 完整部署
+../script/deploy.sh start-external-db    # 启动服务
+../script/deploy.sh stop-external-db     # 停止服务
+../script/deploy.sh restart-external-db  # 重启服务
+../script/deploy.sh status-external-db   # 查看状态
+../script/deploy.sh logs-external-db     # 查看日志
 
 # 或手动执行
 docker-compose -f docker-compose.external-db.yml up -d

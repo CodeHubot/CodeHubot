@@ -33,13 +33,11 @@ def is_admin_user(user: User) -> bool:
     
     管理员权限判断规则：
     1. platform_admin 角色（平台管理员）
-    2. 传统的 admin 用户名或邮箱（兼容旧版本）
     """
-    return (
-        user.role == 'platform_admin' or 
-        user.email == "admin@aiot.com" or 
-        user.username == "admin"
-    )
+    判断用户是否为管理员
+    基于角色判断，更安全且易于管理
+    """
+    return user.role in ['platform_admin', 'super_admin', 'admin']
 
 
 def get_accessible_product_ids(db: Session, user: User) -> List[int]:
@@ -75,33 +73,7 @@ def can_access_device(device: Device, user: User, db: Session = None) -> bool:
     if device.user_id == user.id:
         return True
     
-    # 检查PBL授权（学生通过小组授权访问）
-    if user.role == 'student' and db is not None:
-        # 查询学生所在的小组（从PBL表直接查询）
-        my_groups = db.execute(text("""
-            SELECT group_id FROM pbl_group_members 
-            WHERE user_id = :user_id AND is_active = 1
-        """), {"user_id": user.id}).fetchall()
-        
-        if my_groups:
-            group_ids = [g[0] for g in my_groups]
-            # 检查是否有有效授权
-            from datetime import datetime
-            auth = db.execute(text("""
-                SELECT 1 FROM pbl_group_device_authorizations
-                WHERE device_id = :device_id
-                  AND group_id IN :group_ids
-                  AND is_active = 1
-                  AND (expires_at IS NULL OR expires_at > :now)
-                LIMIT 1
-            """), {
-                "device_id": device.id, 
-                "group_ids": tuple(group_ids),
-                "now": datetime.now()
-            }).fetchone()
-            
-            if auth:
-                return True
+    # PBL模块已删除，不再支持PBL授权
     
     return False
 
@@ -212,38 +184,8 @@ def get_devices(
         # 学校管理员只能看到明确归属于本校的设备
         query = query.filter(Device.school_id == current_user.school_id)
     elif current_user.role == 'student':
-        # 学生：可以看到自己注册的设备 + 通过PBL小组授权获得的设备
-        # 查询学生所在的小组
-        my_groups = db.execute(text("""
-            SELECT group_id FROM pbl_group_members 
-            WHERE user_id = :user_id AND is_active = 1
-        """), {"user_id": current_user.id}).fetchall()
-        
-        group_ids = [g[0] for g in my_groups] if my_groups else []
-        
-        # 查询这些小组被授权的设备ID
-        authorized_device_ids = []
-        if group_ids:
-            from datetime import datetime
-            authorized_devices = db.execute(text("""
-                SELECT DISTINCT device_id 
-                FROM pbl_group_device_authorizations
-                WHERE group_id IN :group_ids
-                  AND is_active = 1
-                  AND (expires_at IS NULL OR expires_at > :now)
-            """), {
-                "group_ids": tuple(group_ids),
-                "now": datetime.now()
-            }).fetchall()
-            authorized_device_ids = [d[0] for d in authorized_devices]
-        
-        # 合并查询：自己注册的设备 + 授权获得的设备
-        if authorized_device_ids:
-            query = query.filter(
-                (Device.user_id == current_user.id) | (Device.id.in_(authorized_device_ids))
-            )
-        else:
-            query = query.filter(Device.user_id == current_user.id)
+        # 学生：只能看到自己注册的设备（PBL模块已删除）
+        query = query.filter(Device.user_id == current_user.id)
     else:
         # 普通用户只能看到自己注册的设备
         query = query.filter(Device.user_id == current_user.id)
@@ -371,38 +313,8 @@ def get_devices_with_product_info(
             # 学校管理员只能看到明确归属于本校的设备
             query = query.filter(Device.school_id == current_user.school_id)
         elif current_user.role == 'student':
-            # 学生：可以看到自己注册的设备 + 通过PBL小组授权获得的设备
-            # 查询学生所在的小组
-            my_groups = db.execute(text("""
-                SELECT group_id FROM pbl_group_members 
-                WHERE user_id = :user_id AND is_active = 1
-            """), {"user_id": current_user.id}).fetchall()
-            
-            group_ids = [g[0] for g in my_groups] if my_groups else []
-            
-            # 查询这些小组被授权的设备ID
-            authorized_device_ids = []
-            if group_ids:
-                from datetime import datetime
-                authorized_devices = db.execute(text("""
-                    SELECT DISTINCT device_id 
-                    FROM pbl_group_device_authorizations
-                    WHERE group_id IN :group_ids
-                      AND is_active = 1
-                      AND (expires_at IS NULL OR expires_at > :now)
-                """), {
-                    "group_ids": tuple(group_ids),
-                    "now": datetime.now()
-                }).fetchall()
-                authorized_device_ids = [d[0] for d in authorized_devices]
-            
-            # 合并查询：自己注册的设备 + 授权获得的设备
-            if authorized_device_ids:
-                query = query.filter(
-                    (Device.user_id == current_user.id) | (Device.id.in_(authorized_device_ids))
-                )
-            else:
-                query = query.filter(Device.user_id == current_user.id)
+            # 学生：只能看到自己注册的设备（PBL模块已删除）
+            query = query.filter(Device.user_id == current_user.id)
         else:
             # 普通用户只能看到自己注册的设备
             query = query.filter(Device.user_id == current_user.id)
@@ -676,55 +588,17 @@ def get_devices_statistics(
                 WHERE school_id = :school_id
             """), {"school_id": current_user.school_id}).fetchone()
         elif current_user.role == 'student':
-            # 学生：统计自己注册的设备 + 通过PBL小组授权获得的设备
-            # 查询学生所在的小组
-            my_groups = db.execute(text("""
-                SELECT group_id FROM pbl_group_members 
-                WHERE user_id = :user_id AND is_active = 1
-            """), {"user_id": current_user.id}).fetchall()
-            
-            group_ids = [g[0] for g in my_groups] if my_groups else []
-            
-            # 查询这些小组被授权的设备ID
-            authorized_device_ids = []
-            if group_ids:
-                from datetime import datetime
-                authorized_devices = db.execute(text("""
-                    SELECT DISTINCT device_id 
-                    FROM pbl_group_device_authorizations
-                    WHERE group_id IN :group_ids
-                      AND is_active = 1
-                      AND (expires_at IS NULL OR expires_at > :now)
-                """), {
-                    "group_ids": tuple(group_ids),
-                    "now": datetime.now()
-                }).fetchall()
-                authorized_device_ids = [d[0] for d in authorized_devices]
-            
-            # 统计：自己注册的设备 + 授权获得的设备
-            if authorized_device_ids:
-                placeholders = ','.join([str(id) for id in authorized_device_ids])
-                stats = db.execute(text(f"""
-                    SELECT 
-                        COUNT(*) as total_devices,
-                        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_devices,
-                        SUM(CASE WHEN is_online = 1 THEN 1 ELSE 0 END) as online_devices,
-                        SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_devices,
-                        AVG(error_count) as avg_error_count
-                    FROM device_main
-                    WHERE user_id = :user_id OR id IN ({placeholders})
-                """), {"user_id": current_user.id}).fetchone()
-            else:
-                stats = db.execute(text("""
-                    SELECT 
-                        COUNT(*) as total_devices,
-                        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_devices,
-                        SUM(CASE WHEN is_online = 1 THEN 1 ELSE 0 END) as online_devices,
-                        SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_devices,
-                        AVG(error_count) as avg_error_count
-                    FROM device_main
-                    WHERE user_id = :user_id
-                """), {"user_id": current_user.id}).fetchone()
+            # 学生：只统计自己注册的设备（PBL模块已删除）
+            stats = db.execute(text("""
+                SELECT 
+                    COUNT(*) as total_devices,
+                    SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_devices,
+                    SUM(CASE WHEN is_online = 1 THEN 1 ELSE 0 END) as online_devices,
+                    SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_devices,
+                    AVG(error_count) as avg_error_count
+                FROM device_main
+                WHERE user_id = :user_id
+            """), {"user_id": current_user.id}).fetchone()
         else:
             # 普通用户只统计自己注册的设备
             stats = db.execute(text("""

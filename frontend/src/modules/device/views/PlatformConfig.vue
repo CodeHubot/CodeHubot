@@ -205,23 +205,6 @@
           </div>
         </el-form-item>
 
-        <el-divider />
-
-        <!-- PBL模块 -->
-        <el-form-item label="PBL教学模块">
-          <div class="switch-control">
-            <el-switch
-              v-model="moduleConfig.enable_pbl_module"
-              active-text="开启"
-              inactive-text="关闭"
-              size="large"
-            />
-            <div class="switch-description">
-              <el-icon><Reading /></el-icon>
-              <span>包含项目式学习、课程管理、任务管理、评估等功能</span>
-            </div>
-          </div>
-        </el-form-item>
       </el-form>
     </el-card>
 
@@ -247,14 +230,9 @@
             {{ moduleConfig.enable_device_module ? '已开启' : '已关闭' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="AI智能模块">
+        <el-descriptions-item label="AI智能模块" :span="2">
           <el-tag :type="moduleConfig.enable_ai_module ? 'success' : 'danger'">
             {{ moduleConfig.enable_ai_module ? '已开启' : '已关闭' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="PBL教学模块" :span="2">
-          <el-tag :type="moduleConfig.enable_pbl_module ? 'success' : 'danger'">
-            {{ moduleConfig.enable_pbl_module ? '已开启' : '已关闭' }}
           </el-tag>
         </el-descriptions-item>
       </el-descriptions>
@@ -364,8 +342,7 @@ const platformConfig = reactive({
 // 模块配置
 const moduleConfig = reactive({
   enable_device_module: true,
-  enable_ai_module: true,
-  enable_pbl_module: true
+  enable_ai_module: true
 })
 
 // 协议配置

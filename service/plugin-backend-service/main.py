@@ -64,8 +64,8 @@ if not DATABASE_URL:
     DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # MQTT配置
-MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_BROKER = os.getenv("MQTT_BROKER_HOST", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
 MQTT_USERNAME = os.getenv("MQTT_USERNAME", "")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
 
@@ -488,14 +488,24 @@ async def control_device(request: ControlRequest):
         # 构造控制命令
         port_type_lower = request.port_type.lower()
         
+        # 生成portKey（与Web页面格式保持一致）
+        if port_type_lower == "pwm":
+            # PWM格式：pwm_m1, pwm_m2
+            port_key = f"pwm_m{request.port_id}"
+        else:
+            # 其他格式：led_1, relay_2, servo_1
+            port_key = f"{port_type_lower}_{request.port_id}"
+        
         if port_type_lower == "led":
             control_cmd = {
+                "portKey": port_key,
                 "cmd": "led",
                 "device_id": request.port_id,
                 "action": request.action
             }
         elif port_type_lower == "relay":
             control_cmd = {
+                "portKey": port_key,
                 "cmd": "relay",
                 "device_id": request.port_id,
                 "action": request.action
@@ -503,6 +513,7 @@ async def control_device(request: ControlRequest):
         elif port_type_lower == "servo":
             if request.action == "set" and request.value is not None:
                 control_cmd = {
+                    "portKey": port_key,
                     "cmd": "servo",
                     "device_id": request.port_id,
                     "action": "set",
@@ -513,6 +524,7 @@ async def control_device(request: ControlRequest):
         elif port_type_lower == "pwm":
             if request.action == "set" and request.value is not None:
                 control_cmd = {
+                    "portKey": port_key,
                     "cmd": "pwm",
                     "device_id": request.port_id,
                     "action": "set",
@@ -621,6 +633,17 @@ async def execute_preset(request: PresetRequest):
                 converted_command = command.copy()
                 cmd_type = converted_command.get("cmd")
                 
+                # 确保包含portKey（如果命令中没有，则根据cmd和device_id生成）
+                if "portKey" not in converted_command:
+                    device_id = converted_command.get("device_id")
+                    if device_id is not None:
+                        if cmd_type == "pwm":
+                            # PWM格式：pwm_m1, pwm_m2
+                            converted_command["portKey"] = f"pwm_m{device_id}"
+                        elif cmd_type in ["led", "relay", "servo"]:
+                            # 其他格式：led_1, relay_2, servo_1
+                            converted_command["portKey"] = f"{cmd_type}_{device_id}"
+                
                 if cmd_type in ["led", "relay"]:
                     if "value" in converted_command:
                         value = converted_command.pop("value")
@@ -691,6 +714,18 @@ async def execute_preset(request: PresetRequest):
             command = target_preset.get("command")
             if not command:
                 raise HTTPException(status_code=400, detail="预设指令缺少 command 字段")
+            
+            # 确保包含portKey（如果命令中没有，则根据cmd和device_id生成）
+            if "portKey" not in command:
+                cmd_type = command.get("cmd")
+                device_id = command.get("device_id")
+                if cmd_type and device_id is not None:
+                    if cmd_type == "pwm":
+                        # PWM格式：pwm_m1, pwm_m2
+                        command["portKey"] = f"pwm_m{device_id}"
+                    elif cmd_type in ["led", "relay", "servo"]:
+                        # 其他格式：led_1, relay_2, servo_1
+                        command["portKey"] = f"{cmd_type}_{device_id}"
             
             # 发送MQTT命令
             topic = f"devices/{device.uuid}/control"

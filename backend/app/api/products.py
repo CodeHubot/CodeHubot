@@ -25,13 +25,11 @@ def is_admin_user(user: User) -> bool:
     
     管理员权限判断规则：
     1. platform_admin 角色（平台管理员）
-    2. 传统的 admin 用户名或邮箱（兼容旧版本）
     """
-    return (
-        user.role == 'platform_admin' or 
-        user.email == "admin@aiot.com" or 
-        user.username == "admin"
-    )
+    判断用户是否为管理员
+    基于角色判断，更安全且易于管理
+    """
+    return user.role in ['platform_admin', 'super_admin', 'admin']
 
 
 def can_access_product(product: Product, user: User) -> bool:

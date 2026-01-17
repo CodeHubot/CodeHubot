@@ -82,36 +82,6 @@ export const API_ENDPOINTS = {
     TASKS: (id) => `/units/${id}/tasks`
   },
   
-  // 任务相关（学生端）
-  TASKS: {
-    LIST: '/student/tasks',
-    DETAIL: (id) => `/student/tasks/${id}`,
-    PROGRESS: (id) => `/student/tasks/${id}/progress`,
-    SUBMIT: (id) => `/student/tasks/${id}/submit`
-  },
-  
-  // 项目相关
-  PROJECTS: {
-    LIST: '/pbl/projects',
-    DETAIL: (id) => `/pbl/projects/${id}`,
-    CREATE: '/pbl/projects',
-    UPDATE: (id) => `/pbl/projects/${id}`,
-    DELETE: (id) => `/pbl/projects/${id}`,
-    TASKS: (id) => `/pbl/projects/${id}/tasks`,
-    PROGRESS: (id) => `/pbl/projects/${id}/progress`
-  },
-  
-  // 团队相关
-  TEAMS: {
-    LIST: '/teams',
-    DETAIL: (id) => `/teams/${id}`,
-    CREATE: '/teams',
-    UPDATE: (id) => `/teams/${id}`,
-    DELETE: (id) => `/teams/${id}`,
-    MEMBERS: (id) => `/teams/${id}/members`,
-    PROJECTS: (id) => `/teams/${id}/projects`
-  },
-  
   // AI对话相关
   AI: {
     CHAT: '/ai/chat',
