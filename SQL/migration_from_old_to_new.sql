@@ -44,10 +44,27 @@
 --    - 迁移过程中不会删除旧数据库的数据
 --
 -- 6. 数据映射说明:
+--    【用户数据】
 --    - 旧数据库中没有学校概念,所有用户 school_id 设为 NULL (独立用户)
 --    - 用户角色统一设置为 'individual' (个人用户)
 --    - UUID 字段使用 UUID() 函数自动生成
---    - 旧数据库中不存在的字段使用默认值或 NULL
+--    - 新增字段(phone, nickname, real_name等)设为 NULL
+--    
+--    【产品数据】
+--    - power_requirements 从 varchar 类型转换为 json 格式
+--    - default_device_config、communication_protocols 等字段保留原值
+--    - 旧数据库没有的字段(version, creator_id, is_shared等)使用原值或默认值
+--    
+--    【设备数据】
+--    - school_id 设为 NULL (旧数据库没有学校概念)
+--    - last_report_data 设为 NULL (旧数据库没有此字段)
+--    - 保留所有旧数据库字段:
+--      * product_version, last_product_report, product_switch_count
+--      * auto_created_product, room, floor
+--      * device_sensor_config, device_control_config, device_settings
+--    
+--    【其他表】
+--    - 固件版本、设备绑定历史、访问日志：字段完全对应,直接迁移
 --
 -- ==========================================================================================================
 -- 执行环境检查
@@ -126,12 +143,18 @@ INSERT INTO `device_products` (
     `control_ports`,
     `device_capabilities`,
     `default_device_config`,
+    `communication_protocols`,
+    `power_requirements`,
     `firmware_version`,
     `hardware_version`,
     `is_active`,
+    `version`,
     `manufacturer`,
+    `manufacturer_code`,
     `total_devices`,
     `is_system`,
+    `creator_id`,
+    `is_shared`,
     `created_at`,
     `updated_at`
 )
@@ -144,13 +167,24 @@ SELECT
     p.`sensor_types`,
     p.`control_ports`,
     p.`device_capabilities`,
-    '{}' AS `default_device_config`,  -- 旧数据库没有此字段
+    p.`default_device_config`,
+    p.`communication_protocols`,
+    -- power_requirements 从 varchar 转换为 json
+    CASE 
+        WHEN p.`power_requirements` IS NOT NULL AND p.`power_requirements` != '' 
+        THEN JSON_OBJECT('description', p.`power_requirements`)
+        ELSE NULL 
+    END AS `power_requirements`,
     p.`firmware_version`,
     p.`hardware_version`,
     p.`is_active`,
+    p.`version`,
     p.`manufacturer`,
+    p.`manufacturer_code`,
     p.`total_devices`,
-    0 AS `is_system`,  -- 迁移的产品不是系统内置
+    p.`is_system`,
+    p.`creator_id`,
+    p.`is_shared`,
     p.`created_at`,
     p.`updated_at`
 FROM `aiot-demo`.`products` AS p
@@ -224,10 +258,19 @@ INSERT INTO `device_main` (
     `last_seen`,
     `last_report_data`,
     `product_code`,
+    `product_version`,
+    `last_product_report`,
+    `product_switch_count`,
+    `auto_created_product`,
     `ip_address`,
     `mac_address`,
     `location`,
     `group_name`,
+    `room`,
+    `floor`,
+    `device_sensor_config`,
+    `device_control_config`,
+    `device_settings`,
     `production_date`,
     `serial_number`,
     `quality_grade`,
@@ -258,12 +301,21 @@ SELECT
     d.`is_online`,
     d.`is_active`,
     d.`last_seen`,
-    d.`last_report_data`,
+    NULL AS `last_report_data`,  -- 新数据库字段,旧数据库没有
     d.`product_code`,
+    d.`product_version`,
+    d.`last_product_report`,
+    d.`product_switch_count`,
+    d.`auto_created_product`,
     d.`ip_address`,
     d.`mac_address`,
     d.`location`,
     d.`group_name`,
+    d.`room`,
+    d.`floor`,
+    d.`device_sensor_config`,
+    d.`device_control_config`,
+    d.`device_settings`,
     d.`production_date`,
     d.`serial_number`,
     d.`quality_grade`,
