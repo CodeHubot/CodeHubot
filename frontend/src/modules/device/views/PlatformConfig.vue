@@ -11,7 +11,7 @@
     <el-alert
       title="提示"
       type="info"
-      description="配置平台基础信息和功能开关。修改后可能需要刷新页面生效。"
+      description="配置平台品牌信息和用户协议政策。修改后可能需要刷新页面生效。"
       :closable="false"
       style="margin-bottom: 20px;"
     />
@@ -67,31 +67,6 @@
           </div>
         </el-form-item>
 
-        <el-divider />
-
-        <!-- 用户注册开关 -->
-        <el-form-item label="用户注册功能">
-          <div class="switch-control">
-            <el-switch
-              v-model="platformConfig.enable_user_registration"
-              active-text="开启"
-              inactive-text="关闭"
-              size="large"
-            />
-            <div class="switch-description">
-              <el-icon><UserFilled /></el-icon>
-              <span>控制是否允许新用户通过注册页面注册账号</span>
-            </div>
-          </div>
-          <el-alert
-            v-if="!platformConfig.enable_user_registration"
-            title="注册功能已关闭"
-            type="warning"
-            description="关闭后，普通用户无法自主注册，只能由管理员创建账号"
-            :closable="false"
-            style="margin-top: 10px;"
-          />
-        </el-form-item>
       </el-form>
     </el-card>
 
@@ -155,59 +130,6 @@
       </el-form>
     </el-card>
 
-    <!-- 模块功能配置 -->
-    <el-card class="config-card" style="margin-top: 20px;" v-loading="loading">
-      <template #header>
-        <div class="card-header">
-          <div class="header-title">
-            <el-icon><Grid /></el-icon>
-            <span>功能模块配置</span>
-          </div>
-          <el-button type="success" @click="saveModuleConfig" :loading="moduleSaving">
-            <el-icon><Check /></el-icon>
-            保存配置
-          </el-button>
-        </div>
-      </template>
-
-      <el-form :model="moduleConfig" label-width="140px" class="config-form">
-        <!-- 设备管理模块 -->
-        <el-form-item label="设备管理模块">
-          <div class="switch-control">
-            <el-switch
-              v-model="moduleConfig.enable_device_module"
-              active-text="开启"
-              inactive-text="关闭"
-              size="large"
-            />
-            <div class="switch-description">
-              <el-icon><Monitor /></el-icon>
-              <span>包含设备管理、产品管理、固件管理等功能</span>
-            </div>
-          </div>
-        </el-form-item>
-
-        <el-divider />
-
-        <!-- AI模块 -->
-        <el-form-item label="AI智能模块">
-          <div class="switch-control">
-            <el-switch
-              v-model="moduleConfig.enable_ai_module"
-              active-text="开启"
-              inactive-text="关闭"
-              size="large"
-            />
-            <div class="switch-description">
-              <el-icon><MagicStick /></el-icon>
-              <span>包含AI智能体、知识库、LLM模型、插件、工作流等功能</span>
-            </div>
-          </div>
-        </el-form-item>
-
-      </el-form>
-    </el-card>
-
     <!-- 当前配置状态 -->
     <el-card class="status-card" style="margin-top: 20px;">
       <template #header>
@@ -220,19 +142,17 @@
         <el-descriptions-item label="平台名称">
           <el-tag type="info">{{ platformConfig.platform_name || '未设置' }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="用户注册">
-          <el-tag :type="platformConfig.enable_user_registration ? 'success' : 'danger'">
-            {{ platformConfig.enable_user_registration ? '已开启' : '已关闭' }}
+        <el-descriptions-item label="平台描述">
+          <el-text>{{ platformConfig.platform_description || '未设置' }}</el-text>
+        </el-descriptions-item>
+        <el-descriptions-item label="用户协议" :span="2">
+          <el-tag :type="policiesConfig.user_agreement ? 'success' : 'info'">
+            {{ policiesConfig.user_agreement ? '已配置' : '未配置' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="设备管理模块">
-          <el-tag :type="moduleConfig.enable_device_module ? 'success' : 'danger'">
-            {{ moduleConfig.enable_device_module ? '已开启' : '已关闭' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="AI智能模块" :span="2">
-          <el-tag :type="moduleConfig.enable_ai_module ? 'success' : 'danger'">
-            {{ moduleConfig.enable_ai_module ? '已开启' : '已关闭' }}
+        <el-descriptions-item label="隐私政策" :span="2">
+          <el-tag :type="policiesConfig.privacy_policy ? 'success' : 'info'">
+            {{ policiesConfig.privacy_policy ? '已配置' : '未配置' }}
           </el-tag>
         </el-descriptions-item>
       </el-descriptions>
@@ -254,10 +174,13 @@
           <el-text>修改平台名称和描述，自定义您的平台品牌信息</el-text>
         </el-timeline-item>
         <el-timeline-item timestamp="第三步" placement="top">
-          <el-text>根据实际需求开启或关闭用户注册功能和各功能模块</el-text>
+          <el-text>编辑用户协议和隐私政策内容，可使用Markdown格式</el-text>
         </el-timeline-item>
         <el-timeline-item timestamp="第四步" placement="top">
           <el-text>点击对应的"保存配置"按钮使配置生效</el-text>
+        </el-timeline-item>
+        <el-timeline-item timestamp="提示" placement="top">
+          <el-text type="info">功能模块开关请前往"模块配置"页面设置</el-text>
         </el-timeline-item>
         <el-timeline-item timestamp="注意事项" placement="top">
           <el-text type="warning">配置保存后建议刷新页面以完全生效</el-text>
@@ -305,11 +228,6 @@ import {
   Check,
   Shop,
   InfoFilled,
-  UserFilled,
-  Grid,
-  Monitor,
-  MagicStick,
-  Reading,
   View,
   QuestionFilled,
   Document
@@ -317,8 +235,6 @@ import {
 import {
   getPlatformConfig,
   updatePlatformConfig,
-  getModuleConfig,
-  updateModuleConfig,
   initSystemConfig,
   getPoliciesConfig,
   updatePoliciesConfig
@@ -326,7 +242,6 @@ import {
 
 const loading = ref(false)
 const saving = ref(false)
-const moduleSaving = ref(false)
 const policiesSaving = ref(false)
 const initializing = ref(false)
 const userAgreementPreviewVisible = ref(false)
@@ -335,14 +250,7 @@ const privacyPolicyPreviewVisible = ref(false)
 // 平台配置
 const platformConfig = reactive({
   platform_name: 'CodeHubot',
-  platform_description: '智能物联网管理平台',
-  enable_user_registration: false
-})
-
-// 模块配置
-const moduleConfig = reactive({
-  enable_device_module: true,
-  enable_ai_module: true
+  platform_description: '智能物联网管理平台'
 })
 
 // 协议配置
@@ -360,20 +268,6 @@ const fetchPlatformConfig = async () => {
   } catch (error) {
     console.error('获取平台配置失败:', error)
     ElMessage.error(error.response?.data?.detail || '获取平台配置失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 获取模块配置
-const fetchModuleConfig = async () => {
-  loading.value = true
-  try {
-    const response = await getModuleConfig()
-    Object.assign(moduleConfig, response.data)
-  } catch (error) {
-    console.error('获取模块配置失败:', error)
-    ElMessage.error(error.response?.data?.detail || '获取模块配置失败')
   } finally {
     loading.value = false
   }
@@ -438,45 +332,6 @@ const savePlatformConfig = async () => {
   }
 }
 
-// 保存模块配置
-const saveModuleConfig = async () => {
-  try {
-    await ElMessageBox.confirm(
-      '修改模块配置可能会影响系统功能的可用性，确定要保存吗？',
-      '确认保存',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-
-    moduleSaving.value = true
-    const response = await updateModuleConfig(moduleConfig)
-    Object.assign(moduleConfig, response.data)
-    ElMessage.success('模块配置保存成功')
-
-    // 提示用户刷新页面
-    ElMessageBox.alert(
-      '配置已保存，建议刷新页面以使配置完全生效。',
-      '提示',
-      {
-        confirmButtonText: '刷新页面',
-        callback: () => {
-          window.location.reload()
-        }
-      }
-    )
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('保存模块配置失败:', error)
-      ElMessage.error(error.response?.data?.detail || '保存模块配置失败')
-    }
-  } finally {
-    moduleSaving.value = false
-  }
-}
-
 // 保存协议配置
 const savePoliciesConfig = async () => {
   try {
@@ -533,7 +388,6 @@ const initConfig = async () => {
 
     // 重新获取配置
     await fetchPlatformConfig()
-    await fetchModuleConfig()
     await fetchPoliciesConfig()
   } catch (error) {
     if (error !== 'cancel') {
@@ -547,7 +401,6 @@ const initConfig = async () => {
 
 onMounted(() => {
   fetchPlatformConfig()
-  fetchModuleConfig()
   fetchPoliciesConfig()
 })
 </script>

@@ -75,7 +75,8 @@ INSERT IGNORE INTO `core_system_config`
 VALUES 
 ('device_mqtt_broker', 'mqtt.example.com', 'string', '设备连接的MQTT Broker地址（外部可访问的域名或IP）', 'device', 0),
 ('device_mqtt_port', '1883', 'integer', '设备连接的MQTT Broker端口', 'device', 0),
-('device_mqtt_use_ssl', 'false', 'boolean', '设备连接MQTT是否使用SSL/TLS', 'device', 0);
+('device_mqtt_use_ssl', 'false', 'boolean', '设备连接MQTT是否使用SSL/TLS', 'device', 0),
+('device_config_server_url', 'http://config.example.com:8001', 'string', '设备配置服务器地址（设备配网时填写，获取MQTT等配置信息）', 'device', 1);
 
 SELECT '✓ 系统配置数据初始化完成' AS '';
 

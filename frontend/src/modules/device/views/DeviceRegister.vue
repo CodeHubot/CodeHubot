@@ -47,9 +47,39 @@
             <div class="step">
               <div class="step-number">3</div>
               <div class="step-content">
-                <h4>完成注册</h4>
-                <p>系统验证后设备即可正常使用</p>
+                <h4>设备配网</h4>
+                <p>注册成功后按提示进行设备配网</p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>设备配网信息</h3>
+          <p>设备注册成功后，首次上电配网时需要填写以下配置服务器地址，设备将自动从该服务器获取MQTT等配置信息：</p>
+          <div class="config-info-box">
+            <div class="config-label">配置服务器地址：</div>
+            <div class="config-value-row">
+              <el-input
+                :model-value="configServerUrl"
+                readonly
+                size="large"
+              >
+                <template #prepend>
+                  <el-icon><Link /></el-icon>
+                </template>
+              </el-input>
+              <el-button 
+                type="primary" 
+                size="large"
+                @click="copyConfigUrl"
+                :icon="CopyDocument"
+              >
+                复制地址
+              </el-button>
+            </div>
+            <div class="config-tip">
+              💡 建议现在就复制保存此地址，以便设备配网时使用
             </div>
           </div>
         </div>
@@ -213,7 +243,7 @@
     <el-dialog
       v-model="successDialogVisible"
       title="注册成功"
-      width="500px"
+      width="550px"
       :before-close="handleSuccessDialogClose"
     >
       <div class="success-content">
@@ -222,7 +252,35 @@
         <p>设备 <strong>{{ registerData.deviceName }}</strong> 已成功注册到您的账户下</p>
         <p v-if="selectedProductName">产品：<strong>{{ selectedProductName }}</strong></p>
         <p>MAC地址：<code>{{ fullMacAddress }}</code></p>
-        <p>您现在可以在设备列表中查看和管理该设备。</p>
+        
+        <!-- 设备配网信息 -->
+        <el-divider content-position="left">配网信息</el-divider>
+        <el-alert
+          title="下一步：设备配网"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-top: 16px"
+        >
+          <p style="margin: 8px 0;">在设备首次上电配网时，请填写以下配置服务器地址：</p>
+          <div class="config-server-url">
+            <el-input
+              :model-value="configServerUrl"
+              readonly
+              style="margin-top: 8px"
+            >
+              <template #prepend>配置服务器</template>
+              <template #append>
+                <el-button @click="copyConfigUrl" :icon="CopyDocument">复制</el-button>
+              </template>
+            </el-input>
+          </div>
+          <p style="margin: 8px 0 0 0; font-size: 12px; color: var(--el-text-color-secondary);">
+            💡 提示：设备将通过此地址自动获取MQTT服务器等配置信息
+          </p>
+        </el-alert>
+        
+        <p style="margin-top: 16px;">您现在可以在设备列表中查看和管理该设备。</p>
       </div>
       <template #footer>
         <el-button @click="handleSuccessDialogClose">关闭</el-button>
@@ -242,11 +300,14 @@ import {
   Plus, 
   Check, 
   RefreshLeft, 
-  SuccessFilled 
+  SuccessFilled,
+  CopyDocument,
+  Link
 } from '@element-plus/icons-vue'
 import { preRegisterDevice } from '@/api/device'
 import { getProductsSummary } from '@/api/product'
 import { useUserStore } from '@/store/user'
+import request from '@/utils/request'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -261,6 +322,7 @@ const successDialogVisible = ref(false)
 const registerForm = ref(null)
 const macInputRefs = ref([])
 const includeSharedProducts = ref(false)  // 是否包含共享产品（默认不包含）
+const configServerUrl = ref('http://config.example.com:8001')  // 配置服务器地址
 
 // MAC地址分段
 const macSegments = ref(['', '', '', '', '', ''])
@@ -359,9 +421,9 @@ const handleSharedProductsChange = () => {
 }
 
 // 组件挂载时加载产品列表
-onMounted(() => {
-  loadProducts()
-})
+// onMounted(() => {
+//   loadProducts()
+// })
 
 // MAC地址输入处理
 const handleMacInput = (index, value) => {
@@ -531,6 +593,40 @@ const goToDeviceList = () => {
   successDialogVisible.value = false
   router.push('/device/devices')
 }
+
+// 复制配置服务器地址
+const copyConfigUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(configServerUrl.value)
+    ElMessage.success('配置服务器地址已复制到剪贴板')
+  } catch (error) {
+    logger.error('复制失败:', error)
+    ElMessage.error('复制失败，请手动复制')
+  }
+}
+
+// 加载配置服务器地址
+const loadConfigServerUrl = async () => {
+  try {
+    const response = await request.get('/system-config/configs/public', {
+      params: { exclude_policies: true }
+    })
+    const configs = response.data || []
+    const configItem = configs.find(c => c.config_key === 'device_config_server_url')
+    if (configItem && configItem.config_value) {
+      configServerUrl.value = configItem.config_value
+    }
+  } catch (error) {
+    logger.error('加载配置服务器地址失败:', error)
+    // 使用默认值，不显示错误消息
+  }
+}
+
+// 组件挂载时加载产品列表和配置服务器地址
+onMounted(() => {
+  loadProducts()
+  loadConfigServerUrl()
+})
 </script>
 
 <style scoped>
@@ -643,6 +739,39 @@ const goToDeviceList = () => {
   font-size: 13px;
   color: #606266;
   margin: 0;
+}
+
+.config-info-box {
+  background: #f0f9ff;
+  border: 1px solid #409eff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.config-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.config-value-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.config-value-row .el-input {
+  flex: 1;
+}
+
+.config-tip {
+  font-size: 13px;
+  color: #67c23a;
+  margin: 0;
+  font-weight: 500;
 }
 
 .register-form {

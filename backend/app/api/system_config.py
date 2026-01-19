@@ -525,7 +525,8 @@ async def get_device_mqtt_config(
     return DeviceMqttConfigResponse(
         device_mqtt_broker=get_string_config("device_mqtt_broker", "mqtt.example.com"),
         device_mqtt_port=get_int_config("device_mqtt_port", 1883),
-        device_mqtt_use_ssl=get_bool_config("device_mqtt_use_ssl", False)
+        device_mqtt_use_ssl=get_bool_config("device_mqtt_use_ssl", False),
+        device_config_server_url=get_string_config("device_config_server_url", "http://config.example.com:8001")
     )
 
 
@@ -550,7 +551,8 @@ async def update_device_mqtt_config(
     config_mapping = {
         "device_mqtt_broker": ("设备连接的MQTT Broker地址", "device", "string"),
         "device_mqtt_port": ("设备连接的MQTT Broker端口", "device", "integer"),
-        "device_mqtt_use_ssl": ("设备连接MQTT是否使用SSL/TLS", "device", "boolean")
+        "device_mqtt_use_ssl": ("设备连接MQTT是否使用SSL/TLS", "device", "boolean"),
+        "device_config_server_url": ("设备配置服务器地址", "device", "string")
     }
     
     for key, value in update_data.items():
@@ -562,6 +564,9 @@ async def update_device_mqtt_config(
         elif isinstance(value, int):
             value = str(value)
         
+        # device_config_server_url 是公开的，其他配置不公开
+        is_public = (key == "device_config_server_url")
+        
         set_config_value(
             db=db,
             key=key,
@@ -569,7 +574,7 @@ async def update_device_mqtt_config(
             config_type=config_type,
             description=description,
             category=category,
-            is_public=False  # 设备MQTT配置不公开
+            is_public=is_public
         )
     
     # 返回更新后的配置

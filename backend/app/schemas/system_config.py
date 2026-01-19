@@ -97,6 +97,7 @@ class DeviceMqttConfigResponse(BaseModel):
     device_mqtt_broker: str = Field(..., description="MQTT Broker地址（设备连接用）")
     device_mqtt_port: int = Field(..., description="MQTT Broker端口")
     device_mqtt_use_ssl: bool = Field(..., description="是否启用SSL/TLS")
+    device_config_server_url: str = Field(..., description="设备配置服务器地址（设备配网时填写）")
 
 
 class DeviceMqttConfigUpdate(BaseModel):
@@ -104,4 +105,5 @@ class DeviceMqttConfigUpdate(BaseModel):
     device_mqtt_broker: Optional[str] = Field(None, min_length=3, max_length=255, description="MQTT Broker地址")
     device_mqtt_port: Optional[int] = Field(None, ge=1, le=65535, description="MQTT Broker端口")
     device_mqtt_use_ssl: Optional[bool] = Field(None, description="是否启用SSL/TLS")
+    device_config_server_url: Optional[str] = Field(None, min_length=3, max_length=255, description="设备配置服务器地址")
 

@@ -40,10 +40,10 @@ export default [
         meta: { title: '模块配置' }
       },
       {
-        path: 'mqtt-config',
-        name: 'PlatformMqttConfig',
-        component: () => import('@device/views/MqttConfig.vue'),
-        meta: { title: 'MQTT服务器配置' }
+        path: 'server-config',
+        name: 'PlatformServerConfig',
+        component: () => import('@device/views/ServerConfig.vue'),
+        meta: { title: '服务器信息配置' }
       }
       // 系统日志和数据概览暂时隐藏
       // {

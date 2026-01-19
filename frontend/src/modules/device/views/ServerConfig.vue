@@ -1,33 +1,39 @@
 <template>
-  <div class="mqtt-config-container">
+  <div class="server-config-container">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2>服务器信息配置</h2>
+      <el-button
+        type="primary"
+        :icon="Refresh"
+        @click="loadConfig"
+        :loading="loading"
+      >
+        刷新配置
+      </el-button>
+    </div>
+
+    <el-alert
+      title="配置说明"
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 20px"
+    >
+      <p><strong>重要提示：</strong>所有服务器地址必须是设备可以访问的外部地址（域名或公网IP），不能使用localhost。</p>
+      <p>修改配置后，需要点击底部的"应用配置"按钮使配置立即生效。</p>
+    </el-alert>
+
+    <!-- MQTT服务器配置 -->
     <el-card class="config-card">
       <template #header>
         <div class="card-header">
-          <span>
+          <div class="header-title">
             <el-icon><Connection /></el-icon>
-            MQTT服务器配置
-          </span>
-          <el-button
-            type="primary"
-            :icon="Refresh"
-            @click="loadConfig"
-            :loading="loading"
-          >
-            刷新
-          </el-button>
+            <span>MQTT服务器配置</span>
+          </div>
         </div>
       </template>
-
-      <el-alert
-        title="配置说明"
-        type="info"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 24px"
-      >
-        <p>此配置用于设备连接MQTT服务器，修改后请点击"刷新config-service缓存"按钮使配置生效。</p>
-        <p><strong>重要：</strong>MQTT Broker地址必须是设备可以访问的外部地址（域名或公网IP），不能使用localhost。</p>
-      </el-alert>
 
       <el-form
         ref="formRef"
@@ -47,7 +53,7 @@
             </template>
           </el-input>
           <div class="form-item-tip">
-            设备将连接到此MQTT服务器地址
+            设备将连接到此MQTT服务器进行消息通信
           </div>
         </el-form-item>
 
@@ -60,7 +66,7 @@
             style="width: 200px"
           />
           <div class="form-item-tip">
-            标准MQTT端口：1883（无SSL）或 8883（SSL）
+            标准端口：1883（无SSL）、8883（SSL）
           </div>
         </el-form-item>
 
@@ -75,97 +81,96 @@
           </div>
         </el-form-item>
       </el-form>
+    </el-card>
 
-      <!-- 操作按钮放在表单外面，避免被表单的disabled影响 -->
-      <div style="margin-top: 20px; padding-left: 160px">
-        <el-button
-          v-if="!isEditing"
-          type="primary"
-          :icon="Edit"
-          @click="startEdit"
-        >
-          编辑配置
-        </el-button>
-        <template v-else>
+    <!-- 配置服务器 -->
+    <el-card class="config-card" style="margin-top: 20px">
+      <template #header>
+        <div class="card-header">
+          <div class="header-title">
+            <el-icon><Setting /></el-icon>
+            <span>设备配置服务器</span>
+          </div>
+        </div>
+      </template>
+
+      <el-form
+        :model="config"
+        :rules="rules"
+        label-width="160px"
+        :disabled="!isEditing"
+      >
+        <el-form-item label="配置服务器地址" prop="device_config_server_url">
+          <el-input
+            v-model="config.device_config_server_url"
+            placeholder="例如: http://config.example.com:8001"
+            clearable
+          >
+            <template #prepend>
+              <el-icon><Link /></el-icon>
+            </template>
+          </el-input>
+          <div class="form-item-tip">
+            设备配网时填写此地址，自动获取MQTT等配置信息
+          </div>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <!-- 操作按钮区 -->
+    <el-card class="action-card" style="margin-top: 20px">
+      <div class="action-buttons">
+        <template v-if="!isEditing">
           <el-button
             type="primary"
-            :icon="Check"
-            @click="saveConfig"
-            :loading="saving"
+            :icon="Edit"
+            @click="startEdit"
+            size="large"
           >
-            保存配置
+            编辑配置
+          </el-button>
+        </template>
+        <template v-else>
+          <el-button
+            type="success"
+            :icon="Check"
+            @click="saveAndApplyConfig"
+            :loading="saving"
+            size="large"
+          >
+            保存并应用配置
           </el-button>
           <el-button
             :icon="Close"
             @click="cancelEdit"
+            size="large"
           >
             取消
           </el-button>
         </template>
-      </div>
-    </el-card>
-
-    <!-- Config Service 缓存刷新 -->
-    <el-card class="config-card" style="margin-top: 20px">
-      <template #header>
-        <div class="card-header">
-          <span>
-            <el-icon><RefreshRight /></el-icon>
-            配置缓存管理
-          </span>
-        </div>
-      </template>
-
-      <el-alert
-        title="配置更新流程"
-        type="warning"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 24px"
-      >
-        <ol style="margin: 8px 0; padding-left: 20px">
-          <li>修改MQTT配置并保存</li>
-          <li>点击下方"刷新config-service缓存"按钮</li>
-          <li>配置立即生效，设备下次请求时获取新配置</li>
-        </ol>
-      </el-alert>
-
-      <div class="cache-status" v-if="cacheStatus">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="当前Broker">
-            {{ cacheStatus.current_mqtt_config?.broker || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="当前端口">
-            {{ cacheStatus.current_mqtt_config?.port || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="SSL状态">
-            <el-tag :type="cacheStatus.current_mqtt_config?.use_ssl ? 'success' : 'info'">
-              {{ cacheStatus.current_mqtt_config?.use_ssl ? '已启用' : '未启用' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="上次刷新时间">
-            {{ cacheStatus.timestamp ? formatTime(cacheStatus.timestamp) : '-' }}
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
-
-      <div style="margin-top: 20px">
-        <el-button
-          type="success"
-          :icon="RefreshRight"
-          @click="refreshConfigCache"
-          :loading="refreshing"
-        >
-          刷新config-service缓存
-        </el-button>
+        
+        <el-divider direction="vertical" style="height: 32px; margin: 0 16px" />
+        
         <el-button
           :icon="View"
           @click="checkConfigServiceStatus"
           :loading="checking"
+          size="large"
         >
-          查看config-service状态
+          查看服务状态
         </el-button>
       </div>
+
+      <el-alert
+        v-if="lastApplyTime"
+        type="success"
+        :closable="false"
+        style="margin-top: 16px"
+      >
+        <template #title>
+          <span>✓ 配置已应用，最后更新时间：{{ formatTime(lastApplyTime) }}</span>
+        </template>
+      </el-alert>
     </el-card>
   </div>
 </template>
@@ -180,8 +185,8 @@ import {
   Check,
   Close,
   Refresh,
-  RefreshRight,
-  View
+  View,
+  Setting
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
@@ -191,24 +196,24 @@ const formRef = ref(null)
 // 加载状态
 const loading = ref(false)
 const saving = ref(false)
-const refreshing = ref(false)
 const checking = ref(false)
 
 // 编辑状态
 const isEditing = ref(false)
 
+// 最后应用时间
+const lastApplyTime = ref(null)
+
 // 配置数据
 const config = reactive({
   device_mqtt_broker: '',
   device_mqtt_port: 1883,
-  device_mqtt_use_ssl: false
+  device_mqtt_use_ssl: false,
+  device_config_server_url: ''
 })
 
 // 备份原始数据
 const originalConfig = reactive({})
-
-// 缓存状态
-const cacheStatus = ref(null)
 
 // 表单验证规则
 const rules = {
@@ -224,6 +229,20 @@ const rules = {
   device_mqtt_port: [
     { required: true, message: '请输入MQTT端口', trigger: 'blur' },
     { type: 'number', min: 1, max: 65535, message: '端口范围：1-65535', trigger: 'blur' }
+  ],
+  device_config_server_url: [
+    { required: true, message: '请输入配置服务器地址', trigger: 'blur' },
+    { min: 3, max: 255, message: '地址长度在3-255个字符之间', trigger: 'blur' },
+    {
+      pattern: /^https?:\/\/.+/,
+      message: '请输入有效的HTTP/HTTPS地址',
+      trigger: 'blur'
+    },
+    {
+      pattern: /^(?!.*localhost).*$/,
+      message: '不能使用localhost，请使用设备可访问的外部地址',
+      trigger: 'blur'
+    }
   ]
 }
 
@@ -255,8 +274,8 @@ const cancelEdit = () => {
   formRef.value?.clearValidate()
 }
 
-// 保存配置
-const saveConfig = async () => {
+// 保存并应用配置
+const saveAndApplyConfig = async () => {
   try {
     await formRef.value.validate()
   } catch {
@@ -265,7 +284,7 @@ const saveConfig = async () => {
 
   try {
     await ElMessageBox.confirm(
-      '确定要保存MQTT配置吗？保存后需要刷新config-service缓存才能生效。',
+      '保存配置后将立即应用到config-service，设备下次连接时将获取新配置。确定要保存吗？',
       '确认保存',
       {
         confirmButtonText: '确定',
@@ -279,44 +298,34 @@ const saveConfig = async () => {
 
   saving.value = true
   try {
+    // 1. 保存配置到数据库
     const response = await request.put('/system-config/device-mqtt', config)
     Object.assign(config, response.data)
     Object.assign(originalConfig, response.data)
+    
+    // 2. 刷新config-service缓存
+    try {
+      const refreshResponse = await fetch('http://localhost:8001/admin/refresh-config', {
+        method: 'POST'
+      })
+      
+      if (refreshResponse.ok) {
+        lastApplyTime.value = new Date().toISOString()
+        ElMessage.success('配置已保存并应用，立即生效')
+      } else {
+        ElMessage.warning('配置已保存，但应用失败，请检查config-service服务')
+      }
+    } catch (refreshError) {
+      console.error('应用配置失败:', refreshError)
+      ElMessage.warning('配置已保存，但应用失败，请手动检查config-service服务')
+    }
+    
     isEditing.value = false
-    ElMessage.success('配置保存成功，请刷新config-service缓存使配置生效')
   } catch (error) {
     console.error('保存配置失败:', error)
     ElMessage.error(error.message || '保存配置失败')
   } finally {
     saving.value = false
-  }
-}
-
-// 刷新config-service缓存
-const refreshConfigCache = async () => {
-  refreshing.value = true
-  try {
-    // 调用config-service的刷新接口
-    const response = await fetch('http://localhost:8001/admin/refresh-config', {
-      method: 'POST'
-    })
-    
-    if (!response.ok) {
-      throw new Error('刷新失败')
-    }
-    
-    const result = await response.json()
-    cacheStatus.value = result
-    
-    ElMessage.success({
-      message: '配置缓存已刷新，新配置立即生效',
-      duration: 3000
-    })
-  } catch (error) {
-    console.error('刷新缓存失败:', error)
-    ElMessage.error('刷新缓存失败，请检查config-service是否正常运行')
-  } finally {
-    refreshing.value = false
   }
 }
 
@@ -334,14 +343,18 @@ const checkConfigServiceStatus = async () => {
     
     await ElMessageBox.alert(
       `
-        <p><strong>服务状态：</strong>${result.status}</p>
-        <p><strong>服务版本：</strong>${result.version}</p>
-        <p><strong>MQTT Broker：</strong>${result.mqtt_config?.broker}</p>
-        <p><strong>MQTT端口：</strong>${result.mqtt_config?.port}</p>
-        <p><strong>SSL状态：</strong>${result.mqtt_config?.use_ssl ? '已启用' : '未启用'}</p>
-        <p><strong>配置来源：</strong>${result.mqtt_config?.source}</p>
+        <div style="line-height: 1.8;">
+          <p><strong>服务状态：</strong>${result.status || '运行中'}</p>
+          <p><strong>服务版本：</strong>${result.version || '-'}</p>
+          <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+          <p style="margin-top: 12px;"><strong>当前MQTT配置：</strong></p>
+          <p style="padding-left: 20px;">• Broker：${result.mqtt_config?.broker || '-'}</p>
+          <p style="padding-left: 20px;">• 端口：${result.mqtt_config?.port || '-'}</p>
+          <p style="padding-left: 20px;">• SSL：${result.mqtt_config?.use_ssl ? '已启用' : '未启用'}</p>
+          <p style="padding-left: 20px;">• 来源：${result.mqtt_config?.source || '-'}</p>
+        </div>
       `,
-      'Config Service 状态',
+      'Config Service 服务状态',
       {
         dangerouslyUseHTMLString: true,
         confirmButtonText: '确定'
@@ -376,12 +389,29 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mqtt-config-container {
+.server-config-container {
   padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-.config-card {
-  max-width: 800px;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-header h2 {
+  margin: 0;
+  color: #303133;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.config-card,
+.action-card {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
@@ -392,7 +422,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.card-header span {
+.header-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -404,12 +434,15 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.cache-status {
-  margin-bottom: 20px;
+.action-card {
+  background: #f9fafb;
 }
 
-:deep(.el-descriptions__label) {
-  width: 150px;
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
 }
 
 :deep(.el-alert__description) {
@@ -418,9 +451,5 @@ onMounted(() => {
 
 :deep(.el-alert__description p) {
   margin: 4px 0;
-}
-
-:deep(.el-alert__description ol) {
-  line-height: 1.8;
 }
 </style>

@@ -301,6 +301,28 @@
                 保存配置
               </el-button>
             </div>
+
+            <!-- 配置服务器地址提示 -->
+            <el-alert
+              title="配网提示"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 20px"
+            >
+              <p style="margin: 0 0 8px 0;">设备首次配网时，请填写以下配置服务器地址以自动获取网络配置：</p>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <el-input
+                  :model-value="configServerUrl"
+                  readonly
+                  style="flex: 1"
+                >
+                  <template #prepend>配置服务器</template>
+                </el-input>
+                <el-button @click="copyConfigUrl" :icon="CopyDocument">复制</el-button>
+              </div>
+            </el-alert>
+
             <el-form :model="networkConfig" :rules="networkRules" ref="networkFormRef" label-width="120px">
               <div class="form-grid">
                 <el-form-item label="WiFi SSID" prop="wifi_ssid">
@@ -433,8 +455,10 @@ import {
   Operation,
   Check,
   Plus,
-  Delete
+  Delete,
+  CopyDocument
 } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -445,6 +469,7 @@ const saveLoading = ref(false)
 const activeTab = ref('basic')
 const basicFormRef = ref()
 const networkFormRef = ref()
+const configServerUrl = ref('http://config.example.com:8001')  // 配置服务器地址
 
 // 设备信息
 const deviceInfo = reactive({
@@ -759,9 +784,38 @@ const saveAdvancedConfig = async () => {
   }
 }
 
+// 复制配置服务器地址
+const copyConfigUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(configServerUrl.value)
+    ElMessage.success('配置服务器地址已复制到剪贴板')
+  } catch (error) {
+    console.error('复制失败:', error)
+    ElMessage.error('复制失败，请手动复制')
+  }
+}
+
+// 加载配置服务器地址
+const loadConfigServerUrl = async () => {
+  try {
+    const response = await request.get('/system-config/configs/public', {
+      params: { exclude_policies: true }
+    })
+    const configs = response.data || []
+    const configItem = configs.find(c => c.config_key === 'device_config_server_url')
+    if (configItem && configItem.config_value) {
+      configServerUrl.value = configItem.config_value
+    }
+  } catch (error) {
+    console.error('加载配置服务器地址失败:', error)
+    // 使用默认值，不显示错误消息
+  }
+}
+
 // 组件挂载
 onMounted(() => {
   loadDeviceConfig()
+  loadConfigServerUrl()
 })
 </script>
 

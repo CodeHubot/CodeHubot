@@ -37,9 +37,9 @@
           <span>模块配置</span>
         </el-menu-item>
         
-        <el-menu-item index="/platform/mqtt-config">
+        <el-menu-item index="/platform/server-config">
           <el-icon><Connection /></el-icon>
-          <span>MQTT服务器配置</span>
+          <span>服务器信息配置</span>
         </el-menu-item>
         
         <!-- 系统日志和数据概览暂时隐藏 -->
