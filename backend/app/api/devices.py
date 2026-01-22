@@ -1093,6 +1093,23 @@ async def get_device_config(
         DeviceSensor.device_uuid == device_uuid
     ).order_by(DeviceSensor.timestamp.desc()).limit(limit).all()
 
+    # 从 device_settings 中获取用户自定义的预设指令
+    device_settings = device.device_settings or {}
+    device_preset_commands = device_settings.get("preset_commands", [])
+    
+    # 构建基础配置数据（始终返回）
+    config_data = {
+        "device_sensor_config": device.device_sensor_config or {},
+        "device_control_config": device.device_control_config or {},
+        "device_preset_commands": device_preset_commands,
+        "firmware_version": device.firmware_version,
+        "hardware_version": device.hardware_version,
+        "product_sensor_types": device.product.sensor_types if device.product else {},
+        "product_control_ports": device.product.control_ports if device.product else {},
+        "device_capabilities": device.product.device_capabilities if device.product else {}
+    }
+
+    # 如果有传感器数据，合并传感器信息到响应中
     if sensor_rows:
         data_list = []
         latest_by_sensor = {}
@@ -1108,28 +1125,18 @@ async def get_device_config(
             if row.sensor_name not in latest_by_sensor:
                 latest_by_sensor[row.sensor_name] = item
 
+        # 合并传感器数据和配置数据
         return success_response(data={
             "device_uuid": device_uuid,
             "device_name": device.name,
             "latest": latest_by_sensor,
             "logs": data_list,
-            "count": len(data_list)
+            "count": len(data_list),
+            **config_data  # 合并配置信息
         })
     
-    # 从 device_settings 中获取用户自定义的预设指令
-    device_settings = device.device_settings or {}
-    device_preset_commands = device_settings.get("preset_commands", [])
-    
-    return success_response(data={
-        "device_sensor_config": device.device_sensor_config or {},
-        "device_control_config": device.device_control_config or {},
-        "device_preset_commands": device_preset_commands,
-        "firmware_version": device.firmware_version,
-        "hardware_version": device.hardware_version,
-        "product_sensor_types": device.product.sensor_types if device.product else {},
-        "product_control_ports": device.product.control_ports if device.product else {},
-        "device_capabilities": device.product.device_capabilities if device.product else {}
-    })
+    # 如果没有传感器数据，只返回配置信息
+    return success_response(data=config_data)
 
 @router.get("/{device_uuid}/full-config")
 async def get_device_full_config(
