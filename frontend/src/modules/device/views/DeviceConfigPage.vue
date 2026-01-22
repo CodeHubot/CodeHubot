@@ -137,6 +137,15 @@
                 <span class="preset-name">{{ preset.name }}</span>
                 <span class="preset-type-badge">{{ getPresetTypeLabel(preset.device_type, preset.preset_type) }}</span>
                 <div class="preset-actions">
+                  <el-button 
+                    size="small" 
+                    type="success"
+                    :loading="testingPreset[preset.preset_key]"
+                    @click="testPreset(preset)"
+                  >
+                    <el-icon><VideoPlay /></el-icon>
+                    测试
+                  </el-button>
                   <el-button size="small" @click="editPreset(index)">编辑</el-button>
                   <el-button size="small" type="danger" @click="deletePreset(index)">删除</el-button>
                 </div>
@@ -569,9 +578,9 @@
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Check, Plus, CopyDocument, Loading } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Plus, CopyDocument, Loading, VideoPlay } from '@element-plus/icons-vue'
 import { getDevicesWithProductInfo } from '@/api/device'
-import { getDeviceConfig, updateDeviceConfig, getDeviceProductConfig } from '@/api/device'
+import { getDeviceConfig, updateDeviceConfig, getDeviceProductConfig, sendDeviceControl } from '@/api/device'
 import logger from '../utils/logger'
 
 const route = useRoute()
@@ -587,6 +596,9 @@ const presetCommands = ref([])
 const originalConfig = ref(null)
 const lastSaveTime = ref('')
 let saveTimer = null // 防抖定时器
+
+// 测试预设指令的loading状态（使用preset_key作为key）
+const testingPreset = ref({})
 
 // 预设指令对话框
 const presetDialogVisible = ref(false)
@@ -1033,6 +1045,88 @@ const deletePreset = async (index) => {
     autoSaveConfig()
   } catch (error) {
     // 用户取消
+  }
+}
+
+// 测试预设指令
+const testPreset = async (preset) => {
+  // 检查设备状态
+  if (!device.value) {
+    ElMessage.warning('设备信息未加载')
+    return
+  }
+
+  // 检查设备在线状态（如果有在线状态字段）
+  if (device.value.status === 'offline') {
+    ElMessage.warning('设备离线，无法测试预设指令')
+    return
+  }
+
+  const presetKey = preset.preset_key || `preset_${Date.now()}`
+  
+  if (testingPreset.value[presetKey]) return
+  
+  testingPreset.value[presetKey] = true
+  
+  try {
+    logger.info('测试预设指令:', preset)
+    
+    // 根据预设类型构建测试命令
+    let command
+    
+    if (preset.preset_type === 'sequence' || preset.type === 'sequence') {
+      // 序列指令
+      command = {
+        type: 'sequence',
+        steps: preset.steps || []
+      }
+    } else {
+      // 单个预设指令
+      command = {
+        cmd: preset.cmd || preset.device_type,
+        device_id: preset.device_id,
+        device_type: preset.device_type,
+        preset_type: preset.preset_type,
+        parameters: preset.parameters || {}
+      }
+    }
+    
+    logger.info('发送测试命令:', command)
+    
+    const response = await sendDeviceControl(deviceUuid.value, command)
+    
+    if (response.data) {
+      if (preset.preset_type === 'sequence' || preset.type === 'sequence') {
+        // 序列指令的响应处理
+        if (response.data.success) {
+          const totalSteps = response.data.total_steps || 0
+          const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
+          ElMessage.success(`测试成功：${successCount}/${totalSteps} 步骤执行成功`)
+        } else {
+          const totalSteps = response.data.total_steps || 0
+          const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
+          const failedCount = totalSteps - successCount
+          const message = response.data.message || `测试完成：${successCount}/${totalSteps} 步骤成功，${failedCount} 步骤失败`
+          ElMessage.warning(message)
+          
+          // 打印失败详情
+          if (response.data.executed_steps) {
+            const failedSteps = response.data.executed_steps.filter(s => s.status === 'failed')
+            if (failedSteps.length > 0) {
+              logger.warn('失败的步骤详情:', failedSteps)
+            }
+          }
+        }
+      } else {
+        // 单个预设指令的响应处理
+        ElMessage.success('预设指令测试成功')
+      }
+    }
+  } catch (error) {
+    logger.error('测试预设指令失败:', error)
+    ElMessage.error(error.response?.data?.detail || '测试预设指令失败')
+  } finally {
+    testingPreset.value[presetKey] = false
   }
 }
 
