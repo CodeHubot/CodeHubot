@@ -1096,38 +1096,22 @@ const testPreset = async (preset) => {
     const response = await sendDeviceControl(deviceUuid.value, command)
     
     if (response.data) {
+      // 统一提示：测试命令已发送
+      ElMessage.success('测试命令已发送')
+      
+      // 在控制台输出详细信息供调试
       if (preset.preset_type === 'sequence' || preset.type === 'sequence') {
-        // 序列指令的响应处理
-        if (response.data.success) {
-          const totalSteps = response.data.total_steps || 0
-          const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
-          ElMessage.success(`测试成功：${successCount}/${totalSteps} 步骤执行成功`)
-        } else {
-          const totalSteps = response.data.total_steps || 0
-          const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
-          const failedCount = totalSteps - successCount
-          
-          // 如果所有步骤都失败，可能是设备未响应
-          if (successCount === 0) {
-            ElMessage.warning('测试指令已发送，但设备可能未正确响应，请检查设备连接和日志')
-            logger.warn('所有步骤执行失败，可能原因：设备离线、MQTT连接问题、命令格式错误')
-          } else {
-            // 部分成功
-            const message = response.data.message || `测试完成：${successCount}/${totalSteps} 步骤成功，${failedCount} 步骤失败`
-            ElMessage.warning(message)
-          }
-          
-          // 打印失败详情
-          if (response.data.executed_steps) {
-            const failedSteps = response.data.executed_steps.filter(s => s.status === 'failed')
-            if (failedSteps.length > 0) {
-              logger.warn('失败的步骤详情:', failedSteps)
-            }
+        const totalSteps = response.data.total_steps || 0
+        const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
+        logger.info(`序列指令测试结果: ${successCount}/${totalSteps} 步骤成功`)
+        
+        // 打印失败详情（仅控制台）
+        if (response.data.executed_steps) {
+          const failedSteps = response.data.executed_steps.filter(s => s.status === 'failed')
+          if (failedSteps.length > 0) {
+            logger.warn('失败的步骤详情:', failedSteps)
           }
         }
-      } else {
-        // 单个预设指令的响应处理
-        ElMessage.success('测试指令已发送')
       }
     }
   } catch (error) {
