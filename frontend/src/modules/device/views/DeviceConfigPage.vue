@@ -1106,8 +1106,16 @@ const testPreset = async (preset) => {
           const totalSteps = response.data.total_steps || 0
           const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
           const failedCount = totalSteps - successCount
-          const message = response.data.message || `测试完成：${successCount}/${totalSteps} 步骤成功，${failedCount} 步骤失败`
-          ElMessage.warning(message)
+          
+          // 如果所有步骤都失败，可能是设备未响应
+          if (successCount === 0) {
+            ElMessage.warning('测试指令已发送，但设备可能未正确响应，请检查设备连接和日志')
+            logger.warn('所有步骤执行失败，可能原因：设备离线、MQTT连接问题、命令格式错误')
+          } else {
+            // 部分成功
+            const message = response.data.message || `测试完成：${successCount}/${totalSteps} 步骤成功，${failedCount} 步骤失败`
+            ElMessage.warning(message)
+          }
           
           // 打印失败详情
           if (response.data.executed_steps) {
@@ -1119,7 +1127,7 @@ const testPreset = async (preset) => {
         }
       } else {
         // 单个预设指令的响应处理
-        ElMessage.success('预设指令测试成功')
+        ElMessage.success('测试指令已发送')
       }
     }
   } catch (error) {
