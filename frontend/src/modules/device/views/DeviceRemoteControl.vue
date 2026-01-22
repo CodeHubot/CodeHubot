@@ -937,7 +937,23 @@ const handleSequence = async (preset) => {
         const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
         ElMessage.success(`序列指令执行完成：${successCount}/${totalSteps} 步骤成功`)
       } else {
-        ElMessage.warning(response.data.message || '序列指令执行完成，但有部分步骤失败')
+        // 显示详细的失败信息
+        const totalSteps = response.data.total_steps || 0
+        const successCount = response.data.executed_steps?.filter(s => s.status === 'success').length || 0
+        const failedCount = totalSteps - successCount
+        
+        // 使用后端返回的详细消息，如果没有则使用默认消息
+        const message = response.data.message || `序列指令执行完成：${successCount}/${totalSteps} 步骤成功，${failedCount} 步骤失败`
+        
+        ElMessage.warning(message)
+        
+        // 在控制台打印详细的失败信息
+        if (response.data.executed_steps) {
+          const failedSteps = response.data.executed_steps.filter(s => s.status === 'failed')
+          if (failedSteps.length > 0) {
+            logger.warn('失败的步骤详情:', failedSteps)
+          }
+        }
       }
     }
   } catch (error) {
