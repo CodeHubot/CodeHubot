@@ -233,29 +233,42 @@ build_images() {
         log_info "使用国内镜像源加速构建..."
     fi
     
-    log_info "构建后端服务镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build backend
+    # 构建选项（如果设置了 FORCE_REBUILD=true 则不使用缓存）
+    BUILD_OPTS=""
+    if [ "${FORCE_REBUILD:-false}" = "true" ]; then
+        log_warn "强制重新构建模式（不使用缓存）"
+        BUILD_OPTS="--no-cache"
+        
+        # 清理旧的前端和后端镜像，强制重新构建
+        log_info "清理旧的服务镜像..."
+        docker images | grep "docker-backend\|docker-frontend\|docker-config-service" | awk '{print $3}' | xargs -r docker rmi -f 2>/dev/null || true
+    fi
+    
+    log_info "构建后端服务镜像（确保更新）..."
+    # 后端始终使用 --no-cache 确保代码更新
+    docker-compose -f "${COMPOSE_FILE}" build --no-cache --pull backend
     
     log_info "构建配置服务镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build config-service
+    docker-compose -f "${COMPOSE_FILE}" build ${BUILD_OPTS} config-service
     
-    log_info "构建前端服务镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build frontend
+    log_info "构建前端服务镜像（确保更新）..."
+    # 前端始终使用 --no-cache 确保代码更新
+    docker-compose -f "${COMPOSE_FILE}" build --no-cache --pull frontend
     
     log_info "构建插件后端服务镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build plugin-backend-service
+    docker-compose -f "${COMPOSE_FILE}" build ${BUILD_OPTS} plugin-backend-service
     
     log_info "构建插件服务镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build plugin-service
+    docker-compose -f "${COMPOSE_FILE}" build ${BUILD_OPTS} plugin-service
     
     log_info "构建MQTT独立服务镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build mqtt-service
+    docker-compose -f "${COMPOSE_FILE}" build ${BUILD_OPTS} mqtt-service
     
     log_info "构建Celery Worker镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build celery_worker
+    docker-compose -f "${COMPOSE_FILE}" build ${BUILD_OPTS} celery_worker
     
     log_info "构建Flower监控镜像..."
-    docker-compose -f "${COMPOSE_FILE}" build flower
+    docker-compose -f "${COMPOSE_FILE}" build ${BUILD_OPTS} flower
     
     log_info "所有镜像构建完成 ✓"
 }
@@ -622,6 +635,32 @@ main() {
             check_dependencies
             check_env_file
             generate_secrets
+            
+            # 在部署前清理前端和后端相关资源，确保更新
+            log_info "清理前端和后端旧版本..."
+            cd "${DOCKER_DIR}"
+            
+            # 停止并删除前端和后端容器
+            docker-compose -f "${COMPOSE_FILE}" stop frontend backend 2>/dev/null || true
+            docker-compose -f "${COMPOSE_FILE}" rm -f frontend backend 2>/dev/null || true
+            
+            # 删除前端和后端镜像（强制重新构建）
+            FRONTEND_IMAGE=$(docker images | grep -E "docker.*frontend|codehubot.*frontend" | awk '{print $3}' | head -1)
+            if [ -n "$FRONTEND_IMAGE" ]; then
+                log_info "删除旧的前端镜像: $FRONTEND_IMAGE"
+                docker rmi -f "$FRONTEND_IMAGE" 2>/dev/null || true
+            fi
+            
+            BACKEND_IMAGE=$(docker images | grep -E "docker.*backend|codehubot.*backend" | awk '{print $3}' | head -1)
+            if [ -n "$BACKEND_IMAGE" ]; then
+                log_info "删除旧的后端镜像: $BACKEND_IMAGE"
+                docker rmi -f "$BACKEND_IMAGE" 2>/dev/null || true
+            fi
+            
+            # 清理 Docker 构建缓存
+            log_info "清理 Docker 构建缓存..."
+            docker builder prune -f --filter "label!=keep=true" 2>/dev/null || true
+            
             stop_services
             build_images
             start_services
@@ -634,6 +673,14 @@ main() {
             echo ""
             check_services
             show_info
+            
+            # 显示前端和后端更新提示
+            log_warn "=========================================="
+            log_warn "前端和后端已更新！请在浏览器中执行："
+            log_warn "  1. 强制刷新: Ctrl+Shift+R (Win/Linux) 或 Cmd+Shift+R (Mac)"
+            log_warn "  2. 或清除浏览器缓存后重新访问"
+            log_warn "  3. 或使用无痕模式/隐私浏览模式"
+            log_warn "=========================================="
             ;;
         build)
             check_dependencies
@@ -757,6 +804,37 @@ main() {
             echo "  status  - 查看服务状态"
             echo "  logs    - 查看日志（可指定服务名）"
             echo "  clean   - 删除所有数据卷（会清空所有数据）"
+            echo ""
+            echo "外部数据库模式命令（使用已有MySQL）："
+            echo "  deploy-external-db  - 完整部署（不包含MySQL容器）"
+            echo "  build-external-db   - 仅构建镜像"
+            echo "  start-external-db   - 启动服务"
+            echo "  stop-external-db    - 停止服务"
+            echo "  restart-external-db - 重启服务"
+            echo "  status-external-db  - 查看服务状态"
+            echo "  logs-external-db    - 查看日志（可指定服务名）"
+            echo ""
+            echo "开发模式命令（本地开发前后端源代码）："
+            echo "  start-dev-services   - 启动开发环境支持服务（不含前后端）"
+            echo "  stop-dev-services    - 停止开发环境服务"
+            echo ""
+            echo "环境变量选项："
+            echo "  FORCE_REBUILD=true  - 强制重新构建所有镜像（不使用缓存）"
+            echo ""
+            echo "示例："
+            echo "  # 标准部署"
+            echo "  ./deploy.sh deploy"
+            echo ""
+            echo "  # 使用外部数据库部署"
+            echo "  ./deploy.sh deploy-external-db"
+            echo ""
+            echo "  # 强制重新构建（确保前端代码更新）"
+            echo "  FORCE_REBUILD=true ./deploy.sh deploy-external-db"
+            echo ""
+            echo "注意："
+            echo "  - deploy 命令会自动清理前端和后端旧镜像，确保代码更新"
+            echo "  - 前端和后端构建时始终不使用缓存，确保使用最新代码"
+            echo "  - 部署后请在浏览器中强制刷新 (Ctrl+Shift+R) 或清除缓存"
             echo ""
             echo "外部数据库模式命令（使用已有MySQL）："
             echo "  deploy-external-db  - 完整部署（不包含MySQL容器）"
