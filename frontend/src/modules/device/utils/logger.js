@@ -21,9 +21,16 @@ class Logger {
   _getLogLevel() {
     const mode = import.meta.env.MODE
     
-    // 生产环境只显示错误
+    // 可以通过环境变量或 localStorage 覆盖日志级别
+    const overrideLevel = localStorage.getItem('LOG_LEVEL')
+    if (overrideLevel && LOG_LEVELS[overrideLevel] !== undefined) {
+      return LOG_LEVELS[overrideLevel]
+    }
+    
+    // 生产环境显示信息及以上（包括 INFO, WARN, ERROR）
+    // 修改为 INFO 以便在生产环境也能看到重要的调试信息
     if (mode === 'production') {
-      return LOG_LEVELS.ERROR
+      return LOG_LEVELS.INFO
     }
     
     // 测试环境显示警告及以上
