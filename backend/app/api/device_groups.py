@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.core.response import success_response, error_response
 from app.api.auth import get_current_user
 from app.models.user import User
-from app.models.school import School
+from app.models.team import Team
 from app.models.device import Device
 from app.models.device_group import DeviceGroup, DeviceGroupMember
 from app.schemas.device_group import (
@@ -27,12 +27,12 @@ router = APIRouter(prefix="/device-groups", tags=["设备分组管理"])
 # 权限检查函数
 # ============================================================================
 
-def check_school_admin(current_user: User = Depends(get_current_user)):
-    """检查当前用户是否为学校管理员"""
-    if current_user.role not in ['platform_admin', 'school_admin']:
+def check_team_admin(current_user: User = Depends(get_current_user)):
+    """检查当前用户是否为团队管理员"""
+    if current_user.role not in ['platform_admin', 'team_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有学校管理员才能执行此操作"
+            detail="只有团队管理员才能执行此操作"
         )
     return current_user
 
@@ -45,14 +45,14 @@ def check_school_admin(current_user: User = Depends(get_current_user)):
 async def create_device_group(
     group_data: DeviceGroupCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
     """创建设备组"""
-    school_id = current_user.school_id
+    team_id = current_user.team_id
     
     # 检查设备组名称是否重复
     existing = db.query(DeviceGroup).filter(
-        DeviceGroup.school_id == school_id,
+        DeviceGroup.team_id == team_id,
         DeviceGroup.group_name == group_data.group_name,
         DeviceGroup.deleted_at.is_(None)
     ).first()
@@ -62,7 +62,7 @@ async def create_device_group(
     
     # 创建设备组
     device_group = DeviceGroup(
-        school_id=school_id,
+        team_id=team_id,
         group_name=group_data.group_name,
         group_code=group_data.group_code,
         description=group_data.description,
@@ -91,8 +91,8 @@ async def list_device_groups(
 ):
     """获取设备组列表"""
     # 权限控制：只能看到本校的设备组
-    school_id = current_user.school_id
-    if not school_id:
+    team_id = current_user.team_id
+    if not team_id:
         return success_response(data={
             "total": 0,
             "page": page,
@@ -102,7 +102,7 @@ async def list_device_groups(
     
     # 构建查询
     query = db.query(DeviceGroup).filter(
-        DeviceGroup.school_id == school_id,
+        DeviceGroup.team_id == team_id,
         DeviceGroup.deleted_at.is_(None)
     )
     
@@ -165,7 +165,7 @@ async def get_device_group(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权查看该设备组", code=403)
     
     # 实时统计设备数量
@@ -185,7 +185,7 @@ async def update_device_group(
     group_uuid: str,
     group_data: DeviceGroupUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
     """更新设备组信息"""
     device_group = db.query(DeviceGroup).filter(
@@ -197,7 +197,7 @@ async def update_device_group(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权修改该设备组", code=403)
     
     # 更新字段
@@ -224,7 +224,7 @@ async def update_device_group(
 async def delete_device_group(
     group_uuid: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
     """删除设备组（软删除）"""
     device_group = db.query(DeviceGroup).filter(
@@ -236,7 +236,7 @@ async def delete_device_group(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权删除该设备组", code=403)
     
     # 软删除
@@ -255,7 +255,7 @@ async def add_device_to_group(
     group_uuid: str,
     device_data: DeviceGroupMemberAdd,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
     """添加设备到设备组"""
     # 查找设备组
@@ -268,7 +268,7 @@ async def add_device_to_group(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权操作该设备组", code=403)
     
     # 检查设备是否存在
@@ -280,8 +280,8 @@ async def add_device_to_group(
         return error_response(message="设备不存在", code=404)
     
     # 检查设备是否明确归属于本校
-    if device.school_id != device_group.school_id:
-        return error_response(message="该设备未归属于本校，请先在设备管理中设置为学校设备", code=403)
+    if device.team_id != device_group.team_id:
+        return error_response(message="该设备未归属于本校，请先在设备管理中设置为团队设备", code=403)
     
     # 检查设备是否已在其他设备组中（一个设备只能属于一个设备组）
     existing_membership = db.query(DeviceGroupMember).join(
@@ -321,7 +321,7 @@ async def batch_add_devices_to_group(
     group_uuid: str,
     batch_data: DeviceGroupMemberBatchAdd,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
     """批量添加设备到设备组"""
     # 查找设备组
@@ -334,7 +334,7 @@ async def batch_add_devices_to_group(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权操作该设备组", code=403)
     
     # 批量添加
@@ -354,7 +354,7 @@ async def batch_add_devices_to_group(
             continue
         
         # 检查设备是否明确归属于本校
-        if device.school_id != device_group.school_id:
+        if device.team_id != device_group.team_id:
             skipped_count += 1
             skipped_reasons.append(f'设备"{device.name}": 未归属于本校')
             continue
@@ -422,7 +422,7 @@ async def list_group_devices(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权查看该设备组", code=403)
     
     # 查询设备列表
@@ -469,7 +469,7 @@ async def remove_device_from_group(
     group_uuid: str,
     device_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
     """从设备组移除设备"""
     # 查找设备组
@@ -482,7 +482,7 @@ async def remove_device_from_group(
         return error_response(message="设备组不存在", code=404)
     
     # 权限检查
-    if current_user.school_id != device_group.school_id:
+    if current_user.team_id != device_group.team_id:
         return error_response(message="无权操作该设备组", code=403)
     
     # 查找成员记录

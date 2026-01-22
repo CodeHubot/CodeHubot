@@ -34,7 +34,7 @@
         >
           <el-option label="全部" value="" />
           <el-option label="系统级" value="system" />
-          <el-option label="学校级" value="school" />
+          <el-option label="团队级" value="team" />
           <el-option label="课程级" value="course" />
           <el-option label="智能体级" value="agent" />
         </el-select>
@@ -129,8 +129,8 @@
             @change="handleScopeTypeChange"
           >
             <el-option label="系统级" value="system" v-if="userRole === 'platform_admin'" />
-            <el-option label="学校级" value="school" v-if="['platform_admin', 'school_admin'].includes(userRole)" />
-            <el-option label="课程级" value="course" v-if="['platform_admin', 'school_admin', 'teacher'].includes(userRole)" />
+            <el-option label="团队级" value="team" v-if="['platform_admin', 'team_admin'].includes(userRole)" />
+            <el-option label="课程级" value="course" v-if="['platform_admin', 'team_admin', 'teacher'].includes(userRole)" />
             <!-- 暂时隐藏智能体级，未来如有多智能体需求再开放 -->
             <!-- <el-option label="智能体级" value="agent" /> -->
             <el-option label="个人级" value="personal" />
@@ -159,7 +159,7 @@ import {
   Plus,
   Search,
   Document,
-  School,
+  OfficeBuilding,
   Grid,
   User
 } from '@element-plus/icons-vue'
@@ -177,7 +177,7 @@ const userStore = useUserStore()
 // 用户信息
 const userRole = computed(() => userStore.userInfo?.role || '')
 const userId = computed(() => userStore.userInfo?.id || null)
-const schoolId = computed(() => userStore.userInfo?.school_id || null)
+const teamId = computed(() => userStore.userInfo?.team_id || null)
 
 // 数据
 const loading = ref(false)
@@ -211,9 +211,9 @@ const formData = reactive({
 const initDefaultScopeType = () => {
   if (userRole.value === 'platform_admin') {
     formData.scope_type = 'system'
-  } else if (userRole.value === 'school_admin') {
-    formData.scope_type = 'school'
-    formData.scope_id = schoolId.value
+  } else if (userRole.value === 'team_admin') {
+    formData.scope_type = 'team'
+    formData.scope_id = teamId.value
   } else if (userRole.value === 'teacher') {
     formData.scope_type = 'personal'
     formData.scope_id = userId.value
@@ -248,7 +248,7 @@ const loadKnowledgeBases = async () => {
 const getScopeIcon = (scopeType) => {
   const iconMap = {
     system: Grid,
-    school: School,
+    team: OfficeBuilding,
     course: Document,
     agent: User
   }
@@ -258,7 +258,7 @@ const getScopeIcon = (scopeType) => {
 const getScopeTagType = (scopeType) => {
   const typeMap = {
     system: 'danger',
-    school: 'warning',
+    team: 'warning',
     course: 'success',
     agent: 'info'
   }
@@ -268,7 +268,7 @@ const getScopeTagType = (scopeType) => {
 const getScopeLabel = (scopeType) => {
   const labelMap = {
     system: '系统',
-    school: '学校',
+    team: '团队',
     course: '课程',
     agent: '智能体'
   }
@@ -295,8 +295,8 @@ const handleScopeTypeChange = (scopeType) => {
     case 'system':
       formData.scope_id = null
       break
-    case 'school':
-      formData.scope_id = schoolId.value
+    case 'team':
+      formData.scope_id = teamId.value
       break
     case 'personal':
       formData.scope_id = userId.value
@@ -312,7 +312,7 @@ const handleScopeTypeChange = (scopeType) => {
 const getScopeHint = () => {
   const hints = {
     system: '✅ 所有人可见 | 仅平台管理员可创建',
-    school: `✅ 本校师生可见${schoolId.value ? ' | 自动关联到您所在的学校' : ''}`,
+    team: `✅ 本团队成员可见${teamId.value ? ' | 自动关联到您所在的团队' : ''}`,
     course: '✅ 课程师生可见 | 需要选择具体课程',
     personal: '✅ 仅您本人可见 | 其他人无法访问'
   }
@@ -348,10 +348,10 @@ const handleSubmit = async () => {
     case 'system':
       submitData.scope_id = null
       break
-    case 'school':
-      submitData.scope_id = schoolId.value
+    case 'team':
+      submitData.scope_id = teamId.value
       if (!submitData.scope_id) {
-        ElMessage.warning('您未归属任何学校，无法创建学校级知识库')
+        ElMessage.warning('您未归属任何团队，无法创建团队级知识库')
         return
       }
       break

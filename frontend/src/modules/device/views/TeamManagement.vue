@@ -1,10 +1,10 @@
 <template>
-  <div class="school-management">
+  <div class="team-management">
     <div class="page-header">
-      <h1>学校管理</h1>
+      <h1>团队管理</h1>
       <el-button type="primary" @click="showCreateDialog">
         <el-icon><Plus /></el-icon>
-        创建学校
+        创建团队
       </el-button>
     </div>
 
@@ -14,7 +14,7 @@
         <el-form-item label="关键词">
           <el-input
             v-model="searchForm.keyword"
-            placeholder="学校代码或名称"
+            placeholder="团队代码或名称"
             clearable
             @clear="handleSearch"
           />
@@ -53,11 +53,11 @@
       </el-form>
     </el-card>
 
-    <!-- 学校列表 -->
+    <!-- 团队列表 -->
     <el-card class="table-card">
-      <el-table :data="schools" v-loading="loading" stripe :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }">
-        <el-table-column prop="school_code" label="学校代码" width="140" align="center" />
-        <el-table-column prop="school_name" label="学校名称" min-width="180" show-overflow-tooltip />
+      <el-table :data="teams" v-loading="loading" stripe :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }">
+        <el-table-column prop="team_code" label="团队代码" width="140" align="center" />
+        <el-table-column prop="team_name" label="团队名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="地区" width="180" align="center">
           <template #default="{ row }">
             <div class="location-info">
@@ -116,7 +116,7 @@
         </el-table-column>
         <el-table-column label="操作" fixed="right" width="220" align="center">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="viewSchool(row)">
+            <el-button link type="primary" size="small" @click="viewTeam(row)">
               <el-icon><View /></el-icon>
               详情
             </el-button>
@@ -124,7 +124,7 @@
               <el-icon><UserFilled /></el-icon>
               设置管理员
             </el-button>
-            <el-button link type="primary" size="small" @click="editSchool(row)">
+            <el-button link type="primary" size="small" @click="editTeam(row)">
               <el-icon><Edit /></el-icon>
               编辑
             </el-button>
@@ -144,60 +144,60 @@
           :total="pagination.total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"
-          @current-change="loadSchools"
-          @size-change="loadSchools"
+          @current-change="loadTeams"
+          @size-change="loadTeams"
         />
       </div>
     </el-card>
 
-    <!-- 创建/编辑学校对话框 -->
+    <!-- 创建/编辑团队对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="dialogMode === 'create' ? '创建学校' : '编辑学校'"
+      :title="dialogMode === 'create' ? '创建团队' : '编辑团队'"
       width="600px"
     >
       <el-form
-        ref="schoolFormRef"
-        :model="schoolForm"
-        :rules="schoolRules"
+        ref="teamFormRef"
+        :model="teamForm"
+        :rules="teamRules"
         label-width="120px"
         autocomplete="off"
       >
-        <el-form-item label="学校代码" prop="school_code">
+        <el-form-item label="团队代码" prop="team_code">
           <el-input
-            v-model="schoolForm.school_code"
+            v-model="teamForm.team_code"
             placeholder="如: BJ-YCZX"
             :disabled="dialogMode === 'edit'"
             autocomplete="off"
           />
         </el-form-item>
-        <el-form-item label="学校名称" prop="school_name">
-          <el-input v-model="schoolForm.school_name" placeholder="学校名称" autocomplete="off" />
+        <el-form-item label="团队名称" prop="team_name">
+          <el-input v-model="teamForm.team_name" placeholder="团队名称" autocomplete="off" />
         </el-form-item>
         <el-form-item label="省份" prop="province">
-          <el-input v-model="schoolForm.province" placeholder="省份" autocomplete="off" />
+          <el-input v-model="teamForm.province" placeholder="省份" autocomplete="off" />
         </el-form-item>
         <el-form-item label="城市" prop="city">
-          <el-input v-model="schoolForm.city" placeholder="城市" autocomplete="off" />
+          <el-input v-model="teamForm.city" placeholder="城市" autocomplete="off" />
         </el-form-item>
         <el-form-item label="区/县" prop="district">
-          <el-input v-model="schoolForm.district" placeholder="区/县" autocomplete="off" />
+          <el-input v-model="teamForm.district" placeholder="区/县" autocomplete="off" />
         </el-form-item>
         <el-form-item label="详细地址" prop="address">
-          <el-input v-model="schoolForm.address" placeholder="详细地址" autocomplete="off" />
+          <el-input v-model="teamForm.address" placeholder="详细地址" autocomplete="off" />
         </el-form-item>
         <el-form-item label="联系人" prop="contact_person">
-          <el-input v-model="schoolForm.contact_person" placeholder="联系人" autocomplete="off" />
+          <el-input v-model="teamForm.contact_person" placeholder="联系人" autocomplete="off" />
         </el-form-item>
         <el-form-item label="联系电话" prop="contact_phone">
-          <el-input v-model="schoolForm.contact_phone" placeholder="联系电话" autocomplete="off" />
+          <el-input v-model="teamForm.contact_phone" placeholder="联系电话" autocomplete="off" />
         </el-form-item>
         <el-form-item label="联系邮箱" prop="contact_email">
-          <el-input v-model="schoolForm.contact_email" placeholder="联系邮箱" autocomplete="off" />
+          <el-input v-model="teamForm.contact_email" placeholder="联系邮箱" autocomplete="off" />
         </el-form-item>
         <el-form-item label="授权到期时间" prop="license_expire_at">
           <el-date-picker
-            v-model="schoolForm.license_expire_at"
+            v-model="teamForm.license_expire_at"
             type="date"
             placeholder="选择日期"
             value-format="YYYY-MM-DD"
@@ -205,7 +205,7 @@
         </el-form-item>
         <el-form-item label="最大教师数" prop="max_teachers">
           <el-input-number 
-            v-model="schoolForm.max_teachers" 
+            v-model="teamForm.max_teachers" 
             :min="1" 
             :max="10000" 
             :step="10"
@@ -216,7 +216,7 @@
         </el-form-item>
         <el-form-item label="最大学生数" prop="max_students">
           <el-input-number 
-            v-model="schoolForm.max_students" 
+            v-model="teamForm.max_students" 
             :min="1" 
             :max="100000"
             :step="100"
@@ -227,7 +227,7 @@
         </el-form-item>
         <el-form-item label="最大设备数" prop="max_devices">
           <el-input-number 
-            v-model="schoolForm.max_devices" 
+            v-model="teamForm.max_devices" 
             :min="1" 
             :max="50000"
             :step="50"
@@ -246,59 +246,59 @@
       </template>
     </el-dialog>
 
-    <!-- 学校详情对话框 -->
+    <!-- 团队详情对话框 -->
     <el-dialog
       v-model="detailDialogVisible"
-      title="学校详情"
+      title="团队详情"
       width="600px"
     >
-      <el-descriptions :column="2" border v-if="currentSchool">
-        <el-descriptions-item label="学校代码">
-          {{ currentSchool.school_code }}
+      <el-descriptions :column="2" border v-if="currentTeam">
+        <el-descriptions-item label="团队代码">
+          {{ currentTeam.team_code }}
         </el-descriptions-item>
-        <el-descriptions-item label="学校名称">
-          {{ currentSchool.school_name }}
+        <el-descriptions-item label="团队名称">
+          {{ currentTeam.team_name }}
         </el-descriptions-item>
         <el-descriptions-item label="省份">
-          {{ currentSchool.province || '-' }}
+          {{ currentTeam.province || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="城市">
-          {{ currentSchool.city || '-' }}
+          {{ currentTeam.city || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="区/县">
-          {{ currentSchool.district || '-' }}
+          {{ currentTeam.district || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="详细地址" :span="2">
-          {{ currentSchool.address || '-' }}
+          {{ currentTeam.address || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="联系人">
-          {{ currentSchool.contact_person || '-' }}
+          {{ currentTeam.contact_person || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="联系电话">
-          {{ currentSchool.contact_phone || '-' }}
+          {{ currentTeam.contact_phone || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="联系邮箱" :span="2">
-          {{ currentSchool.contact_email || '-' }}
+          {{ currentTeam.contact_email || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="授权到期">
-          {{ currentSchool.license_expire_at || '-' }}
+          {{ currentTeam.license_expire_at || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="currentSchool.is_active ? 'success' : 'danger'">
-            {{ currentSchool.is_active ? '激活' : '禁用' }}
+          <el-tag :type="currentTeam.is_active ? 'success' : 'danger'">
+            {{ currentTeam.is_active ? '激活' : '禁用' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="最大教师数">
-          {{ currentSchool.max_teachers }}
+          {{ currentTeam.max_teachers }}
         </el-descriptions-item>
         <el-descriptions-item label="最大学生数">
-          {{ currentSchool.max_students }}
+          {{ currentTeam.max_students }}
         </el-descriptions-item>
         <el-descriptions-item label="最大设备数">
-          {{ currentSchool.max_devices }}
+          {{ currentTeam.max_devices }}
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">
-          {{ formatDate(currentSchool.created_at) }}
+          {{ formatDate(currentTeam.created_at) }}
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -306,7 +306,7 @@
     <!-- 设置管理员对话框 -->
     <el-dialog
       v-model="adminDialogVisible"
-      title="设置学校管理员"
+      title="设置团队管理员"
       width="600px"
     >
       <el-alert
@@ -315,7 +315,7 @@
         :closable="false"
         style="margin-bottom: 20px;"
       >
-        学校管理员将拥有管理本校教师、学生和设备的权限。
+        团队管理员将拥有管理本校教师、学生和设备的权限。
       </el-alert>
 
       <!-- 选择方式 -->
@@ -331,8 +331,8 @@
         :model="selectAdminForm"
         label-width="100px"
       >
-        <el-form-item label="学校">
-          <el-input v-model="adminForm.school_name" disabled />
+        <el-form-item label="团队">
+          <el-input v-model="adminForm.team_name" disabled />
         </el-form-item>
         <el-form-item label="搜索用户" prop="keyword">
           <el-input
@@ -392,7 +392,7 @@
             v-model="selectAdminForm.teacher_number"
             placeholder="请输入工号"
           />
-          <span class="form-tip">工号在该学校内唯一</span>
+          <span class="form-tip">工号在该团队内唯一</span>
         </el-form-item>
       </el-form>
 
@@ -405,8 +405,8 @@
         label-width="100px"
         autocomplete="off"
       >
-        <el-form-item label="学校" prop="school_name">
-          <el-input v-model="adminForm.school_name" disabled autocomplete="off" />
+        <el-form-item label="团队" prop="team_name">
+          <el-input v-model="adminForm.team_name" disabled autocomplete="off" />
         </el-form-item>
         <el-form-item label="用户名" prop="username">
           <el-input
@@ -424,7 +424,7 @@
             placeholder="请输入工号"
             autocomplete="off"
           />
-          <span class="form-tip">工号在该学校内唯一</span>
+          <span class="form-tip">工号在该团队内唯一</span>
         </el-form-item>
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="adminForm.email" placeholder="请输入邮箱（选填）" autocomplete="off" />
@@ -472,21 +472,21 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, User, UserFilled, Monitor, View, Edit, Delete, Search } from '@element-plus/icons-vue'
-import { getSchools, createSchool, updateSchool, deleteSchool, getSchool } from '@/api/schools'
-import { createSchoolAdmin, searchIndividualUsers, assignRole } from '@/api/userManagement'
+import { getTeams, createTeam, updateTeam, deleteTeam, getTeam } from '@/api/teams'
+import { createTeamAdmin, searchIndividualUsers, assignRole } from '@/api/userManagement'
 import { formatDate } from '@/utils/format'
 
 // 数据
 const loading = ref(false)
 const submitting = ref(false)
-const schools = ref([])
+const teams = ref([])
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const adminDialogVisible = ref(false)
 const dialogMode = ref('create') // create | edit
 const adminCreateMode = ref('select') // select | create
-const currentSchool = ref(null)
-const schoolFormRef = ref(null)
+const currentTeam = ref(null)
+const teamFormRef = ref(null)
 const adminFormRef = ref(null)
 const selectAdminFormRef = ref(null)
 const individualUsers = ref([])
@@ -510,10 +510,10 @@ const pagination = reactive({
   total: 0
 })
 
-// 学校表单
-const schoolForm = reactive({
-  school_code: '',
-  school_name: '',
+// 团队表单
+const teamForm = reactive({
+  team_code: '',
+  team_name: '',
   province: '',
   city: '',
   district: '',
@@ -529,8 +529,8 @@ const schoolForm = reactive({
 
 // 管理员表单
 const adminForm = reactive({
-  school_id: null,
-  school_name: '',
+  team_id: null,
+  team_name: '',
   username: '',
   real_name: '',
   teacher_number: '',
@@ -547,13 +547,13 @@ const selectAdminForm = reactive({
 })
 
 // 表单验证规则
-const schoolRules = {
-  school_code: [
-    { required: true, message: '请输入学校代码', trigger: 'blur' },
+const teamRules = {
+  team_code: [
+    { required: true, message: '请输入团队代码', trigger: 'blur' },
     { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
   ],
-  school_name: [
-    { required: true, message: '请输入学校名称', trigger: 'blur' },
+  team_name: [
+    { required: true, message: '请输入团队名称', trigger: 'blur' },
     { min: 2, max: 200, message: '长度在 2 到 200 个字符', trigger: 'blur' }
   ],
   license_expire_at: [
@@ -601,8 +601,8 @@ const adminRules = {
   ]
 }
 
-// 加载学校列表
-const loadSchools = async () => {
+// 加载团队列表
+const loadTeams = async () => {
   loading.value = true
   try {
     const params = {
@@ -610,13 +610,13 @@ const loadSchools = async () => {
       page_size: pagination.page_size,
       ...searchForm
     }
-    const response = await getSchools(params)
+    const response = await getTeams(params)
     if (response.data) {
-      schools.value = response.data.schools || []
+      teams.value = response.data.teams || []
       pagination.total = response.data.total || 0
     }
   } catch (error) {
-    ElMessage.error('加载学校列表失败: ' + (error.response?.data?.message || error.message))
+    ElMessage.error('加载团队列表失败: ' + (error.response?.data?.message || error.message))
   } finally {
     loading.value = false
   }
@@ -625,7 +625,7 @@ const loadSchools = async () => {
 // 搜索
 const handleSearch = () => {
   pagination.page = 1
-  loadSchools()
+  loadTeams()
 }
 
 // 重置搜索
@@ -644,77 +644,77 @@ const showCreateDialog = () => {
   dialogVisible.value = true
 }
 
-// 编辑学校
-const editSchool = async (school) => {
+// 编辑团队
+const editTeam = async (team) => {
   dialogMode.value = 'edit'
-  currentSchool.value = school
+  currentTeam.value = team
   
-  // 先加载完整的学校数据（使用UUID）
+  // 先加载完整的团队数据（使用UUID）
   try {
     loading.value = true
-    const response = await getSchool(school.uuid)
-    const fullSchoolData = response.data
+    const response = await getTeam(team.uuid)
+    const fullTeamData = response.data
     
     // 使用完整数据填充表单
-    Object.assign(schoolForm, {
-      school_code: fullSchoolData.school_code,
-      school_name: fullSchoolData.school_name,
-      province: fullSchoolData.province || '',
-      city: fullSchoolData.city || '',
-      district: fullSchoolData.district || '',
-      address: fullSchoolData.address || '',
-      contact_person: fullSchoolData.contact_person || '',
-      contact_phone: fullSchoolData.contact_phone || '',
-      contact_email: fullSchoolData.contact_email || '',
-      license_expire_at: fullSchoolData.license_expire_at || null,
-      max_teachers: fullSchoolData.max_teachers || 100,
-      max_students: fullSchoolData.max_students || 1000,
-      max_devices: fullSchoolData.max_devices || 500
+    Object.assign(teamForm, {
+      team_code: fullTeamData.team_code,
+      team_name: fullTeamData.team_name,
+      province: fullTeamData.province || '',
+      city: fullTeamData.city || '',
+      district: fullTeamData.district || '',
+      address: fullTeamData.address || '',
+      contact_person: fullTeamData.contact_person || '',
+      contact_phone: fullTeamData.contact_phone || '',
+      contact_email: fullTeamData.contact_email || '',
+      license_expire_at: fullTeamData.license_expire_at || null,
+      max_teachers: fullTeamData.max_teachers || 100,
+      max_students: fullTeamData.max_students || 1000,
+      max_devices: fullTeamData.max_devices || 500
     })
     
     dialogVisible.value = true
   } catch (error) {
-    ElMessage.error('加载学校详情失败: ' + (error.response?.data?.message || error.message))
+    ElMessage.error('加载团队详情失败: ' + (error.response?.data?.message || error.message))
   } finally {
     loading.value = false
   }
 }
 
-// 查看学校详情
-const viewSchool = async (school) => {
+// 查看团队详情
+const viewTeam = async (team) => {
   try {
-    const response = await getSchool(school.uuid)
+    const response = await getTeam(team.uuid)
     if (response.data) {
-      currentSchool.value = response.data
+      currentTeam.value = response.data
       detailDialogVisible.value = true
     }
   } catch (error) {
-    ElMessage.error('加载学校详情失败: ' + (error.response?.data?.message || error.message))
+    ElMessage.error('加载团队详情失败: ' + (error.response?.data?.message || error.message))
   }
 }
 
 // 提交表单
 const handleSubmit = async () => {
-  if (!schoolFormRef.value) return
+  if (!teamFormRef.value) return
   
-  await schoolFormRef.value.validate(async (valid) => {
+  await teamFormRef.value.validate(async (valid) => {
     if (!valid) return
     
     submitting.value = true
     try {
       if (dialogMode.value === 'create') {
-        await createSchool(schoolForm)
-        ElMessage.success('学校创建成功')
+        await createTeam(teamForm)
+        ElMessage.success('团队创建成功')
       } else {
-        await updateSchool(currentSchool.value.uuid, schoolForm)
-        ElMessage.success('学校更新成功')
+        await updateTeam(currentTeam.value.uuid, teamForm)
+        ElMessage.success('团队更新成功')
       }
       dialogVisible.value = false
-      loadSchools()
+      loadTeams()
     } catch (error) {
       ElMessage.error(
         (dialogMode.value === 'create' ? '创建' : '更新') + 
-        '学校失败: ' + 
+        '团队失败: ' + 
         (error.response?.data?.message || error.message)
       )
     } finally {
@@ -723,11 +723,11 @@ const handleSubmit = async () => {
   })
 }
 
-// 删除学校
-const handleDelete = async (school) => {
+// 删除团队
+const handleDelete = async (team) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除学校 "${school.school_name}" 吗？此操作不可恢复。`,
+      `确定要删除团队 "${team.team_name}" 吗？此操作不可恢复。`,
       '删除确认',
       {
         confirmButtonText: '确定',
@@ -736,12 +736,12 @@ const handleDelete = async (school) => {
       }
     )
     
-    await deleteSchool(school.uuid)
-    ElMessage.success('学校删除成功')
-    loadSchools()
+    await deleteTeam(team.uuid)
+    ElMessage.success('团队删除成功')
+    loadTeams()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除学校失败: ' + (error.response?.data?.message || error.message))
+      ElMessage.error('删除团队失败: ' + (error.response?.data?.message || error.message))
     }
   }
 }
@@ -753,9 +753,9 @@ const resetForm = () => {
   defaultExpireDate.setFullYear(defaultExpireDate.getFullYear() + 1)
   const expireDateStr = defaultExpireDate.toISOString().split('T')[0] // YYYY-MM-DD 格式
   
-  Object.assign(schoolForm, {
-    school_code: '',
-    school_name: '',
+  Object.assign(teamForm, {
+    team_code: '',
+    team_name: '',
     province: '',
     city: '',
     district: '',
@@ -768,13 +768,13 @@ const resetForm = () => {
     max_students: 1000,
     max_devices: 500
   })
-  schoolFormRef.value?.clearValidate()
+  teamFormRef.value?.clearValidate()
 }
 
 // 初始化
 // 显示设置管理员对话框
-const showSetAdminDialog = (school) => {
-  currentSchool.value = school
+const showSetAdminDialog = (team) => {
+  currentTeam.value = team
   adminCreateMode.value = 'select' // 默认选择现有用户
   individualUsers.value = []
   searchingUsers.value = false
@@ -786,8 +786,8 @@ const showSetAdminDialog = (school) => {
   
   // 重置表单
   Object.assign(adminForm, {
-    school_id: school.id,
-    school_name: school.school_name,
+    team_id: team.id,
+    team_name: team.team_name,
     username: '',
     real_name: '',
     teacher_number: '',
@@ -896,8 +896,8 @@ const handleAssignAdmin = async () => {
     submitting.value = true
     
     const data = {
-      new_role: 'school_admin',
-      school_id: currentSchool.value.id,
+      new_role: 'team_admin',
+      team_id: currentTeam.value.id,
       teacher_number: selectAdminForm.teacher_number
     }
     
@@ -907,7 +907,7 @@ const handleAssignAdmin = async () => {
     const selectedUser = individualUsers.value.find(u => u.id === selectAdminForm.user_id)
     
     ElMessage.success({
-      message: `成功设置 ${selectedUser?.real_name || selectedUser?.username} 为学校管理员`,
+      message: `成功设置 ${selectedUser?.real_name || selectedUser?.username} 为团队管理员`,
       duration: 3000
     })
     
@@ -927,7 +927,7 @@ const handleAssignAdmin = async () => {
     )
     
     adminDialogVisible.value = false
-    loadSchools()
+    loadTeams()
   } catch (error) {
     console.error('设置管理员失败:', error)
     const errorMsg = error.response?.data?.message || error.response?.data?.detail || error.message
@@ -948,7 +948,7 @@ const handleCreateAdmin = async () => {
       submitting.value = true
       
       const data = {
-        school_id: adminForm.school_id,
+        team_id: adminForm.team_id,
         username: adminForm.username,
         real_name: adminForm.real_name,
         teacher_number: adminForm.teacher_number,
@@ -957,15 +957,15 @@ const handleCreateAdmin = async () => {
         phone: adminForm.phone || undefined
       }
       
-      const response = await createSchoolAdmin(data)
+      const response = await createTeamAdmin(data)
       
       if (response.code === 200) {
-        ElMessage.success('学校管理员创建成功')
+        ElMessage.success('团队管理员创建成功')
         
         // 显示登录信息
         ElMessageBox.alert(
           `<div style="padding: 10px;">
-            <p><strong>学校管理员创建成功！</strong></p>
+            <p><strong>团队管理员创建成功！</strong></p>
             <p style="margin-top: 15px; line-height: 1.8;">
               <strong>用户名：</strong>${adminForm.username}<br/>
               <strong>工号：</strong>${adminForm.teacher_number}<br/>
@@ -987,7 +987,7 @@ const handleCreateAdmin = async () => {
         )
         
         adminDialogVisible.value = false
-        loadSchools() // 刷新列表
+        loadTeams() // 刷新列表
       }
     } catch (error) {
       ElMessage.error('创建失败: ' + (error.response?.data?.message || error.message))
@@ -998,12 +998,12 @@ const handleCreateAdmin = async () => {
 }
 
 onMounted(() => {
-  loadSchools()
+  loadTeams()
 })
 </script>
 
 <style scoped>
-.school-management {
+.team-management {
   padding: 20px;
 }
 

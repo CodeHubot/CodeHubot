@@ -28,7 +28,7 @@ class DeviceGroupResponse(BaseModel):
     """设备组响应Schema"""
     id: int
     uuid: str
-    school_id: int
+    team_id: int
     group_name: str
     group_code: Optional[str] = None
     description: Optional[str] = None
@@ -46,7 +46,7 @@ class DeviceGroupListResponse(BaseModel):
     """设备组列表响应Schema"""
     id: int
     uuid: str
-    school_id: int
+    team_id: int
     group_name: str
     group_code: Optional[str] = None
     device_count: int = 0

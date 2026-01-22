@@ -47,7 +47,7 @@ export function useAuth() {
     // 角色判断
     isStudent: computed(() => authStore.isStudent),
     isTeacher: computed(() => authStore.isTeacher),
-    isSchoolAdmin: computed(() => authStore.isSchoolAdmin),
+    isTeamAdmin: computed(() => authStore.isTeamAdmin),
     isAdmin: computed(() => authStore.isAdmin),
     isChannelPartner: computed(() => authStore.isChannelPartner),
     isChannelManager: computed(() => authStore.isChannelManager),
@@ -70,7 +70,7 @@ export function getRoleText(role) {
     teacher: '教师',
     admin: '管理员',
     super_admin: '超级管理员',
-    school_admin: '学校管理员',
+    team_admin: '学校管理员',
     platform_admin: '平台管理员',
     channel_manager: '渠道管理员',
     channel_partner: '渠道商',

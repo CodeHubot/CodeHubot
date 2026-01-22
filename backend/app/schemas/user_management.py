@@ -1,18 +1,18 @@
 """
 用户管理模块的Schema定义
-包含学校管理员、教师、学生的创建和管理相关Schema
+包含团队管理员、教师、学生的创建和管理相关Schema
 """
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime
 import re
 
-class SchoolAdminCreate(BaseModel):
-    """创建学校管理员Schema"""
+class TeamAdminCreate(BaseModel):
+    """创建团队管理员Schema"""
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
     password: str = Field(..., min_length=8, max_length=128, description="密码")
     real_name: str = Field(..., min_length=1, max_length=100, description="真实姓名")
-    school_id: int = Field(..., description="所属学校ID")
+    team_id: int = Field(..., description="所属团队ID")
     teacher_number: str = Field(..., min_length=1, max_length=50, description="工号")
     email: Optional[EmailStr] = Field(None, description="邮箱")
     phone: Optional[str] = Field(None, max_length=20, description="手机号")
@@ -62,9 +62,9 @@ class StudentCreate(BaseModel):
         return v
 
 class AssignRoleRequest(BaseModel):
-    """分配角色请求Schema（独立用户→教师/学生/学校管理员）"""
-    new_role: str = Field(..., description="新角色（teacher/student/school_admin）")
-    school_id: Optional[int] = Field(None, description="学校ID（设置学校管理员时必填）")
+    """分配角色请求Schema（独立用户→教师/学生/团队管理员）"""
+    new_role: str = Field(..., description="新角色（teacher/student/team_admin）")
+    team_id: Optional[int] = Field(None, description="团队ID（设置团队管理员时必填）")
     teacher_number: Optional[str] = Field(None, max_length=50, description="教师工号")
     student_number: Optional[str] = Field(None, max_length=50, description="学生学号")
     subject: Optional[str] = Field(None, max_length=50, description="教师学科")
@@ -72,22 +72,22 @@ class AssignRoleRequest(BaseModel):
     @validator('new_role')
     def validate_role(cls, v):
         """验证角色"""
-        if v not in ['teacher', 'student', 'school_admin']:
-            raise ValueError('new_role必须是teacher、student或school_admin')
+        if v not in ['teacher', 'student', 'team_admin']:
+            raise ValueError('new_role必须是teacher、student或team_admin')
         return v
     
-    @validator('school_id')
-    def validate_school_id(cls, v, values):
-        """如果角色是学校管理员，学校ID必填"""
-        if values.get('new_role') == 'school_admin' and not v:
-            raise ValueError('学校管理员角色必须提供学校ID')
+    @validator('team_id')
+    def validate_team_id(cls, v, values):
+        """如果角色是团队管理员，团队ID必填"""
+        if values.get('new_role') == 'team_admin' and not v:
+            raise ValueError('团队管理员角色必须提供团队ID')
         return v
     
     @validator('teacher_number')
     def validate_teacher_number(cls, v, values):
-        """如果角色是教师或学校管理员，工号必填"""
+        """如果角色是教师或团队管理员，工号必填"""
         role = values.get('new_role')
-        if role in ['teacher', 'school_admin'] and not v:
+        if role in ['teacher', 'team_admin'] and not v:
             raise ValueError(f'{role}角色必须提供工号')
         return v
     
@@ -102,13 +102,13 @@ class UserSearchQuery(BaseModel):
     """用户搜索查询Schema"""
     keyword: Optional[str] = Field(None, description="搜索关键词（用户名或姓名）")
     role: Optional[str] = Field(None, description="角色筛选")
-    school_id: Optional[int] = Field(None, description="学校ID筛选")
+    team_id: Optional[int] = Field(None, description="团队ID筛选")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(20, ge=1, le=100, description="每页数量")
 
 class InstitutionLoginRequest(BaseModel):
     """机构登录请求Schema"""
-    school_code: str = Field(..., min_length=2, max_length=50, description="学校代码")
+    team_code: str = Field(..., min_length=2, max_length=50, description="团队代码")
     number: str = Field(..., min_length=1, max_length=50, description="工号或学号")
     password: str = Field(..., min_length=1, description="密码")
     captcha_code: Optional[str] = Field(None, description="验证码（登录失败3次后必填）")
@@ -121,8 +121,8 @@ class UserListResponse(BaseModel):
     gender: Optional[str] = None
     email: Optional[str] = None
     role: str
-    school_id: Optional[int] = None
-    school_name: Optional[str] = None
+    team_id: Optional[int] = None
+    team_name: Optional[str] = None
     teacher_number: Optional[str] = None
     student_number: Optional[str] = None
     is_active: bool
@@ -139,8 +139,8 @@ class AssignRoleResponse(BaseModel):
     username: str
     old_role: str
     new_role: str
-    school_id: int
-    school_name: Optional[str] = None
+    team_id: int
+    team_name: Optional[str] = None
     teacher_number: Optional[str] = None
     student_number: Optional[str] = None
     devices_retained: int = 0
@@ -159,4 +159,3 @@ class ImportError(BaseModel):
     row: int
     error: str
     data: Optional[dict] = None
-

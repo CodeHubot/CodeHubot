@@ -365,8 +365,8 @@ const loadCourses = async () => {
     }
     
     // 根据角色添加过滤条件
-    if (userStore.isSchoolAdmin || userStore.isTeacher) {
-      params.school_id = userStore.userInfo.school_id
+    if (userStore.isTeamAdmin || userStore.isTeacher) {
+      params.team_id = userStore.userInfo.team_id
     }
     
     const response = await getCourses(params)
@@ -447,9 +447,9 @@ const handleSubmit = async () => {
         }
       })
       
-      // 添加school_id
-      if (userStore.isSchoolAdmin || userStore.isTeacher) {
-        data.school_id = userStore.userInfo.school_id
+      // 添加team_id
+      if (userStore.isTeamAdmin || userStore.isTeacher) {
+        data.team_id = userStore.userInfo.team_id
       }
       
       if (dialogMode.value === 'create') {

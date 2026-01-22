@@ -83,7 +83,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             username=user_data.username,
             password_hash=hashed_password,
             role='individual',  # 默认为独立用户
-            school_id=None  # 独立用户不属于任何学校
+            team_id=None  # 独立用户不属于任何团队
         )
         db.add(db_user)
         db.commit()
@@ -575,18 +575,18 @@ async def get_user_info(current_user: User = Depends(get_current_user), db: Sess
     user_response = UserResponse.model_validate(current_user)
     response_data = user_response.model_dump(mode='json')
     
-    # 如果用户关联了学校，返回学校信息
-    if current_user.school_id:
-        from app.models.school import School
-        school = db.query(School).filter(School.id == current_user.school_id).first()
-        if school:
-            response_data['school'] = {
-                "id": school.id,
-                "uuid": school.uuid,
-                "school_code": school.school_code,
-                "school_name": school.school_name
+    # 如果用户关联了团队，返回团队信息
+    if current_user.team_id:
+        from app.models.team import Team
+        team = db.query(Team).filter(Team.id == current_user.team_id).first()
+        if team:
+            response_data['team'] = {
+                "id": team.id,
+                "uuid": team.uuid,
+                "team_code": team.team_code,
+                "team_name": team.team_name
             }
-            response_data['school_uuid'] = school.uuid  # 兼容旧版API
+            response_data['team_uuid'] = team.uuid
     
     return success_response(data=response_data)
 

@@ -15,7 +15,7 @@ from app.core.response import success_response, error_response
 from app.api.auth import get_current_user
 from app.utils.excel_handler import read_excel_file, generate_excel_template
 from app.models.user import User
-from app.models.school import School
+from app.models.team import Team
 from app.models.device import Device
 from app.models.course_model import Course, CourseTeacher, CourseStudent, CourseGroup, GroupMember
 from app.models.device_group import DeviceGroup, DeviceGroupMember, CourseDeviceAuthorization
@@ -40,12 +40,12 @@ router = APIRouter(prefix="/courses", tags=["课程管理"])
 # 权限检查函数
 # ============================================================================
 
-def check_school_admin_or_teacher(current_user: User = Depends(get_current_user)):
-    """检查当前用户是否为学校管理员或教师"""
-    if current_user.role not in ['platform_admin', 'school_admin', 'teacher']:
+def check_team_admin_or_teacher(current_user: User = Depends(get_current_user)):
+    """检查当前用户是否为团队管理员或教师"""
+    if current_user.role not in ['platform_admin', 'team_admin', 'teacher']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有学校管理员和教师才能执行此操作"
+            detail="只有团队管理员和教师才能执行此操作"
         )
     return current_user
 
@@ -58,31 +58,31 @@ def check_school_admin_or_teacher(current_user: User = Depends(get_current_user)
 async def create_course(
     course_data: CourseCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
-    """创建课程（教师和学校管理员可创建）"""
-    # 权限检查和学校ID设置
-    school_id = current_user.school_id
+    """创建课程（教师和团队管理员可创建）"""
+    # 权限检查和团队ID设置
+    team_id = current_user.team_id
     
-    # 教师创建课程时，自动使用自己的学校ID
+    # 教师创建课程时，自动使用自己的团队ID
     if current_user.role == 'teacher':
-        if not school_id:
-            return error_response(message="教师账号未关联学校", code=400)
-        # 强制使用教师的学校ID
-        course_data.school_id = school_id
-    elif current_user.role == 'school_admin':
-        # 学校管理员只能创建自己学校的课程
-        if course_data.school_id != school_id:
-            return error_response(message="无权创建其他学校的课程", code=403)
+        if not team_id:
+            return error_response(message="教师账号未关联团队", code=400)
+        # 强制使用教师的团队ID
+        course_data.team_id = team_id
+    elif current_user.role == 'team_admin':
+        # 团队管理员只能创建自己团队的课程
+        if course_data.team_id != team_id:
+            return error_response(message="无权创建其他团队的课程", code=403)
     
-    # 检查学校是否存在
-    school = db.query(School).filter(School.id == course_data.school_id).first()
-    if not school:
-        return error_response(message="学校不存在", code=404)
+    # 检查团队是否存在
+    team = db.query(Team).filter(Team.id == course_data.team_id).first()
+    if not team:
+        return error_response(message="团队不存在", code=404)
     
     # 检查课程名称是否重复
     existing = db.query(Course).filter(
-        Course.school_id == course_data.school_id,
+        Course.team_id == course_data.team_id,
         Course.course_name == course_data.course_name,
         Course.deleted_at.is_(None)
     ).first()
@@ -92,7 +92,7 @@ async def create_course(
     
     # 创建课程
     course = Course(
-        school_id=course_data.school_id,
+        team_id=course_data.team_id,
         course_name=course_data.course_name,
         course_code=course_data.course_code,
         academic_year=course_data.academic_year,
@@ -117,7 +117,7 @@ async def create_course(
 async def list_courses(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    school_id: Optional[int] = Query(None),
+    team_id: Optional[int] = Query(None),
     keyword: Optional[str] = Query(None),
     is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
@@ -128,8 +128,8 @@ async def list_courses(
     query = db.query(Course).filter(Course.deleted_at.is_(None))
     
     # 权限控制
-    if current_user.role == 'school_admin':
-        query = query.filter(Course.school_id == current_user.school_id)
+    if current_user.role == 'team_admin':
+        query = query.filter(Course.team_id == current_user.team_id)
     elif current_user.role == 'teacher':
         # 教师只能看到自己教的课程
         teacher_course_ids = db.query(CourseTeacher.course_id).filter(
@@ -164,9 +164,9 @@ async def list_courses(
                 "courses": []
             })
     
-    # 学校筛选
-    if school_id:
-        query = query.filter(Course.school_id == school_id)
+    # 团队筛选
+    if team_id:
+        query = query.filter(Course.team_id == team_id)
     
     # 关键词搜索
     if keyword:
@@ -281,7 +281,7 @@ async def get_course(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权查看该课程", code=403)
     
     return success_response(data=CourseResponse.from_orm(course).model_dump())
@@ -292,7 +292,7 @@ async def update_course(
     course_uuid: str,
     course_data: CourseUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """更新课程信息"""
     course = db.query(Course).filter(
@@ -304,7 +304,7 @@ async def update_course(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权修改该课程", code=403)
     
     # 更新字段
@@ -339,7 +339,7 @@ async def update_course(
 async def delete_course(
     course_uuid: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """删除课程（软删除）"""
     course = db.query(Course).filter(
@@ -351,7 +351,7 @@ async def delete_course(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权删除该课程", code=403)
     
     # 软删除
@@ -377,7 +377,7 @@ async def get_course_statistics(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权查看该课程", code=403)
     
     # 统计数据
@@ -426,7 +426,7 @@ async def add_course_teacher(
     course_uuid: str,
     teacher_data: CourseTeacherAdd,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """为课程添加教师"""
     # 查找课程
@@ -439,7 +439,7 @@ async def add_course_teacher(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该课程", code=403)
     
     # 检查教师是否存在且是教师角色
@@ -497,7 +497,7 @@ async def batch_add_course_teachers(
     course_uuid: str,
     batch_data: CourseTeacherBatchAdd,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """批量为课程添加教师"""
     # 查找课程
@@ -510,7 +510,7 @@ async def batch_add_course_teachers(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该课程", code=403)
     
     # 批量添加
@@ -580,7 +580,7 @@ async def list_course_teachers(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权查看该课程", code=403)
     
     # 查询教师列表
@@ -609,7 +609,7 @@ async def remove_course_teacher(
     course_uuid: str,
     teacher_uuid: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """从课程移除教师"""
     # 查找课程
@@ -631,7 +631,7 @@ async def remove_course_teacher(
         return error_response(message="教师不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该课程", code=403)
     
     # 查找关联记录
@@ -680,10 +680,10 @@ async def enroll_course(
     if not course:
         return error_response(message="课程不存在或已关闭", code=404)
     
-    # 权限检查：只有学校管理员和学生本人可以选课
+    # 权限检查：只有团队管理员和学生本人可以选课
     if current_user.role == 'student' and current_user.id != enroll_data.student_id:
         return error_response(message="只能为自己选课", code=403)
-    elif current_user.role not in ['platform_admin', 'school_admin', 'student']:
+    elif current_user.role not in ['platform_admin', 'team_admin', 'student']:
         return error_response(message="无权选课", code=403)
     
     # 检查学生是否存在
@@ -758,7 +758,7 @@ async def batch_enroll_course(
     course_uuid: str,
     batch_data: CourseEnrollBatchRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """批量选课（管理员操作）"""
     # 查找课程
@@ -772,7 +772,7 @@ async def batch_enroll_course(
         return error_response(message="课程不存在或已关闭", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该课程", code=403)
     
     # 检查课程容量
@@ -807,7 +807,7 @@ async def batch_enroll_course(
             continue
         
         # 确保只能添加本校学生
-        if student.school_id != course.school_id:
+        if student.team_id != course.team_id:
             skipped_count += 1
             continue
         
@@ -872,7 +872,7 @@ async def list_course_students(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权查看该课程", code=403)
     
     # 构建查询
@@ -926,7 +926,7 @@ async def update_enrollment(
     student_id: int,
     update_data: CourseEnrollmentUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """更新选课状态或成绩"""
     # 查找课程
@@ -939,7 +939,7 @@ async def update_enrollment(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该课程", code=403)
     
     # 查找选课记录
@@ -999,7 +999,7 @@ async def drop_course(
     # 权限检查：学生只能为自己退课
     if current_user.role == 'student' and current_user.uuid != student_uuid:
         return error_response(message="只能为自己退课", code=403)
-    elif current_user.role not in ['platform_admin', 'school_admin', 'student']:
+    elif current_user.role not in ['platform_admin', 'team_admin', 'student']:
         return error_response(message="无权退课", code=403)
     
     # 查找选课记录
@@ -1048,7 +1048,7 @@ async def create_course_group(
     course_uuid: str,
     group_data: CourseGroupCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """创建课程分组"""
     # 查找课程
@@ -1061,13 +1061,13 @@ async def create_course_group(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该课程", code=403)
     
     # 创建分组
     group = CourseGroup(
         course_id=course.id,
-        school_id=course.school_id,
+        team_id=course.team_id,
         group_name=group_data.group_name,
         group_number=group_data.group_number,
         leader_id=group_data.leader_id,
@@ -1123,7 +1123,7 @@ async def update_course_group(
     group_uuid: str,
     group_data: CourseGroupUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """更新分组信息"""
     # 查找课程
@@ -1146,7 +1146,7 @@ async def update_course_group(
         return error_response(message="分组不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权操作该分组", code=403)
     
     # 更新字段
@@ -1175,7 +1175,7 @@ async def delete_course_group(
     course_uuid: str,
     group_uuid: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """删除分组"""
     # 查找课程
@@ -1198,7 +1198,7 @@ async def delete_course_group(
         return error_response(message="分组不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权删除该分组", code=403)
     
     # 软删除
@@ -1225,7 +1225,7 @@ async def add_group_member(
     group_uuid: str,
     member_data: GroupMemberAdd,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """添加分组成员"""
     # 查找课程
@@ -1275,7 +1275,7 @@ async def add_group_member(
     member = GroupMember(
         group_id=group.id,
         course_id=course.id,
-        school_id=course.school_id,
+        team_id=course.team_id,
         student_id=member_data.student_id,
         student_name=student.real_name or student.username if student else None,
         student_number=student.student_number if student else None,
@@ -1306,7 +1306,7 @@ async def batch_add_group_members(
     group_uuid: str,
     batch_data: GroupMemberBatchAdd,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """批量添加分组成员"""
     # 查找课程
@@ -1363,7 +1363,7 @@ async def batch_add_group_members(
         member = GroupMember(
             group_id=group.id,
             course_id=course.id,
-            school_id=course.school_id,
+            team_id=course.team_id,
             student_id=student_id,
             student_name=student.real_name or student.username if student else None,
             student_number=student.student_number if student else None,
@@ -1431,7 +1431,7 @@ async def set_group_leader(
     group_uuid: str,
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """设置分组组长"""
     # 查找课程
@@ -1492,7 +1492,7 @@ async def remove_group_member(
     group_uuid: str,
     student_uuid: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """从分组移除成员"""
     # 查找课程
@@ -1558,12 +1558,12 @@ async def create_device_authorization(
     course_uuid: str,
     auth_data: CourseDeviceAuthorizationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
-    """为课程授权设备组（学校管理员操作）"""
-    # 权限检查：只有学校管理员可以授权
-    if current_user.role != 'school_admin' and current_user.role != 'platform_admin':
-        return error_response(message="只有学校管理员才能授权设备", code=403)
+    """为课程授权设备组（团队管理员操作）"""
+    # 权限检查：只有团队管理员可以授权
+    if current_user.role != 'team_admin' and current_user.role != 'platform_admin':
+        return error_response(message="只有团队管理员才能授权设备", code=403)
     
     # 查找课程
     course = db.query(Course).filter(
@@ -1575,7 +1575,7 @@ async def create_device_authorization(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查：只能为本校课程授权
-    if current_user.school_id != course.school_id:
+    if current_user.team_id != course.team_id:
         return error_response(message="只能为本校课程授权", code=403)
     
     # 查找设备组
@@ -1588,7 +1588,7 @@ async def create_device_authorization(
         return error_response(message="设备组不存在", code=404)
     
     # 检查设备组是否属于本校
-    if device_group.school_id != course.school_id:
+    if device_group.team_id != course.team_id:
         return error_response(message="设备组不属于本校", code=403)
     
     # 检查是否已存在有效授权
@@ -1657,7 +1657,7 @@ async def list_device_authorizations(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin' and current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id != course.team_id:
         return error_response(message="无权查看该课程", code=403)
     
     # 查询授权列表
@@ -1695,12 +1695,12 @@ async def update_device_authorization(
     auth_id: int,
     auth_data: CourseDeviceAuthorizationUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """更新设备授权信息（如延期）"""
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin']:
-        return error_response(message="只有学校管理员才能修改授权", code=403)
+    if current_user.role not in ['platform_admin', 'team_admin']:
+        return error_response(message="只有团队管理员才能修改授权", code=403)
     
     # 查找课程
     course = db.query(Course).filter(
@@ -1739,12 +1739,12 @@ async def revoke_device_authorization(
     course_uuid: str,
     auth_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """撤销设备授权"""
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin']:
-        return error_response(message="只有学校管理员才能撤销授权", code=403)
+    if current_user.role not in ['platform_admin', 'team_admin']:
+        return error_response(message="只有团队管理员才能撤销授权", code=403)
     
     # 查找课程
     course = db.query(Course).filter(
@@ -1877,8 +1877,8 @@ async def get_course_students(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查：只有本校管理员和任课教师可以查看
-    if current_user.role == 'school_admin':
-        if current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin':
+        if current_user.team_id != course.team_id:
             return error_response(message="无权查看该课程", code=403)
     elif current_user.role == 'teacher':
         # 检查是否是该课程的任课教师
@@ -1975,8 +1975,8 @@ async def add_student_to_course(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查：只有本校管理员和任课教师可以添加学生
-    if current_user.role == 'school_admin':
-        if current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin':
+        if current_user.team_id != course.team_id:
             return error_response(message="无权操作该课程", code=403)
     elif current_user.role == 'teacher':
         is_teacher = db.query(CourseTeacher).filter(
@@ -2004,7 +2004,7 @@ async def add_student_to_course(
         return error_response(message="学生不存在", code=404)
     
     # 检查学生是否属于本校
-    if student.school_id != course.school_id:
+    if student.team_id != course.team_id:
         return error_response(message="只能添加本校学生", code=403)
     
     # 检查是否已经在课程中
@@ -2057,8 +2057,8 @@ async def remove_student_from_course(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin':
-        if current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin':
+        if current_user.team_id != course.team_id:
             return error_response(message="无权操作该课程", code=403)
     elif current_user.role == 'teacher':
         is_teacher = db.query(CourseTeacher).filter(
@@ -2116,8 +2116,8 @@ async def download_course_student_template(
         raise HTTPException(status_code=404, detail="课程不存在")
     
     # 权限检查
-    if current_user.role == 'school_admin':
-        if current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin':
+        if current_user.team_id != course.team_id:
             raise HTTPException(status_code=403, detail="无权操作该课程")
     elif current_user.role == 'teacher':
         is_teacher = db.query(CourseTeacher).filter(
@@ -2171,8 +2171,8 @@ async def batch_import_course_students(
         return error_response(message="课程不存在", code=404)
     
     # 权限检查
-    if current_user.role == 'school_admin':
-        if current_user.school_id != course.school_id:
+    if current_user.role == 'team_admin':
+        if current_user.team_id != course.team_id:
             return error_response(message="无权操作该课程", code=403)
     elif current_user.role == 'teacher':
         is_teacher = db.query(CourseTeacher).filter(
@@ -2241,7 +2241,7 @@ async def batch_import_course_students(
                     student = db.query(User).filter(
                         User.student_number == student_number,
                         User.role == 'student',
-                        User.school_id == course.school_id,
+                        User.team_id == course.team_id,
                         User.deleted_at.is_(None)
                     ).first()
                     

@@ -2,10 +2,10 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime, date
 
-class SchoolCreate(BaseModel):
-    """创建学校Schema"""
-    school_code: str = Field(..., min_length=2, max_length=50, description="学校代码（如 BJ-YCZX）")
-    school_name: str = Field(..., min_length=2, max_length=200, description="学校名称")
+class TeamCreate(BaseModel):
+    """创建团队Schema"""
+    team_code: str = Field(..., min_length=2, max_length=50, description="团队代码（如 BJ-TEAM1）")
+    team_name: str = Field(..., min_length=2, max_length=200, description="团队名称")
     province: Optional[str] = Field(None, max_length=50, description="省份")
     city: Optional[str] = Field(None, max_length=50, description="城市")
     district: Optional[str] = Field(None, max_length=50, description="区/县")
@@ -18,16 +18,16 @@ class SchoolCreate(BaseModel):
     max_students: int = Field(..., ge=1, le=100000, description="最大学生数（必填）")
     max_devices: int = Field(..., ge=1, le=50000, description="最大设备数（必填）")
     
-    @validator('school_code')
-    def validate_school_code(cls, v):
-        """验证学校代码格式"""
+    @validator('team_code')
+    def validate_team_code(cls, v):
+        """验证团队代码格式"""
         if not v.replace('-', '').replace('_', '').isalnum():
-            raise ValueError('学校代码只能包含字母、数字、连字符和下划线')
+            raise ValueError('团队代码只能包含字母、数字、连字符和下划线')
         return v.upper()  # 统一转为大写
 
-class SchoolUpdate(BaseModel):
-    """更新学校Schema"""
-    school_name: Optional[str] = Field(None, min_length=2, max_length=200)
+class TeamUpdate(BaseModel):
+    """更新团队Schema"""
+    team_name: Optional[str] = Field(None, min_length=2, max_length=200)
     province: Optional[str] = Field(None, max_length=50)
     city: Optional[str] = Field(None, max_length=50)
     district: Optional[str] = Field(None, max_length=50)
@@ -41,12 +41,12 @@ class SchoolUpdate(BaseModel):
     max_students: Optional[int] = Field(None, ge=1, le=100000)
     max_devices: Optional[int] = Field(None, ge=1, le=50000)
 
-class SchoolResponse(BaseModel):
-    """学校响应Schema"""
+class TeamResponse(BaseModel):
+    """团队响应Schema"""
     id: int
     uuid: str
-    school_code: str
-    school_name: str
+    team_code: str
+    team_name: str
     province: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
@@ -91,12 +91,12 @@ class SchoolResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class SchoolListResponse(BaseModel):
-    """学校列表响应Schema"""
+class TeamListResponse(BaseModel):
+    """团队列表响应Schema"""
     id: int
     uuid: str
-    school_code: str
-    school_name: str
+    team_code: str
+    team_name: str
     province: Optional[str] = None
     city: Optional[str] = None
     is_active: bool
@@ -137,10 +137,10 @@ class SchoolListResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class SchoolStatistics(BaseModel):
-    """学校统计信息Schema"""
-    school_id: int
-    school_name: str
+class TeamStatistics(BaseModel):
+    """团队统计信息Schema"""
+    team_id: int
+    team_name: str
     total_teachers: int = 0
     total_students: int = 0
     total_devices: int = 0
@@ -150,4 +150,3 @@ class SchoolStatistics(BaseModel):
     max_students: int
     max_devices: int
     usage_rate: dict = {}  # 使用率统计
-

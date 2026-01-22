@@ -178,9 +178,9 @@ def get_devices(
     if is_admin_user(current_user):
         # 平台管理员可以看到所有设备
         pass
-    elif current_user.role == 'school_admin' and current_user.school_id:
-        # 学校管理员只能看到明确归属于本校的设备
-        query = query.filter(Device.school_id == current_user.school_id)
+    elif current_user.role == 'team_admin' and current_user.team_id:
+        # 团队管理员只能看到明确归属于本校的设备
+        query = query.filter(Device.team_id == current_user.team_id)
     elif current_user.role == 'student':
         # 学生：只能看到自己注册的设备（PBL模块已删除）
         query = query.filter(Device.user_id == current_user.id)
@@ -307,9 +307,9 @@ def get_devices_with_product_info(
         if is_admin_user(current_user):
             # 平台管理员可以看到所有设备
             pass
-        elif current_user.role == 'school_admin' and current_user.school_id:
-            # 学校管理员只能看到明确归属于本校的设备
-            query = query.filter(Device.school_id == current_user.school_id)
+        elif current_user.role == 'team_admin' and current_user.team_id:
+            # 团队管理员只能看到明确归属于本校的设备
+            query = query.filter(Device.team_id == current_user.team_id)
         elif current_user.role == 'student':
             # 学生：只能看到自己注册的设备（PBL模块已删除）
             query = query.filter(Device.user_id == current_user.id)
@@ -477,55 +477,55 @@ def update_device(
     return device
 
 
-@router.put("/{device_uuid}/set-school")
-def set_device_school(
+@router.put("/{device_uuid}/set-team")
+def set_device_team(
     device_uuid: str,
-    school_id: Optional[int] = None,
+    team_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    设置设备归属学校
-    - 设备所有者可以将设备设置为学校设备
-    - 学校管理员可以将设备设置为本校设备
+    设置设备归属团队
+    - 设备所有者可以将设备设置为团队设备
+    - 团队管理员可以将设备设置为本校设备
     - 设置为NULL表示转为个人设备
     
-    注意：学生即使通过PBL授权可以使用设备，也不能设置设备学校归属
+    注意：学生即使通过PBL授权可以使用设备，也不能设置设备团队归属
     """
     device = db.query(Device).filter(Device.uuid == device_uuid).first()
     
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
     
-    # 配置权限检查：只有设备所有者和管理员可以设置设备学校归属
+    # 配置权限检查：只有设备所有者和管理员可以设置设备团队归属
     is_owner = device.user_id == current_user.id
-    is_school_admin_of_target = (
-        current_user.role == 'school_admin' and 
-        current_user.school_id == school_id
+    is_team_admin_of_target = (
+        current_user.role == 'team_admin' and 
+        current_user.team_id == team_id
     )
     
-    if not (is_owner or is_school_admin_of_target or is_admin_user(current_user)):
+    if not (is_owner or is_team_admin_of_target or is_admin_user(current_user)):
         raise HTTPException(
             status_code=403,
-            detail="无权设置该设备的学校归属（学生只能使用授权设备，不能配置设备）"
+            detail="无权设置该设备的团队归属（学生只能使用授权设备，不能配置设备）"
         )
     
-    # 如果设置为学校设备，验证学校存在
-    if school_id is not None:
-        from app.models.school import School
-        school = db.query(School).filter(School.id == school_id).first()
-        if not school:
-            raise HTTPException(status_code=404, detail="学校不存在")
+    # 如果设置为团队设备，验证团队存在
+    if team_id is not None:
+        from app.models.team import Team
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="团队不存在")
     
-    # 更新设备的学校归属
-    device.school_id = school_id
+    # 更新设备的团队归属
+    device.team_id = team_id
     db.commit()
     db.refresh(device)
     
-    message = "设备已设置为学校设备" if school_id else "设备已设置为个人设备"
+    message = "设备已设置为团队设备" if team_id else "设备已设置为个人设备"
     return success_response(
         message=message,
-        data={"device_uuid": device_uuid, "school_id": school_id}
+        data={"device_uuid": device_uuid, "team_id": team_id}
     )
 
 
@@ -573,8 +573,8 @@ def get_devices_statistics(
                     AVG(error_count) as avg_error_count
                 FROM device_main
             """)).fetchone()
-        elif current_user.role == 'school_admin' and current_user.school_id:
-            # 学校管理员统计本校设备
+        elif current_user.role == 'team_admin' and current_user.team_id:
+            # 团队管理员统计本校设备
             stats = db.execute(text("""
                 SELECT 
                     COUNT(*) as total_devices,
@@ -583,8 +583,8 @@ def get_devices_statistics(
                     SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_devices,
                     AVG(error_count) as avg_error_count
                 FROM device_main
-                WHERE school_id = :school_id
-            """), {"school_id": current_user.school_id}).fetchone()
+                WHERE team_id = :team_id
+            """), {"team_id": current_user.team_id}).fetchone()
         elif current_user.role == 'student':
             # 学生：只统计自己注册的设备（PBL模块已删除）
             stats = db.execute(text("""
@@ -816,14 +816,14 @@ async def pre_register_device(
     
     支持所有用户注册设备：
     - 所有用户都可以注册设备
-    - 教师注册的设备自动设置school_id
+    - 教师注册的设备自动设置team_id
     - 设备归注册用户所有（user_id = 注册用户ID）
     """
-    # 教师注册设备时必须关联学校
-    if current_user.role == 'teacher' and not current_user.school_id:
+    # 教师注册设备时必须关联团队
+    if current_user.role == 'teacher' and not current_user.team_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="教师账号未关联学校，无法注册设备"
+            detail="教师账号未关联团队，无法注册设备"
         )
     # 检查MAC地址是否已存在
     existing_device = db.query(Device).filter(Device.mac_address == device_data.mac_address).first()
@@ -879,9 +879,9 @@ async def pre_register_device(
         existing_device.updated_at = get_beijing_now()
         existing_device.is_online = False  # 重置在线状态
         
-        # 设置学校ID（教师注册的设备自动关联学校）
-        if current_user.school_id:
-            existing_device.school_id = current_user.school_id
+        # 设置团队ID（教师注册的设备自动关联团队）
+        if current_user.team_id:
+            existing_device.team_id = current_user.team_id
         
         # 如果产品有默认配置，应用到设备
         if product.default_device_config:
@@ -917,9 +917,9 @@ async def pre_register_device(
             is_online=False
         )
         
-        # 设置学校ID（教师注册的设备自动关联学校）
-        if current_user.school_id:
-            db_device.school_id = current_user.school_id
+        # 设置团队ID（教师注册的设备自动关联团队）
+        if current_user.team_id:
+            db_device.team_id = current_user.team_id
         
         # 如果产品有默认配置，应用到设备
         if product.default_device_config:
@@ -1771,151 +1771,151 @@ async def get_device_presets(
         raise HTTPException(status_code=400, detail="设备未关联产品")
     
     presets = []
-    control_ports = device.product.control_ports or {}
+    # control_ports = device.product.control_ports or {}
     
-    # 根据产品配置的control_ports动态生成基本控制
-    for port_key, port_config in control_ports.items():
-        if not isinstance(port_config, dict):
-            continue
-            
-        port_type = port_config.get("type", "").upper()
-        port_name = port_config.get("name", port_key)
-        device_id = port_config.get("device_id", 1)
-        
-        # LED/Relay: 开关控制
-        if port_type in ["LED", "RELAY"]:
-            presets.append({
-                "id": f"{port_key}_switch",
-                "name": f"{port_name}",
-                "type": "device_control",
-                "cmd": port_type.lower(),
-                "device_type": port_type.lower(),  # 使用小写，与固件期望一致
-                "device_id": device_id,
-                "description": f"控制{port_name}的开关",
-                "control_type": "switch"
-            })
-        
-        # Servo: 速度控制 + 停止按钮
-        elif port_type == "SERVO":
-            presets.extend([
-                {
-                    "id": f"{port_key}_speed",
-                    "name": f"{port_name} - 速度",
-                    "type": "device_control",
-                    "cmd": "servo",
-                    "device_type": "servo",  # 使用小写，与固件期望一致
-                    "device_id": device_id,
-                    "description": f"控制{port_name}速度(90=停止)",
-                    "control_type": "speed",
-                    "min": 0,
-                    "max": 180,
-                    "default": 90
-                },
-                {
-                    "id": f"{port_key}_stop",
-                    "name": f"{port_name} - 停止",
-                    "type": "device_control",
-                    "cmd": "servo",
-                    "device_type": "servo",  # 使用小写，与固件期望一致
-                    "device_id": device_id,
-                    "description": f"停止{port_name}",
-                    "control_type": "stop"
-                }
-            ])
+    # 根据产品配置的control_ports动态生成基本控制 - 已注释，只使用用户自定义预设
+    # for port_key, port_config in control_ports.items():
+    #     if not isinstance(port_config, dict):
+    #         continue
+    #         
+    #     port_type = port_config.get("type", "").upper()
+    #     port_name = port_config.get("name", port_key)
+    #     device_id = port_config.get("device_id", 1)
+    #     
+    #     # LED/Relay: 开关控制
+    #     if port_type in ["LED", "RELAY"]:
+    #         presets.append({
+    #             "id": f"{port_key}_switch",
+    #             "name": f"{port_name}",
+    #             "type": "device_control",
+    #             "cmd": port_type.lower(),
+    #             "device_type": port_type.lower(),  # 使用小写，与固件期望一致
+    #             "device_id": device_id,
+    #             "description": f"控制{port_name}的开关",
+    #             "control_type": "switch"
+    #         })
+    #     
+    #     # Servo: 速度控制 + 停止按钮
+    #     elif port_type == "SERVO":
+    #         presets.extend([
+    #             {
+    #                 "id": f"{port_key}_speed",
+    #                 "name": f"{port_name} - 速度",
+    #                 "type": "device_control",
+    #                 "cmd": "servo",
+    #                 "device_type": "servo",  # 使用小写，与固件期望一致
+    #                 "device_id": device_id,
+    #                 "description": f"控制{port_name}速度(90=停止)",
+    #                 "control_type": "speed",
+    #                 "min": 0,
+    #                 "max": 180,
+    #                 "default": 90
+    #             },
+    #             {
+    #                 "id": f"{port_key}_stop",
+    #                 "name": f"{port_name} - 停止",
+    #                 "type": "device_control",
+    #                 "cmd": "servo",
+    #                 "device_type": "servo",  # 使用小写，与固件期望一致
+    #                 "device_id": device_id,
+    #                 "description": f"停止{port_name}",
+    #                 "control_type": "stop"
+    #             }
+    #         ])
     
-    # 添加少量典型预设指令
-    # 只为第一个LED添加闪烁预设作为示例
-    first_led = next((p for p in presets if p["cmd"] == "led"), None)
-    if first_led:
-        presets.append({
-            "id": f"{first_led['id']}_blink",
-            "name": f"{first_led['name']} - 闪烁",
-            "type": "preset",
-            "cmd": "preset",
-            "device_type": "led",  # 使用小写，与固件期望一致
-            "device_id": first_led["device_id"],
-            "preset_type": "blink",
-            "description": "LED闪烁效果",
-            "parameters": {
-                "duration": 5,
-                "interval": 500
-            }
-        })
-        
-        # 添加LED打开5秒后关闭的序列预设
-        presets.append({
-            "id": f"{first_led['id']}_timed_on_off",
-            "name": f"{first_led['name']} - 定时开关",
-            "type": "sequence",
-            "cmd": "sequence",
-            "description": "LED打开后5秒自动关闭",
-            "steps": [
-                {
-                    "command": {
-                        "cmd": "led",
-                        "device_type": "led",
-                        "device_id": first_led["device_id"],
-                        "value": 1
-                    },
-                    "delay": 0
-                },
-                {
-                    "command": {
-                        "cmd": "led",
-                        "device_type": "led",
-                        "device_id": first_led["device_id"],
-                        "value": 0
-                    },
-                    "delay": 5
-                }
-            ]
-        })
-    
-    # 为第一个继电器添加定时开关预设
-    first_relay = next((p for p in presets if p["cmd"] == "relay"), None)
-    if first_relay:
-        presets.append({
-            "id": f"{first_relay['id']}_timed",
-            "name": f"{first_relay['name']} - 定时",
-            "type": "preset",
-            "cmd": "preset",
-            "device_type": "relay",  # 使用小写，与固件期望一致
-            "device_id": first_relay["device_id"],
-            "preset_type": "timed_switch",
-            "description": "继电器定时开关",
-            "parameters": {
-                "duration": 10
-            }
-        })
-        
-        # 添加继电器打开10秒后关闭的序列预设
-        presets.append({
-            "id": f"{first_relay['id']}_timed_on_off",
-            "name": f"{first_relay['name']} - 定时开关",
-            "type": "sequence",
-            "cmd": "sequence",
-            "description": "继电器打开后10秒自动关闭",
-            "steps": [
-                {
-                    "command": {
-                        "cmd": "relay",
-                        "device_type": "relay",
-                        "device_id": first_relay["device_id"],
-                        "value": 1
-                    },
-                    "delay": 0
-                },
-                {
-                    "command": {
-                        "cmd": "relay",
-                        "device_type": "relay",
-                        "device_id": first_relay["device_id"],
-                        "value": 0
-                    },
-                    "delay": 10
-                }
-            ]
-        })
+    # 添加少量典型预设指令 - 已注释，只显示用户自定义的预设
+    # # 只为第一个LED添加闪烁预设作为示例
+    # first_led = next((p for p in presets if p["cmd"] == "led"), None)
+    # if first_led:
+    #     presets.append({
+    #         "id": f"{first_led['id']}_blink",
+    #         "name": f"{first_led['name']} - 闪烁",
+    #         "type": "preset",
+    #         "cmd": "preset",
+    #         "device_type": "led",  # 使用小写，与固件期望一致
+    #         "device_id": first_led["device_id"],
+    #         "preset_type": "blink",
+    #         "description": "LED闪烁效果",
+    #         "parameters": {
+    #             "duration": 5,
+    #             "interval": 500
+    #         }
+    #     })
+    #     
+    #     # 添加LED打开5秒后关闭的序列预设
+    #     presets.append({
+    #         "id": f"{first_led['id']}_timed_on_off",
+    #         "name": f"{first_led['name']} - 定时开关",
+    #         "type": "sequence",
+    #         "cmd": "sequence",
+    #         "description": "LED打开后5秒自动关闭",
+    #         "steps": [
+    #             {
+    #                 "command": {
+    #                     "cmd": "led",
+    #                     "device_type": "led",
+    #                     "device_id": first_led["device_id"],
+    #                     "value": 1
+    #                 },
+    #                 "delay": 0
+    #             },
+    #             {
+    #                 "command": {
+    #                     "cmd": "led",
+    #                     "device_type": "led",
+    #                     "device_id": first_led["device_id"],
+    #                     "value": 0
+    #                 },
+    #                 "delay": 5
+    #             }
+    #         ]
+    #     })
+    # 
+    # # 为第一个继电器添加定时开关预设
+    # first_relay = next((p for p in presets if p["cmd"] == "relay"), None)
+    # if first_relay:
+    #     presets.append({
+    #         "id": f"{first_relay['id']}_timed",
+    #         "name": f"{first_relay['name']} - 定时",
+    #         "type": "preset",
+    #         "cmd": "preset",
+    #         "device_type": "relay",  # 使用小写，与固件期望一致
+    #         "device_id": first_relay["device_id"],
+    #         "preset_type": "timed_switch",
+    #         "description": "继电器定时开关",
+    #         "parameters": {
+    #             "duration": 10
+    #         }
+    #     })
+    #     
+    #     # 添加继电器打开10秒后关闭的序列预设
+    #     presets.append({
+    #         "id": f"{first_relay['id']}_timed_on_off",
+    #         "name": f"{first_relay['name']} - 定时开关",
+    #         "type": "sequence",
+    #         "cmd": "sequence",
+    #         "description": "继电器打开后10秒自动关闭",
+    #         "steps": [
+    #             {
+    #                 "command": {
+    #                     "cmd": "relay",
+    #                     "device_type": "relay",
+    #                     "device_id": first_relay["device_id"],
+    #                     "value": 1
+    #                 },
+    #                 "delay": 0
+    #             },
+    #             {
+    #                 "command": {
+    #                     "cmd": "relay",
+    #                     "device_type": "relay",
+    #                     "device_id": first_relay["device_id"],
+    #                     "value": 0
+    #                 },
+    #                 "delay": 10
+    #             }
+    #         ]
+    #     })
     
     # 统一响应格式
     return success_response(data={"presets": presets})

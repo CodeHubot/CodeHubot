@@ -1,6 +1,6 @@
 """
 设备分组和授权模型
-用于学校管理员管理设备并授权给课程使用
+用于团队管理员管理设备并授权给课程使用
 """
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
@@ -16,7 +16,7 @@ class DeviceGroup(Base):
     
     id = Column(Integer, primary_key=True, index=True, comment="分组ID")
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID')
-    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=False, index=True, comment="所属学校ID")
+    team_id = Column(Integer, ForeignKey("core_teams.id"), nullable=False, index=True, comment="所属团队ID")
     group_name = Column(String(100), nullable=False, comment="设备组名称")
     group_code = Column(String(50), comment="设备组编号")
     description = Column(Text, comment="描述")
@@ -28,7 +28,7 @@ class DeviceGroup(Base):
     deleted_at = Column(DateTime, nullable=True, comment="删除时间")
     
     # 关系
-    school = relationship("School", back_populates="device_groups")
+    team = relationship("Team", back_populates="device_groups")
     creator = relationship("User", foreign_keys=[created_by])
     members = relationship("DeviceGroupMember", back_populates="group", cascade="all, delete-orphan")
     authorizations = relationship("CourseDeviceAuthorization", back_populates="device_group", cascade="all, delete-orphan")

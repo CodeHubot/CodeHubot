@@ -1,30 +1,36 @@
 /**
  * Device模块的用户Store（兼容层）
  * 桥接到统一的auth store，保持向后兼容
+ * 
+ * 注意：返回的属性可以直接访问（不需要 .value）
  */
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
+import { computed, reactive, toRefs } from 'vue'
 
 export function useUserStore() {
   const authStore = useAuthStore()
   
-  return {
-    // 状态
-    token: computed(() => authStore.token),
-    userInfo: computed(() => authStore.userInfo),
-    loading: computed(() => authStore.loading),
+  // 使用 reactive 包装，这样在模板和 script 中都可以直接访问属性
+  const store = reactive({
+    // 状态（直接代理 authStore）
+    get token() { return authStore.token },
+    get userInfo() { return authStore.userInfo },
+    get user() { return authStore.userInfo }, // 兼容别名
+    get loading() { return authStore.loading },
     
     // 计算属性
-    isAuthenticated: computed(() => authStore.isAuthenticated),
-    userRole: computed(() => authStore.userRole),
-    userName: computed(() => authStore.userName),
-    userEmail: computed(() => authStore.userEmail),
-    isStudent: computed(() => authStore.isStudent),
-    isTeacher: computed(() => authStore.isTeacher),
-    isAdmin: computed(() => authStore.isAdmin),
+    get isAuthenticated() { return authStore.isAuthenticated },
+    get userRole() { return authStore.userRole },
+    get userName() { return authStore.userName },
+    get userEmail() { return authStore.userEmail },
+    get isStudent() { return authStore.isStudent },
+    get isTeacher() { return authStore.isTeacher },
+    get isAdmin() { return authStore.isAdmin },
+    get isTeamAdmin() { return authStore.isTeamAdmin },
+    get isPlatformAdmin() { return authStore.isAdmin }, // platform_admin 归入 isAdmin
     
     // Token过期检查
-    isTokenExpired: computed(() => {
+    get isTokenExpired() {
       if (!authStore.token) return true
       try {
         const payload = JSON.parse(atob(authStore.token.split('.')[1]))
@@ -32,9 +38,9 @@ export function useUserStore() {
       } catch {
         return true
       }
-    }),
+    },
     
-    isTokenExpiringSoon: computed(() => {
+    get isTokenExpiringSoon() {
       if (!authStore.token) return false
       try {
         const payload = JSON.parse(atob(authStore.token.split('.')[1]))
@@ -42,9 +48,9 @@ export function useUserStore() {
       } catch {
         return false
       }
-    }),
+    },
     
-    isRefreshTokenExpired: computed(() => {
+    get isRefreshTokenExpired() {
       const refreshToken = localStorage.getItem('refresh_token')
       if (!refreshToken) return true
       try {
@@ -53,7 +59,7 @@ export function useUserStore() {
       } catch {
         return true
       }
-    }),
+    },
     
     // 方法
     setAuth: (authData) => authStore.setAuth(authData),
@@ -110,7 +116,7 @@ export function useUserStore() {
     
     proactiveRefreshToken: async () => {
       try {
-        const newToken = await useUserStore().refreshAccessToken()
+        const newToken = await store.refreshAccessToken()
         return !!newToken
       } catch (error) {
         console.error('主动刷新token失败:', error)
@@ -119,5 +125,7 @@ export function useUserStore() {
     },
     
     init: () => authStore.init()
-  }
+  })
+  
+  return store
 }

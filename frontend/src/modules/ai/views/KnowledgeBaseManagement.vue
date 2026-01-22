@@ -162,7 +162,7 @@ import {
   Plus,
   Search,
   Document,
-  School,
+  OfficeBuilding,
   Grid,
   User,
   Connection
@@ -181,7 +181,7 @@ const userStore = useUserStore()
 // 用户信息
 const userRole = computed(() => userStore.userInfo?.role || '')
 const userId = computed(() => userStore.userInfo?.id || null)
-const schoolId = computed(() => userStore.userInfo?.school_id || null)
+const teamId = computed(() => userStore.userInfo?.team_id || null)
 
 // 数据
 const loading = ref(false)

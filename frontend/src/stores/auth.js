@@ -54,11 +54,11 @@ export const useAuthStore = defineStore('auth', () => {
   })
   
   /**
-   * 是否为学校管理员
+   * 是否为团队管理员
    */
-  const isSchoolAdmin = computed(() => {
+  const isTeamAdmin = computed(() => {
     const role = userInfo.value?.role
-    return role === 'school_admin'
+    return role === 'team_admin'
   })
 
   /**
@@ -181,7 +181,7 @@ export const useAuthStore = defineStore('auth', () => {
     userEmail,
     isStudent,
     isTeacher,
-    isSchoolAdmin,
+    isTeamAdmin,
     isChannelPartner,
     isChannelManager,
     isAdmin,

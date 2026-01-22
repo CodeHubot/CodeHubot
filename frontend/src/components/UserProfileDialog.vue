@@ -41,8 +41,8 @@
             </el-tag>
           </el-form-item>
           
-          <el-form-item v-if="userInfo?.school_name" label="所属学校">
-            <span>{{ userInfo.school_name }}</span>
+          <el-form-item v-if="userInfo?.team_name" label="所属学校">
+            <span>{{ userInfo.team_name }}</span>
           </el-form-item>
           
           <el-form-item label="注册时间">
@@ -406,7 +406,7 @@ function getRoleText(role) {
   const roleMap = {
     individual: '独立用户',
     platform_admin: '平台管理员',
-    school_admin: '学校管理员',
+    team_admin: '学校管理员',
     channel_manager: '渠道管理员',
     channel_partner: '渠道商',
     teacher: '教师',
@@ -420,7 +420,7 @@ function getRoleType(role) {
   const typeMap = {
     individual: '',
     platform_admin: 'danger',
-    school_admin: 'warning',
+    team_admin: 'warning',
     channel_manager: 'success',
     channel_partner: 'info',
     teacher: 'primary',

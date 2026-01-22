@@ -163,7 +163,7 @@ async def get_current_user_flexible(
         raise credentials_exception
     
     # 根据角色查询不同的表
-    if user_role in ['platform_admin', 'school_admin', 'teacher']:
+    if user_role in ['platform_admin', 'team_admin', 'teacher']:
         # 从Admin表查询
         user = db.query(Admin).filter(Admin.id == int(user_id)).first()
         if user is None:
@@ -363,7 +363,7 @@ async def get_current_user_or_admin(
         raise credentials_exception
     
     # 根据角色查询不同的表
-    if user_role in ['platform_admin', 'school_admin', 'channel_manager', 'channel_partner', 'teacher']:
+    if user_role in ['platform_admin', 'team_admin', 'channel_manager', 'channel_partner', 'teacher']:
         # 从Admin表查询
         user = db.query(Admin).filter(Admin.id == int(user_id)).first()
         if user is None:

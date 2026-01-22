@@ -392,7 +392,7 @@ const editRules = {
 // 判断当前用户是否是设备所有者
 const isDeviceOwner = computed(() => {
   // 管理员可以编辑所有设备
-  if (userStore.isPlatformAdmin || userStore.isSchoolAdmin) {
+  if (userStore.isPlatformAdmin || userStore.isTeamAdmin) {
     return true
   }
   

@@ -47,9 +47,9 @@ class AdminResponse(BaseModel):
     is_active: bool
     is_super_admin: bool = True  # platform_admin 角色视为超级管理员
     role: str = 'platform_admin'  # 角色
-    school_id: Optional[int] = None  # 所属学校ID
-    school_uuid: Optional[str] = None  # 所属学校UUID
-    school_name: Optional[str] = None  # 学校名称
+    team_id: Optional[int] = None  # 所属团队ID
+    team_uuid: Optional[str] = None  # 所属团队UUID
+    team_name: Optional[str] = None  # 团队名称
     last_login: Optional[datetime] = None  # 最后登录时间
     created_at: datetime
     updated_at: datetime

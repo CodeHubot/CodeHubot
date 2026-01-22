@@ -800,7 +800,7 @@ const loadDocuments = async () => {
 const getScopeTagType = (scopeType) => {
   const typeMap = {
     system: 'danger',
-    school: 'warning',
+    team: 'warning',
     course: 'success',
     agent: 'info'
   }
@@ -810,7 +810,7 @@ const getScopeTagType = (scopeType) => {
 const getScopeLabel = (scopeType) => {
   const labelMap = {
     system: '系统',
-    school: '学校',
+    team: '团队',
     course: '课程',
     agent: '智能体'
   }

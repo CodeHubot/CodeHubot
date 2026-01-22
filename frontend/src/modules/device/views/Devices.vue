@@ -188,23 +188,23 @@
                 设备配置
               </el-button>
               <el-button 
-                v-if="userStore.isSchoolAdmin && !device.school_id"
+                v-if="userStore.isTeamAdmin && !device.team_id"
                 type="warning" 
                 size="small" 
-                @click.stop="setAsSchoolDevice(device)"
-                class="action-btn school-btn"
+                @click.stop="setAsTeamDevice(device)"
+                class="action-btn team-btn"
               >
-                <el-icon><School /></el-icon>
-                设为学校设备
+                <el-icon><OfficeBuilding /></el-icon>
+                设为团队设备
               </el-button>
               <el-tag 
-                v-if="device.school_id"
+                v-if="device.team_id"
                 type="success"
                 size="small"
                 style="margin-left: 8px;"
               >
-                <el-icon><School /></el-icon>
-                学校设备
+                <el-icon><OfficeBuilding /></el-icon>
+                团队设备
               </el-tag>
             </div>
           </div>
@@ -253,12 +253,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDevices, getDevicesWithProductInfo, getDevicesStatistics, setDeviceSchool } from '@/api/device'
+import { getDevices, getDevicesWithProductInfo, getDevicesStatistics, setDeviceTeam } from '@/api/device'
 import { getProductsSummary } from '@/api/product'
 import {
   Monitor, Plus, Search,
   TrendCharts, Operation, View, Edit, Setting, Document, Delete, DocumentCopy,
-  CircleCheck, CircleClose, School
+  CircleCheck, CircleClose, OfficeBuilding
 } from '@element-plus/icons-vue'
 import logger from '@/utils/logger'
 
@@ -524,33 +524,39 @@ const navigateToDeviceDetail = (device) => {
 // 判断用户是否有权限查看设备详情
 const canViewDeviceDetail = (device) => {
   // 管理员可以查看所有设备详情
-  if (userStore.isPlatformAdmin || userStore.isSchoolAdmin) {
+  if (userStore.isPlatformAdmin || userStore.isTeamAdmin) {
     return true
   }
   
+  // 获取当前用户ID
+  const currentUserId = userStore.userInfo?.id || userStore.user?.id
+  
   // 学生只能查看自己注册的设备详情，不能查看授权获得的设备详情
   if (userStore.userInfo?.role === 'student') {
-    return device.user_id === userStore.user?.id
+    return device.user_id === currentUserId
   }
   
   // 其他用户（教师等）可以查看自己的设备详情
-  return device.user_id === userStore.user?.id
+  return device.user_id === currentUserId
 }
 
 // 判断用户是否有权限配置设备
 const canConfigDevice = (device) => {
   // 管理员可以配置所有设备
-  if (userStore.isPlatformAdmin || userStore.isSchoolAdmin) {
+  if (userStore.isPlatformAdmin || userStore.isTeamAdmin) {
     return true
   }
   
+  // 获取当前用户ID
+  const currentUserId = userStore.userInfo?.id || userStore.user?.id
+  
   // 学生只能配置自己注册的设备，不能配置授权获得的设备
   if (userStore.userInfo?.role === 'student') {
-    return device.user_id === userStore.user?.id
+    return device.user_id === currentUserId
   }
   
   // 其他用户（教师等）可以配置自己的设备
-  return device.user_id === userStore.user?.id
+  return device.user_id === currentUserId
 }
 
 const navigateToDeviceConfig = (device) => {
@@ -568,12 +574,12 @@ const navigateToDeviceConfig = (device) => {
   router.push(`/device/${device.uuid}/config`)
 }
 
-// 设置为学校设备
-const setAsSchoolDevice = async (device) => {
+// 设置为团队设备
+const setAsTeamDevice = async (device) => {
   try {
     await ElMessageBox.confirm(
-      `确定要将设备"${device.name}"设置为学校设备吗？设置后，设备将可用于课程教学和设备分组。`,
-      '设置为学校设备',
+      `确定要将设备"${device.name}"设置为团队设备吗？设置后，设备将可用于团队协作和设备分组。`,
+      '设置为团队设备',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -581,16 +587,16 @@ const setAsSchoolDevice = async (device) => {
       }
     )
     
-    // 调用API设置为学校设备
-    await setDeviceSchool(device.uuid, userStore.userInfo.school_id)
+    // 调用API设置为团队设备
+    await setDeviceTeam(device.uuid, userStore.userInfo?.team_id)
     
-    ElMessage.success('设备已设置为学校设备')
+    ElMessage.success('设备已设置为团队设备')
     
     // 刷新设备列表
     loadDevices()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('设置学校设备失败:', error)
+      console.error('设置团队设备失败:', error)
       ElMessage.error(error.message || '设置失败')
     }
   }

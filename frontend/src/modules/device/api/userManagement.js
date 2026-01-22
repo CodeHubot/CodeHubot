@@ -8,8 +8,8 @@ import request from '@/utils/request'
 /**
  * 创建学校管理员
  */
-export const createSchoolAdmin = (data) => {
-  return request.post('user-management/school-admins', data)
+export const createTeamAdmin = (data) => {
+  return request.post('user-management/team-admins', data)
 }
 
 // ===== 教师管理 =====

@@ -203,8 +203,8 @@
             <div class="nav-items">
               <div 
                 class="nav-item"
-                :class="{ active: $route.path === '/device/schools' }"
-                @click="handleNavItemClick({route: '/device/schools'}, $event)"
+                :class="{ active: $route.path === '/device/teams' }"
+                @click="handleNavItemClick({route: '/device/teams'}, $event)"
               >
                 <div class="item-icon">
                   <el-icon size="20"><OfficeBuilding /></el-icon>
@@ -219,7 +219,7 @@
           </div>
 
           <!-- 学校管理区域（学校管理员） -->
-          <div class="nav-section" v-if="isSchoolAdmin">
+          <div class="nav-section" v-if="isTeamAdmin">
             <div class="section-label" v-if="!sidebarCollapsed">教学管理</div>
             <div class="nav-items">
               <!-- 1. 教师管理：批量导入教师 -->
@@ -475,7 +475,7 @@ const pageConfig = {
   '/agents/.*/chat': { title: '智能体对话', icon: 'ChatDotSquare', color: '#67C23A' },
 
   // 用户管理模块（按业务流程顺序：教师→学生→课程→设备）
-  '/schools': { title: '学校管理', icon: 'OfficeBuilding', color: '#E6A23C' },
+  '/teams': { title: '团队管理', icon: 'OfficeBuilding', color: '#E6A23C' },
   '/teachers': { title: '教师管理', icon: 'UserFilled', color: '#E6A23C' },
   '/students': { title: '学生管理', icon: 'User', color: '#E6A23C' },
   '/courses': { title: '课程管理', icon: 'Collection', color: '#E6A23C' },
@@ -553,8 +553,8 @@ const breadcrumbs = computed(() => {
     crumbs.push('AI 智能体', '插件管理')
   } else if (path.startsWith('/llm-models')) {
     crumbs.push('AI 智能体', '模型配置')
-  } else if (path.startsWith('/schools')) {
-    crumbs.push('平台管理', '学校管理')
+  } else if (path.startsWith('/teams')) {
+    crumbs.push('平台管理', '团队管理')
   } else if (path.startsWith('/classes')) {
     crumbs.push('学校管理', '课程管理')
   } else if (path.startsWith('/teachers')) {
@@ -590,7 +590,7 @@ const displayRole = computed(() => {
   const role = userStore.userInfo?.role
   const roleMap = {
     'platform_admin': '平台管理员',
-    'school_admin': '学校管理员',
+    'team_admin': '学校管理员',
     'teacher': '教师',
     'student': '学生',
     'individual': '个人用户',
@@ -608,7 +608,7 @@ const userAvatar = computed(() => {
 // 角色判断
 const userRole = computed(() => userStore.userInfo?.role || 'individual')
 const isPlatformAdmin = computed(() => userRole.value === 'platform_admin')
-const isSchoolAdmin = computed(() => userRole.value === 'school_admin')
+const isTeamAdmin = computed(() => userRole.value === 'team_admin')
 const isTeacher = computed(() => userRole.value === 'teacher')
 const isStudent = computed(() => userRole.value === 'student')
 const isIndividual = computed(() => userRole.value === 'individual')
@@ -616,7 +616,7 @@ const isIndividual = computed(() => userRole.value === 'individual')
 // 权限检查（兼容旧系统）
 const canAccessUserManagement = computed(() => isPlatformAdmin.value || userStore.isAdmin || userStore.isSuperUser)
 const canAccessSystemManagement = computed(() => isPlatformAdmin.value || userStore.isSuperUser)
-const canAccessLLMModels = computed(() => isPlatformAdmin.value || isSchoolAdmin.value || userStore.isAdmin)
+const canAccessLLMModels = computed(() => isPlatformAdmin.value || isTeamAdmin.value || userStore.isAdmin)
 
 // 切换侧边栏
 const toggleSidebar = () => {

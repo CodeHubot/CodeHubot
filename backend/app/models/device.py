@@ -27,7 +27,7 @@ class Device(Base):
     # 关联信息
     product_id = Column(Integer, ForeignKey("device_products.id"), nullable=True, comment="关联产品ID（动态绑定，可为空）")
     user_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, comment="关联用户ID")
-    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=True, index=True, comment="所属学校ID（用于教学场景）")
+    team_id = Column(Integer, ForeignKey("core_teams.id"), nullable=True, index=True, comment="所属团队ID（用于团队协作场景）")
     
     # 设备基本信息
     name = Column(String(100), nullable=False, comment="设备名称")
@@ -95,7 +95,7 @@ class Device(Base):
     # 关系
     product = relationship("Product", back_populates="devices")
     user = relationship("User", back_populates="devices")
-    school = relationship("School", foreign_keys=[school_id])
+    team = relationship("Team", foreign_keys=[team_id])
     group_memberships = relationship("DeviceGroupMember", back_populates="device", cascade="all, delete-orphan")
     
     # 数据验证

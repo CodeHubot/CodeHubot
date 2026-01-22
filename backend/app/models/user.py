@@ -20,9 +20,9 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     
     # 角色和归属
-    role = Column(String(50), default='individual', nullable=False, comment='用户角色：individual/platform_admin/school_admin/channel_manager/channel_partner/teacher/student')
-    school_id = Column(Integer, ForeignKey('core_schools.id', ondelete='SET NULL'), nullable=True, index=True, comment='所属学校ID（独立用户为NULL）')
-    school_name = Column(String(200), nullable=True, comment='学校名称（冗余字段，便于查询）')
+    role = Column(String(50), default='individual', nullable=False, comment='用户角色：individual/platform_admin/team_admin/channel_manager/channel_partner/teacher/student')
+    team_id = Column(Integer, ForeignKey('core_teams.id', ondelete='SET NULL'), nullable=True, index=True, comment='所属团队ID（独立用户为NULL）')
+    team_name = Column(String(200), nullable=True, comment='团队名称（冗余字段，便于查询）')
     
     # 机构用户字段
     teacher_number = Column(String(50), nullable=True, index=True, comment='教师工号（仅教师/学校管理员有）')
@@ -44,7 +44,7 @@ class User(Base):
     deleted_at = Column(DateTime, nullable=True, comment='软删除时间')
     
     # 关系
-    # school = relationship("School", back_populates="users")
+    # team = relationship("Team", back_populates="users")
     # 选课关系（学生-课程多对多）
     enrolled_courses = relationship("CourseStudent", back_populates="student", cascade="all, delete-orphan")
     # 授课关系（教师-课程多对多）

@@ -169,7 +169,7 @@ request.interceptors.response.use(
       'teacher/auth/login',
       'admin/auth/login',
       'channel/auth/login',
-      'school/auth/login'
+      'team/auth/login'
     ]
     
     // 检查当前请求是否是不需要刷新token的接口

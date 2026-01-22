@@ -13,7 +13,7 @@ from decimal import Decimal
 
 class CourseCreate(BaseModel):
     """创建课程Schema"""
-    school_id: int = Field(..., description="所属学校ID")
+    team_id: int = Field(..., description="所属团队ID")
     course_name: str = Field(..., min_length=1, max_length=100, description="课程名称")
     course_code: Optional[str] = Field(None, max_length=20, description="课程编号")
     academic_year: Optional[str] = Field(None, max_length=20, description="学年")
@@ -51,7 +51,7 @@ class CourseResponse(BaseModel):
     """课程响应Schema"""
     id: int
     uuid: str
-    school_id: int
+    team_id: int
     course_name: str
     course_code: Optional[str] = None
     academic_year: Optional[str] = None
@@ -74,7 +74,7 @@ class CourseListResponse(BaseModel):
     """课程列表响应Schema（简化版）"""
     id: int
     uuid: str
-    school_id: int
+    team_id: int
     course_name: str
     course_code: Optional[str] = None
     academic_year: Optional[str] = None
@@ -226,7 +226,7 @@ class CourseGroupResponse(BaseModel):
     id: int
     uuid: str
     course_id: int
-    school_id: int
+    team_id: int
     group_name: str
     group_number: Optional[int] = None
     leader_id: Optional[int] = None

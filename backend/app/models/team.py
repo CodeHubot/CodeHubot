@@ -4,14 +4,14 @@ from app.core.database import Base
 from app.utils.timezone import get_beijing_time_naive
 import uuid as uuid_lib
 
-class School(Base):
-    """学校模型"""
-    __tablename__ = "core_schools"
+class Team(Base):
+    """团队模型"""
+    __tablename__ = "core_teams"
     
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID，用于外部API访问')
-    school_code = Column(String(50), unique=True, nullable=False, index=True, comment='学校代码（如 BJ-YCZX）')
-    school_name = Column(String(200), nullable=False, comment='学校名称')
+    team_code = Column(String(50), unique=True, nullable=False, index=True, comment='团队代码（如 BJ-TEAM1）')
+    team_name = Column(String(200), nullable=False, comment='团队名称')
     province = Column(String(50), comment='省份')
     city = Column(String(50), comment='城市')
     district = Column(String(50), comment='区/县')
@@ -27,9 +27,9 @@ class School(Base):
     max_students = Column(Integer, default=1000, comment='最大学生数')
     max_devices = Column(Integer, default=500, comment='最大设备数')
     
-    # 学校管理员信息
-    admin_user_id = Column(Integer, comment='学校管理员用户ID')
-    admin_username = Column(String(100), comment='学校管理员用户名')
+    # 团队管理员信息
+    admin_user_id = Column(Integer, comment='团队管理员用户ID')
+    admin_username = Column(String(100), comment='团队管理员用户名')
     
     # 视频权限控制
     video_student_view_limit = Column(Integer, comment='学生视频观看次数限制（NULL表示不限制）')
@@ -38,18 +38,18 @@ class School(Base):
     # 注意：current_teachers 和 current_students 字段存在于数据库表中，
     # 但我们在代码中使用实时查询而不是存储的值，所以这里不定义这两个字段
     
-    # 学校描述
-    description = Column(Text, comment='学校描述')
+    # 团队描述
+    description = Column(Text, comment='团队描述')
     
     # 时间戳 - 使用北京时间
     created_at = Column(DateTime, default=get_beijing_time_naive, nullable=False)
     updated_at = Column(DateTime, default=get_beijing_time_naive, onupdate=get_beijing_time_naive, nullable=False)
     
     # 关系
-    # users = relationship("User", back_populates="school")
-    courses = relationship("Course", back_populates="school", cascade="all, delete-orphan")
-    course_groups = relationship("CourseGroup", back_populates="school", cascade="all, delete-orphan")
-    group_members = relationship("GroupMember", back_populates="school", cascade="all, delete-orphan")
-    device_groups = relationship("DeviceGroup", back_populates="school", cascade="all, delete-orphan")
-    devices = relationship("Device", back_populates="school")
+    # users = relationship("User", back_populates="team")
+    courses = relationship("Course", back_populates="team", cascade="all, delete-orphan")
+    course_groups = relationship("CourseGroup", back_populates="team", cascade="all, delete-orphan")
+    group_members = relationship("GroupMember", back_populates="team", cascade="all, delete-orphan")
+    device_groups = relationship("DeviceGroup", back_populates="team", cascade="all, delete-orphan")
+    devices = relationship("Device", back_populates="team")
 

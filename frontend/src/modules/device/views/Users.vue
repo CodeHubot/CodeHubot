@@ -420,7 +420,7 @@ const getRoleLabel = (role) => {
     platform_admin: '平台管理员',
     individual: '普通用户',
     // 兼容其他可能存在的角色
-    school_admin: '学校管理员',
+    team_admin: '学校管理员',
     teacher: '教师',
     student: '学生',
     channel_manager: '渠道经理',
@@ -436,7 +436,7 @@ const getRoleTagType = (role) => {
     platform_admin: 'danger',
     individual: 'primary',
     // 兼容其他可能存在的角色
-    school_admin: 'warning',
+    team_admin: 'warning',
     teacher: 'success',
     student: 'primary',
     channel_manager: '',

@@ -145,7 +145,7 @@ router.beforeEach(async (to, from, next) => {
   // 检查教师或管理员权限
   if (to.meta.requiresTeacherOrAdmin) {
     const userRole = authStore.userInfo?.role
-    if (!['platform_admin', 'school_admin', 'teacher'].includes(userRole)) {
+    if (!['platform_admin', 'team_admin', 'teacher'].includes(userRole)) {
       ElMessage.error('只有教师或管理员可以访问该页面')
       next('/')
       return

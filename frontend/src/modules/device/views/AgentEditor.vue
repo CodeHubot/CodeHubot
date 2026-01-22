@@ -641,7 +641,7 @@ const useTemplate = (template) => {
 const scopeTypeLabel = (scopeType) => {
   const labels = {
     system: '系统级',
-    school: '学校级',
+    team: '团队级',
     course: '课程级',
     personal: '个人级'
   }

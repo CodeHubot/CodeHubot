@@ -15,7 +15,7 @@ class Course(Base):
     
     id = Column(Integer, primary_key=True, index=True, comment="课程ID")
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID，用于外部API访问')
-    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=False, index=True, comment="所属学校ID")
+    team_id = Column(Integer, ForeignKey("core_teams.id"), nullable=False, index=True, comment="所属团队ID")
     course_name = Column(String(100), nullable=False, comment="课程名称")
     course_code = Column(String(20), comment="课程编号")
     academic_year = Column(String(20), index=True, comment="学年")
@@ -31,7 +31,7 @@ class Course(Base):
     deleted_at = Column(DateTime, nullable=True, comment="删除时间")
     
     # 关系
-    school = relationship("School", back_populates="courses")
+    team = relationship("Team", back_populates="courses")
     course_teachers = relationship("CourseTeacher", back_populates="course", cascade="all, delete-orphan")
     course_students = relationship("CourseStudent", back_populates="course", cascade="all, delete-orphan")
     groups = relationship("CourseGroup", back_populates="course", cascade="all, delete-orphan")
@@ -79,7 +79,7 @@ class CourseGroup(Base):
     id = Column(Integer, primary_key=True, index=True, comment="小组ID")
     uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid_lib.uuid4()), comment='UUID，用于外部API访问')
     course_id = Column(Integer, ForeignKey("aiot_courses.id"), nullable=False, index=True, comment="所属课程ID")
-    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=False, index=True, comment="所属学校ID")
+    team_id = Column(Integer, ForeignKey("core_teams.id"), nullable=False, index=True, comment="所属团队ID")
     group_name = Column(String(100), nullable=False, comment="小组名称")
     group_number = Column(Integer, comment="小组编号")
     leader_id = Column(Integer, ForeignKey("core_users.id"), nullable=True, index=True, comment="组长ID")
@@ -93,7 +93,7 @@ class CourseGroup(Base):
     
     # 关系
     course = relationship("Course", back_populates="groups")
-    school = relationship("School", back_populates="course_groups")
+    team = relationship("Team", back_populates="course_groups")
     leader = relationship("User", foreign_keys=[leader_id], back_populates="led_course_groups")
     members = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
 
@@ -105,7 +105,7 @@ class GroupMember(Base):
     id = Column(Integer, primary_key=True, index=True, comment="记录ID")
     group_id = Column(Integer, ForeignKey("aiot_course_groups.id"), nullable=False, index=True, comment="小组ID")
     course_id = Column(Integer, ForeignKey("aiot_courses.id"), nullable=False, index=True, comment="课程ID")
-    school_id = Column(Integer, ForeignKey("core_schools.id"), nullable=False, index=True, comment="学校ID")
+    team_id = Column(Integer, ForeignKey("core_teams.id"), nullable=False, index=True, comment="团队ID")
     student_id = Column(Integer, ForeignKey("core_users.id"), nullable=False, index=True, comment="学生ID")
     student_name = Column(String(100), comment="学生姓名")
     student_number = Column(String(50), comment="学号")
@@ -118,5 +118,5 @@ class GroupMember(Base):
     # 关系
     group = relationship("CourseGroup", back_populates="members")
     course = relationship("Course", back_populates="group_members")
-    school = relationship("School", back_populates="group_members")
+    team = relationship("Team", back_populates="group_members")
     student = relationship("User", back_populates="group_memberships")

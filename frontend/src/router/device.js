@@ -119,11 +119,11 @@ export default [
         meta: { title: '模块配置', requiresPlatformAdmin: true }
       },
       {
-        path: 'schools',
-        name: 'SchoolManagement',
-        component: () => import('@device/views/SchoolManagement.vue'),
+        path: 'teams',
+        name: 'TeamManagement',
+        component: () => import('@device/views/TeamManagement.vue'),
         meta: { 
-          title: '学校管理',
+          title: '团队管理',
           requiresPlatformAdmin: true 
         }
       },

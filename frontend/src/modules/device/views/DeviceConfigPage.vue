@@ -53,6 +53,7 @@
                     {{ sensor.range ? `范围: ${sensor.range.min}-${sensor.range.max}` : '' }}
                   </span>
                 </div>
+                <!-- 功能描述输入框 - 已注释
                 <div class="config-row" style="margin-top: 8px;">
                   <el-input
                     v-model="sensor.custom_name"
@@ -63,6 +64,7 @@
                     <template #prepend>功能描述</template>
                   </el-input>
                 </div>
+                -->
               </div>
             </el-form-item>
           </div>
@@ -95,6 +97,7 @@
                     {{ control.voltage ? `电压: ${control.voltage}` : '' }}
                   </span>
                 </div>
+                <!-- 功能描述输入框 - 已注释
                 <div class="config-row" style="margin-top: 8px;">
                   <el-input
                     v-model="control.custom_name"
@@ -105,6 +108,7 @@
                     <template #prepend>功能描述</template>
                   </el-input>
                 </div>
+                -->
               </div>
             </el-form-item>
           </div>
@@ -195,7 +199,7 @@
         <el-form-item label="设备类型" required>
           <el-select v-model="presetForm.device_type" placeholder="选择设备类型" @change="onDeviceTypeChange">
             <el-option label="LED" value="led" />
-            <el-option label="舵机 (Servo)" value="servo" />
+            <!-- <el-option label="舵机 (Servo)" value="servo" /> -->
             <el-option label="继电器 (Relay)" value="relay" />
             <el-option label="PWM输出" value="pwm" />
           </el-select>
@@ -212,7 +216,8 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="目标设备" v-if="presetForm.device_type">
+        <!-- 目标设备 - 暂时注释 -->
+        <!-- <el-form-item label="目标设备" v-if="presetForm.device_type">
           <el-select v-model="presetForm.device_id" placeholder="选择要控制的设备">
             <el-option
               v-for="port in availablePorts"
@@ -227,7 +232,7 @@
             </el-option>
           </el-select>
           <span class="form-tip">选择要执行预设指令的具体设备端口</span>
-        </el-form-item>
+        </el-form-item> -->
         
         <!-- LED - Blink 参数 -->
         <template v-if="presetForm.device_type === 'led' && presetForm.preset_type === 'blink'">
@@ -612,25 +617,25 @@ const sequenceSteps = ref([])
 // 预设类型选项（根据设备类型动态变化）
 const presetTypeOptions = {
   led: [
-    { label: 'LED闪烁 (Blink)', value: 'blink', desc: '多次快速闪烁' },
-    { label: 'LED波浪灯 (Wave)', value: 'wave', desc: 'LED依次点亮形成波浪效果' },
+    // { label: 'LED闪烁 (Blink)', value: 'blink', desc: '多次快速闪烁' },
+    // { label: 'LED波浪灯 (Wave)', value: 'wave', desc: 'LED依次点亮形成波浪效果' },
     { label: '序列指令 (Sequence)', value: 'sequence', desc: '自定义多步骤控制序列' }
   ],
   servo: [
-    { label: '舵机摆动 (Swing)', value: 'swing', desc: '左右摆动，适合机器狗尾巴等' },
-    { label: '舵机正反转 (Rotate)', value: 'rotate', desc: '连续旋转，适合360度舵机' },
+    // { label: '舵机摆动 (Swing)', value: 'swing', desc: '左右摆动，适合机器狗尾巴等' },
+    // { label: '舵机正反转 (Rotate)', value: 'rotate', desc: '连续旋转，适合360度舵机' },
     { label: '序列指令 (Sequence)', value: 'sequence', desc: '自定义多步骤控制序列' }
   ],
   relay: [
-    { label: '继电器定时开关 (Timed Switch)', value: 'timed_switch', desc: '定时自动关闭' },
+    // { label: '继电器定时开关 (Timed Switch)', value: 'timed_switch', desc: '定时自动关闭' },
     { label: '序列指令 (Sequence)', value: 'sequence', desc: '自定义多步骤控制序列' }
   ],
   pwm: [
-    { label: 'PWM渐变 (Fade)', value: 'fade', desc: '占空比从起始值平滑过渡到目标值' },
-    { label: 'PWM呼吸灯 (Breathe)', value: 'breathe', desc: '循环渐亮渐暗，模拟呼吸效果' },
-    { label: 'PWM步进 (Step)', value: 'step', desc: '按照设定的步进值逐级调整' },
-    { label: 'PWM脉冲 (Pulse)', value: 'pulse', desc: '快速在两个占空比之间切换' },
-    { label: 'PWM固定输出 (Fixed)', value: 'fixed', desc: '设置固定的频率和占空比' },
+    // { label: 'PWM渐变 (Fade)', value: 'fade', desc: '占空比从起始值平滑过渡到目标值' },
+    // { label: 'PWM呼吸灯 (Breathe)', value: 'breathe', desc: '循环渐亮渐暗，模拟呼吸效果' },
+    // { label: 'PWM步进 (Step)', value: 'step', desc: '按照设定的步进值逐级调整' },
+    // { label: 'PWM脉冲 (Pulse)', value: 'pulse', desc: '快速在两个占空比之间切换' },
+    // { label: 'PWM固定输出 (Fixed)', value: 'fixed', desc: '设置固定的频率和占空比' },
     { label: '序列指令 (Sequence)', value: 'sequence', desc: '自定义多步骤控制序列' }
   ]
 }

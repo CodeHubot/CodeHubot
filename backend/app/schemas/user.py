@@ -9,7 +9,7 @@ from app.core.constants import (
 )
 
 # 定义角色类型
-UserRole = Literal['individual', 'platform_admin', 'school_admin', 'teacher', 'student']
+UserRole = Literal['individual', 'platform_admin', 'team_admin', 'teacher', 'student']
 
 class UserCreate(BaseModel):
     """用户注册Schema - 增强输入验证"""
@@ -97,8 +97,8 @@ class UserResponse(BaseModel):
     nickname: Optional[str] = None
     phone: Optional[str] = None
     role: str = 'individual'
-    school_id: Optional[int] = None
-    school_name: Optional[str] = None
+    team_id: Optional[int] = None
+    team_name: Optional[str] = None
     teacher_number: Optional[str] = None
     student_number: Optional[str] = None
     subject: Optional[str] = None
@@ -327,6 +327,6 @@ class RefreshTokenResponse(BaseModel):
 
 class InstitutionLoginRequest(BaseModel):
     """机构登录请求Schema（PBL模块使用）"""
-    school_code: str = Field(..., min_length=2, max_length=50, description="学校代码")
+    team_code: str = Field(..., min_length=2, max_length=50, description="团队代码")
     number: str = Field(..., min_length=1, max_length=50, description="工号或学号")
     password: str = Field(..., min_length=1, description="密码")

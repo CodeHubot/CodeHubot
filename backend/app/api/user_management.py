@@ -15,10 +15,10 @@ from app.core.security import get_password_hash
 from app.core.response import success_response, error_response
 from app.api.auth import get_current_user
 from app.models.user import User
-from app.models.school import School
+from app.models.team import Team
 from app.models.course_model import Course, CourseTeacher, CourseStudent
 from app.schemas.user_management import (
-    SchoolAdminCreate, TeacherCreate, StudentCreate,
+    TeamAdminCreate, TeacherCreate, StudentCreate,
     AssignRoleRequest, UserSearchQuery, InstitutionLoginRequest,
     UserListResponse, AssignRoleResponse, BatchImportResult
 )
@@ -39,30 +39,30 @@ def check_platform_admin(current_user: User = Depends(get_current_user)):
         )
     return current_user
 
-def check_school_admin_or_teacher(current_user: User = Depends(get_current_user)):
-    """检查当前用户是否为学校管理员或教师"""
-    if current_user.role not in ['platform_admin', 'school_admin', 'teacher']:
+def check_team_admin_or_teacher(current_user: User = Depends(get_current_user)):
+    """检查当前用户是否为团队管理员或教师"""
+    if current_user.role not in ['platform_admin', 'team_admin', 'teacher']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有学校管理员或教师才能执行此操作"
+            detail="只有团队管理员或教师才能执行此操作"
         )
     return current_user
 
-def check_school_admin(current_user: User = Depends(get_current_user)):
-    """检查当前用户是否为学校管理员"""
-    if current_user.role not in ['platform_admin', 'school_admin']:
+def check_team_admin(current_user: User = Depends(get_current_user)):
+    """检查当前用户是否为团队管理员"""
+    if current_user.role not in ['platform_admin', 'team_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有学校管理员才能执行此操作"
+            detail="只有团队管理员才能执行此操作"
         )
     return current_user
 
-def check_school_admin_or_teacher(current_user: User = Depends(get_current_user)):
-    """检查当前用户是否为学校管理员或教师"""
-    if current_user.role not in ['platform_admin', 'school_admin', 'teacher']:
+def check_team_admin_or_teacher(current_user: User = Depends(get_current_user)):
+    """检查当前用户是否为团队管理员或教师"""
+    if current_user.role not in ['platform_admin', 'team_admin', 'teacher']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="只有学校管理员或教师才能执行此操作"
+            detail="只有团队管理员或教师才能执行此操作"
         )
     return current_user
 
@@ -73,13 +73,13 @@ def check_school_admin_or_teacher(current_user: User = Depends(get_current_user)
 @router.get("/users", response_model=dict)
 async def list_users(
     role: Optional[str] = Query(None, description="角色筛选"),
-    school_id: Optional[int] = Query(None, description="学校ID筛选"),
+    team_id: Optional[int] = Query(None, description="团队ID筛选"),
     course_id: Optional[int] = Query(None, description="课程ID筛选（学生）"),
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """
     获取用户列表（支持多条件筛选）
@@ -93,12 +93,12 @@ async def list_users(
     if role:
         query = query.filter(User.role == role)
     
-    # 学校筛选（权限控制）
-    if current_user.role in ['school_admin', 'teacher']:
-        # 学校管理员和教师只能查看自己学校的用户
-        query = query.filter(User.school_id == current_user.school_id)
-    elif school_id:
-        query = query.filter(User.school_id == school_id)
+    # 团队筛选（权限控制）
+    if current_user.role in ['team_admin', 'teacher']:
+        # 团队管理员和教师只能查看自己团队的用户
+        query = query.filter(User.team_id == current_user.team_id)
+    elif team_id:
+        query = query.filter(User.team_id == team_id)
     
     # 课程筛选（学生）
     if course_id:
@@ -151,21 +151,21 @@ async def list_users(
     })
 
 # ============================================================================
-# 学校管理员管理
+# 团队管理员管理
 # ============================================================================
 
-@router.post("/school-admins", response_model=dict)
-async def create_school_admin(
-    admin: SchoolAdminCreate,
+@router.post("/team-admins", response_model=dict)
+async def create_team_admin(
+    admin: TeamAdminCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(check_platform_admin)
 ):
-    """创建学校管理员（仅平台管理员）"""
+    """创建团队管理员（仅平台管理员）"""
     
-    # 检查学校是否存在
-    school = db.query(School).filter(School.id == admin.school_id).first()
-    if not school:
-        return error_response(message="学校不存在", code=404)
+    # 检查团队是否存在
+    team = db.query(Team).filter(Team.id == admin.team_id).first()
+    if not team:
+        return error_response(message="团队不存在", code=404)
     
     # 检查用户名是否已存在
     existing_user = db.query(User).filter(User.username == admin.username).first()
@@ -178,24 +178,24 @@ async def create_school_admin(
         if existing_email:
             return error_response(message="邮箱已存在", code=400)
     
-    # 检查工号是否在该学校已存在
+    # 检查工号是否在该团队已存在
     existing_number = db.query(User).filter(
-        User.school_id == admin.school_id,
+        User.team_id == admin.team_id,
         User.teacher_number == admin.teacher_number
     ).first()
     if existing_number:
-        return error_response(message="工号在该学校已存在", code=400)
+        return error_response(message="工号在该团队已存在", code=400)
     
-    # 创建学校管理员
+    # 创建团队管理员
     db_user = User(
         username=admin.username,
         password_hash=get_password_hash(admin.password),
         real_name=admin.real_name or None,
         email=admin.email or None,  # 空字符串转为 None
         phone=admin.phone or None,  # 空字符串转为 None
-        role='school_admin',
-        school_id=admin.school_id,
-        school_name=school.school_name,
+        role='team_admin',
+        team_id=admin.team_id,
+        team_name=team.team_name,
         teacher_number=admin.teacher_number or None,
         is_active=True,
         need_change_password=True  # 首次登录需修改密码
@@ -207,7 +207,7 @@ async def create_school_admin(
     
     return success_response(
         data=UserResponse.from_orm(db_user),
-        message="学校管理员创建成功"
+        message="团队管理员创建成功"
     )
 
 # ============================================================================
@@ -218,24 +218,24 @@ async def create_school_admin(
 async def create_teacher(
     teacher: TeacherCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
-    """创建教师（学校管理员）"""
+    """创建教师（团队管理员）"""
     
-    # 获取学校ID
+    # 获取团队ID
     if current_user.role == 'platform_admin':
-        # 平台管理员需要指定学校（这里暂不支持，让其通过创建学校管理员的方式）
+        # 平台管理员需要指定团队（这里暂不支持，让其通过创建团队管理员的方式）
         return error_response(
-            message="平台管理员请先创建学校管理员，再由学校管理员创建教师",
+            message="平台管理员请先创建团队管理员，再由团队管理员创建教师",
             code=400
         )
     
-    school_id = current_user.school_id
+    team_id = current_user.team_id
     
-    # 检查学校
-    school = db.query(School).filter(School.id == school_id).first()
-    if not school:
-        return error_response(message="学校不存在", code=404)
+    # 检查团队
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        return error_response(message="团队不存在", code=404)
     
     # 检查用户名是否已存在
     existing_user = db.query(User).filter(User.username == teacher.username).first()
@@ -248,24 +248,24 @@ async def create_teacher(
         if existing_email:
             return error_response(message="邮箱已存在", code=400)
     
-    # 检查工号是否在该学校已存在
+    # 检查工号是否在该团队已存在
     existing_number = db.query(User).filter(
-        User.school_id == school_id,
+        User.team_id == team_id,
         User.teacher_number == teacher.teacher_number
     ).first()
     if existing_number:
-        return error_response(message="工号在该学校已存在", code=400)
+        return error_response(message="工号在该团队已存在", code=400)
     
     # 检查是否超过最大教师数
     teacher_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
-        User.role.in_(['teacher', 'school_admin']),
+        User.team_id == team_id,
+        User.role.in_(['teacher', 'team_admin']),
         User.deleted_at.is_(None)
     ).scalar()
     
-    if teacher_count >= school.max_teachers:
+    if teacher_count >= team.max_teachers:
         return error_response(
-            message=f"已达到最大教师数限制（{school.max_teachers}）",
+            message=f"已达到最大教师数限制（{team.max_teachers}）",
             code=400
         )
     
@@ -277,8 +277,8 @@ async def create_teacher(
         email=teacher.email,
         phone=teacher.phone,
         role='teacher',
-        school_id=school_id,
-        school_name=school.school_name,
+        team_id=team_id,
+        team_name=team.team_name,
         teacher_number=teacher.teacher_number,
         subject=teacher.subject,
         is_active=True,
@@ -300,16 +300,16 @@ async def list_teachers(
     page_size: int = Query(20, ge=1, le=100),
     keyword: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
-    """获取教师列表（学校管理员）"""
+    """获取教师列表（团队管理员）"""
     
-    # 获取学校ID
+    # 获取团队ID
     if current_user.role == 'platform_admin':
         # 平台管理员可以看所有教师（暂不支持）
-        school_id = None
+        team_id = None
     else:
-        school_id = current_user.school_id
+        team_id = current_user.team_id
     
     # 构建查询
     query = db.query(User).filter(
@@ -317,8 +317,8 @@ async def list_teachers(
         User.deleted_at.is_(None)
     )
     
-    if school_id:
-        query = query.filter(User.school_id == school_id)
+    if team_id:
+        query = query.filter(User.team_id == team_id)
     
     # 关键词搜索
     if keyword:
@@ -379,28 +379,28 @@ async def create_student(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """创建学生（学校管理员或教师）"""
+    """创建学生（团队管理员或教师）"""
     
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin', 'teacher']:
+    if current_user.role not in ['platform_admin', 'team_admin', 'teacher']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限创建学生"
         )
     
-    # 获取学校ID
+    # 获取团队ID
     if current_user.role == 'platform_admin':
         return error_response(
-            message="平台管理员请先创建学校管理员，再由学校管理员创建学生",
+            message="平台管理员请先创建团队管理员，再由团队管理员创建学生",
             code=400
         )
     
-    school_id = current_user.school_id
+    team_id = current_user.team_id
     
-    # 检查学校
-    school = db.query(School).filter(School.id == school_id).first()
-    if not school:
-        return error_response(message="学校不存在", code=404)
+    # 检查团队
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        return error_response(message="团队不存在", code=404)
     
     # 检查用户名是否已存在
     existing_user = db.query(User).filter(User.username == student.username).first()
@@ -413,24 +413,24 @@ async def create_student(
         if existing_email:
             return error_response(message="邮箱已存在", code=400)
     
-    # 检查学号是否在该学校已存在
+    # 检查学号是否在该团队已存在
     existing_number = db.query(User).filter(
-        User.school_id == school_id,
+        User.team_id == team_id,
         User.student_number == student.student_number
     ).first()
     if existing_number:
-        return error_response(message="学号在该学校已存在", code=400)
+        return error_response(message="学号在该团队已存在", code=400)
     
     # 检查是否超过最大学生数
     student_count = db.query(func.count(User.id)).filter(
-        User.school_id == school_id,
+        User.team_id == team_id,
         User.role == 'student',
         User.deleted_at.is_(None)
     ).scalar()
     
-    if student_count >= school.max_students:
+    if student_count >= team.max_students:
         return error_response(
-            message=f"已达到最大学生数限制（{school.max_students}）",
+            message=f"已达到最大学生数限制（{team.max_students}）",
             code=400
         )
     
@@ -442,8 +442,8 @@ async def create_student(
         gender=student.gender,
         student_number=student.student_number,
         role='student',
-        school_id=school_id,
-        school_name=school.school_name,
+        team_id=team_id,
+        team_name=team.team_name,
         is_active=True,
         need_change_password=True
     )
@@ -457,7 +457,7 @@ async def create_student(
         for course_id in student.course_ids:
             course = db.query(Course).filter(
                 Course.id == course_id,
-                Course.school_id == school_id,
+                Course.team_id == team_id,
                 Course.deleted_at.is_(None),
                 Course.is_active == True
             ).first()
@@ -493,20 +493,20 @@ async def list_students(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取学生列表（学校管理员或教师）"""
+    """获取学生列表（团队管理员或教师）"""
     
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin', 'teacher']:
+    if current_user.role not in ['platform_admin', 'team_admin', 'teacher']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限查看学生列表"
         )
     
-    # 获取学校ID
+    # 获取团队ID
     if current_user.role == 'platform_admin':
-        school_id = None
+        team_id = None
     else:
-        school_id = current_user.school_id
+        team_id = current_user.team_id
     
     # 构建查询
     query = db.query(User).filter(
@@ -514,8 +514,8 @@ async def list_students(
         User.deleted_at.is_(None)
     )
     
-    if school_id:
-        query = query.filter(User.school_id == school_id)
+    if team_id:
+        query = query.filter(User.team_id == team_id)
     
     # 关键词搜索
     if keyword:
@@ -591,9 +591,9 @@ async def search_individual_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
-    """搜索独立用户（用于添加为教师/学校管理员）
+    """搜索独立用户（用于添加为教师/团队管理员）
     
     支持通过用户名(username)或真实姓名(real_name)进行模糊搜索
     """
@@ -601,7 +601,7 @@ async def search_individual_users(
     # 构建查询
     query = db.query(User).filter(
         User.role == 'individual',
-        User.school_id.is_(None),
+        User.team_id.is_(None),
         User.deleted_at.is_(None)
     )
     
@@ -646,9 +646,9 @@ async def assign_role(
     user_uuid: str,
     assign_request: AssignRoleRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin)
+    current_user: User = Depends(check_team_admin)
 ):
-    """分配角色（将独立用户转为教师、学生或学校管理员）"""
+    """分配角色（将独立用户转为教师、学生或团队管理员）"""
     
     # 查找用户
     user = db.query(User).filter(
@@ -660,28 +660,28 @@ async def assign_role(
         return error_response(message="用户不存在", code=404)
     
     # 检查用户是否为独立用户
-    if user.role != 'individual' or user.school_id is not None:
+    if user.role != 'individual' or user.team_id is not None:
         return error_response(
-            message="只能将独立用户转换为教师、学生或学校管理员",
+            message="只能将独立用户转换为教师、学生或团队管理员",
             code=400
         )
     
-    # 获取学校ID（如果是设置学校管理员，使用请求中的school_id；否则使用当前用户的school_id）
-    if assign_request.new_role == 'school_admin':
-        # 平台管理员可以设置任意学校的管理员
+    # 获取团队ID（如果是设置团队管理员，使用请求中的team_id；否则使用当前用户的team_id）
+    if assign_request.new_role == 'team_admin':
+        # 平台管理员可以设置任意团队的管理员
         if current_user.role != 'platform_admin':
             return error_response(
-                message="只有平台管理员才能设置学校管理员",
+                message="只有平台管理员才能设置团队管理员",
                 code=403
             )
-        school_id = assign_request.school_id
+        team_id = assign_request.team_id
     else:
-        # 学校管理员只能为自己的学校添加教师/学生
-        school_id = current_user.school_id
+        # 团队管理员只能为自己的团队添加教师/学生
+        team_id = current_user.team_id
     
-    school = db.query(School).filter(School.id == school_id).first()
-    if not school:
-        return error_response(message="学校不存在", code=404)
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        return error_response(message="团队不存在", code=404)
     
     # 保存旧角色
     old_role = user.role
@@ -690,91 +690,91 @@ async def assign_role(
     if assign_request.new_role == 'teacher':
         # 检查工号是否已存在
         existing_number = db.query(User).filter(
-            User.school_id == school_id,
+            User.team_id == team_id,
             User.teacher_number == assign_request.teacher_number
         ).first()
         if existing_number:
-            return error_response(message="工号在该学校已存在", code=400)
+            return error_response(message="工号在该团队已存在", code=400)
         
         # 检查是否超过最大教师数
         teacher_count = db.query(func.count(User.id)).filter(
-            User.school_id == school_id,
-            User.role.in_(['teacher', 'school_admin']),
+            User.team_id == team_id,
+            User.role.in_(['teacher', 'team_admin']),
             User.deleted_at.is_(None)
         ).scalar()
         
-        if teacher_count >= school.max_teachers:
+        if teacher_count >= team.max_teachers:
             return error_response(
-                message=f"已达到最大教师数限制（{school.max_teachers}）",
+                message=f"已达到最大教师数限制（{team.max_teachers}）",
                 code=400
             )
         
         # 更新用户信息
         user.role = 'teacher'
-        user.school_id = school_id
-        user.school_name = school.school_name
+        user.team_id = team_id
+        user.team_name = team.team_name
         user.teacher_number = assign_request.teacher_number
         user.subject = assign_request.subject
         
     elif assign_request.new_role == 'student':
         # 检查学号是否已存在
         existing_number = db.query(User).filter(
-            User.school_id == school_id,
+            User.team_id == team_id,
             User.student_number == assign_request.student_number
         ).first()
         if existing_number:
-            return error_response(message="学号在该学校已存在", code=400)
+            return error_response(message="学号在该团队已存在", code=400)
         
         # 检查是否超过最大学生数
         student_count = db.query(func.count(User.id)).filter(
-            User.school_id == school_id,
+            User.team_id == team_id,
             User.role == 'student',
             User.deleted_at.is_(None)
         ).scalar()
         
-        if student_count >= school.max_students:
+        if student_count >= team.max_students:
             return error_response(
-                message=f"已达到最大学生数限制（{school.max_students}）",
+                message=f"已达到最大学生数限制（{team.max_students}）",
                 code=400
             )
         
         # 更新用户信息
         user.role = 'student'
-        user.school_id = school_id
-        user.school_name = school.school_name
+        user.team_id = team_id
+        user.team_name = team.team_name
         user.student_number = assign_request.student_number
         
-    elif assign_request.new_role == 'school_admin':
+    elif assign_request.new_role == 'team_admin':
         # 检查工号是否已存在
         existing_number = db.query(User).filter(
-            User.school_id == school_id,
+            User.team_id == team_id,
             User.teacher_number == assign_request.teacher_number,
             User.deleted_at.is_(None)
         ).first()
         if existing_number:
-            return error_response(message="工号在该学校已存在", code=400)
+            return error_response(message="工号在该团队已存在", code=400)
         
-        # 检查是否超过最大教师数（学校管理员也算在教师数内）
+        # 检查是否超过最大教师数（团队管理员也算在教师数内）
         teacher_count = db.query(func.count(User.id)).filter(
-            User.school_id == school_id,
-            User.role.in_(['teacher', 'school_admin']),
+            User.team_id == team_id,
+            User.role.in_(['teacher', 'team_admin']),
             User.deleted_at.is_(None)
         ).scalar()
         
-        if teacher_count >= school.max_teachers:
+        if teacher_count >= team.max_teachers:
             return error_response(
-                message=f"已达到最大教师数限制（{school.max_teachers}）",
+                message=f"已达到最大教师数限制（{team.max_teachers}）",
                 code=400
             )
         
         # 更新用户信息
-        user.role = 'school_admin'
-        user.school_id = school_id
-        user.school_name = school.school_name
+        user.role = 'team_admin'
+        user.team_id = team_id
+        user.team_name = team.team_name
         user.teacher_number = assign_request.teacher_number
-        user.subject = assign_request.subject  # 学校管理员也可以有学科
+        user.subject = assign_request.subject  # 团队管理员也可以有学科
     
-    # TODO: 更新用户的设备和智能体的school_id
+    # TODO: 更新用户的设备和智能体的team_id
     
     db.commit()
     db.refresh(user)
@@ -785,8 +785,8 @@ async def assign_role(
         username=user.username,
         old_role=old_role,
         new_role=user.role,
-        school_id=user.school_id,
-        school_name=user.school_name,
+        team_id=user.team_id,
+        team_name=user.team_name,
         teacher_number=user.teacher_number,
         student_number=user.student_number,
         devices_retained=0,  # TODO: 统计设备数
@@ -810,7 +810,7 @@ async def update_user(
     """更新用户信息（管理员用）"""
     
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin']:
+    if current_user.role not in ['platform_admin', 'team_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限更新用户信息"
@@ -825,9 +825,9 @@ async def update_user(
     if not user:
         return error_response(message="用户不存在", code=404)
     
-    # 学校管理员只能更新本校用户
-    if current_user.role == 'school_admin':
-        if user.school_id != current_user.school_id:
+    # 团队管理员只能更新本校用户
+    if current_user.role == 'team_admin':
+        if user.team_id != current_user.team_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="只能更新本校用户"
@@ -854,7 +854,7 @@ async def delete_user(
     """删除用户（软删除）"""
     
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin']:
+    if current_user.role not in ['platform_admin', 'team_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有权限删除用户"
@@ -869,9 +869,9 @@ async def delete_user(
     if not user:
         return error_response(message="用户不存在", code=404)
     
-    # 学校管理员只能删除本校用户
-    if current_user.role == 'school_admin':
-        if user.school_id != current_user.school_id:
+    # 团队管理员只能删除本校用户
+    if current_user.role == 'team_admin':
+        if user.team_id != current_user.team_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="只能删除本校用户"
@@ -898,15 +898,15 @@ async def delete_user(
 async def batch_import_teachers(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """
     批量导入教师（Excel文件）
     事务回滚：遇到错误全部回滚
     """
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin']:
-        return error_response(message="只有学校管理员才能批量导入教师", code=403)
+    if current_user.role not in ['platform_admin', 'team_admin']:
+        return error_response(message="只有团队管理员才能批量导入教师", code=403)
     
     # 验证文件类型
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -929,11 +929,11 @@ async def batch_import_teachers(
         if not teachers_data:
             return error_response(message="Excel文件中没有有效数据", code=400)
         
-        # 获取学校ID
-        school_id = current_user.school_id
-        school = db.query(School).filter(School.id == school_id).first()
-        if not school:
-            return error_response(message="学校不存在", code=404)
+        # 获取团队ID
+        team_id = current_user.team_id
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            return error_response(message="团队不存在", code=404)
         
         # 开始事务
         success_count = 0
@@ -959,7 +959,7 @@ async def batch_import_teachers(
                     # 检查工号是否已存在
                     existing_number = db.query(User).filter(
                         User.teacher_number == teacher_data['teacher_number'],
-                        User.school_id == school_id,
+                        User.team_id == team_id,
                         User.deleted_at.is_(None)
                     ).first()
                     
@@ -977,8 +977,8 @@ async def batch_import_teachers(
                         subject=teacher_data.get('subject'),
                         phone=teacher_data.get('phone'),
                         role='teacher',
-                        school_id=school_id,
-                        school_name=school.school_name,
+                        team_id=team_id,
+                        team_name=team.team_name,
                         is_active=True,
                         need_change_password=True
                     )
@@ -1034,15 +1034,15 @@ async def batch_import_teachers(
 async def batch_import_students(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """
     批量导入学生（Excel文件）
     事务回滚：遇到错误全部回滚
     """
     # 权限检查
-    if current_user.role not in ['platform_admin', 'school_admin']:
-        return error_response(message="只有学校管理员才能批量导入学生", code=403)
+    if current_user.role not in ['platform_admin', 'team_admin']:
+        return error_response(message="只有团队管理员才能批量导入学生", code=403)
     
     # 验证文件类型
     if not file.filename.endswith(('.xlsx', '.xls')):
@@ -1065,11 +1065,11 @@ async def batch_import_students(
         if not students_data:
             return error_response(message="Excel文件中没有有效数据", code=400)
         
-        # 获取学校ID
-        school_id = current_user.school_id
-        school = db.query(School).filter(School.id == school_id).first()
-        if not school:
-            return error_response(message="学校不存在", code=404)
+        # 获取团队ID
+        team_id = current_user.team_id
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            return error_response(message="团队不存在", code=404)
         
         # 开始事务
         success_count = 0
@@ -1094,7 +1094,7 @@ async def batch_import_students(
                     # 检查学号是否已存在
                     existing_number = db.query(User).filter(
                         User.student_number == student_data['student_number'],
-                        User.school_id == school_id,
+                        User.team_id == team_id,
                         User.deleted_at.is_(None)
                     ).first()
                     
@@ -1111,8 +1111,8 @@ async def batch_import_students(
                         gender=student_data['gender'],
                         student_number=student_data['student_number'],
                         role='student',
-                        school_id=school_id,
-                        school_name=school.school_name,
+                        team_id=team_id,
+                        team_name=team.team_name,
                         is_active=True,
                         need_change_password=True
                     )
@@ -1166,7 +1166,7 @@ async def batch_import_students(
 
 @router.get("/teachers/import-template")
 async def download_teacher_template(
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """下载教师导入模板"""
     template = generate_teacher_template()
@@ -1182,7 +1182,7 @@ async def download_teacher_template(
 
 @router.get("/students/import-template")
 async def download_student_template(
-    current_user: User = Depends(check_school_admin_or_teacher)
+    current_user: User = Depends(check_team_admin_or_teacher)
 ):
     """下载学生导入模板"""
     template = generate_student_template()

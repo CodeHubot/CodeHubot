@@ -164,7 +164,7 @@ function checkForceChangePassword() {
 // 角色判断
 const userRole = computed(() => authStore.userInfo?.role || 'individual')
 const isPlatformAdmin = computed(() => userRole.value === 'platform_admin')
-const isSchoolAdmin = computed(() => userRole.value === 'school_admin')
+const isTeamAdmin = computed(() => userRole.value === 'team_admin')
 const isTeacher = computed(() => userRole.value === 'teacher')
 const isStudent = computed(() => userRole.value === 'student')
 const isIndividual = computed(() => userRole.value === 'individual')
@@ -172,7 +172,7 @@ const isIndividual = computed(() => userRole.value === 'individual')
 // 权限判断
 // 教师、学校管理员、平台管理员可以访问设备授权功能
 const canAccessAuthorization = computed(() => 
-  isPlatformAdmin.value || isSchoolAdmin.value || isTeacher.value
+  isPlatformAdmin.value || isTeamAdmin.value || isTeacher.value
 )
 
 function toggleCollapse() {

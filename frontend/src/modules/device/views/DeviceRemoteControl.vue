@@ -510,13 +510,25 @@ const loadDeviceInfo = async () => {
   }
 }
 
-// 加载预设指令（仅显示用户自定义）
+// 加载预设指令（系统预设 + 用户自定义）
 const loadPresets = async () => {
   if (!deviceUuid.value) return
   
   loadingPresets.value = true
   try {
-    // 仅加载用户自定义预设指令
+    // 1. 从后端 API 获取系统自动生成的预设指令
+    let systemPresets = []
+    try {
+      const response = await getDevicePresets(deviceUuid.value)
+      if (response.data && response.data.presets) {
+        systemPresets = response.data.presets
+        logger.info('加载系统预设指令:', systemPresets.length, '个')
+      }
+    } catch (apiError) {
+      logger.warn('获取系统预设指令失败:', apiError)
+    }
+    
+    // 2. 加载用户自定义预设指令
     let customPresets = []
     if (deviceConfig.value && deviceConfig.value.device_preset_commands) {
       customPresets = deviceConfig.value.device_preset_commands.map((preset, index) => {
@@ -528,7 +540,9 @@ const loadPresets = async () => {
             type: 'sequence',
             cmd: 'sequence',
             description: preset.description || `自定义序列预设：${preset.name}`,
-            steps: preset.steps || []
+            steps: preset.steps || [],
+            preset_key: preset.preset_key, // 传递 preset_key，Coze 需要这个
+            isCustom: true // 标记为用户自定义
           }
         }
         return {
@@ -540,17 +554,19 @@ const loadPresets = async () => {
           device_type_display: preset.device_type?.toUpperCase() || 'UNKNOWN', // 用于显示的大写版本
           device_id: preset.device_id || 0,
           preset_type: preset.preset_type,
+          preset_key: preset.preset_key, // 传递 preset_key，Coze 需要这个
           description: `自定义预设：${preset.name}`,
           control_type: preset.preset_type, // 用于界面渲染
-          parameters: preset.parameters || {}
+          parameters: preset.parameters || {},
+          isCustom: true // 标记为用户自定义
         }
       })
-      logger.info('加载用户自定义预设指令:', customPresets)
+      logger.info('加载用户自定义预设指令:', customPresets.length, '个')
     }
     
-    // 只显示自定义预设
-    presets.value = customPresets
-    logger.info('总预设指令数:', presets.value.length, '(仅自定义)')
+    // 3. 合并系统预设和用户自定义预设（系统预设在前，用户自定义在后）
+    presets.value = [...systemPresets, ...customPresets]
+    logger.info('总预设指令数:', presets.value.length, '(系统:', systemPresets.length, '+ 自定义:', customPresets.length, ')')
       
       // 初始化控制值
       presets.value.forEach(preset => {
@@ -1213,15 +1229,15 @@ const getPresetTypeTag = (type) => {
 
 // 获取预设标识（用于学生引用）
 const getPresetIdentifier = (preset) => {
-  // 优先返回 preset_type（用户自定义预设的类型标识）
-  if (preset.preset_type) {
-    return preset.preset_type
+  // 优先返回 preset_key（用户自定义预设的完整标识，Coze 需要这个）
+  if (preset.preset_key) {
+    return preset.preset_key
   }
   // 或者返回 ID（系统预设）
   if (preset.id && !preset.id.toString().startsWith('custom_preset_')) {
     return preset.id
   }
-  // 对于序列类型
+  // 对于序列类型（兜底）
   if (preset.type === 'sequence' || preset.cmd === 'sequence') {
     return 'sequence'
   }

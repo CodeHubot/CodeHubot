@@ -72,7 +72,7 @@ def init_admin_user(db: Session) -> bool:
             password_hash=hashed_password,
             role='platform_admin',  # 平台管理员角色
             is_active=True,
-            school_id=None  # 平台管理员不属于任何学校
+            team_id=None  # 平台管理员不属于任何团队
         )
         logger.debug(f"✅ 管理员用户对象创建成功")
         

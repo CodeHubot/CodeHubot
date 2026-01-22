@@ -21,7 +21,7 @@ class KnowledgeBase(Base):
     icon = Column(String(200), comment="知识库图标URL")
     
     # 作用域
-    scope_type = Column(Enum('system', 'school', 'course', 'agent', 'personal', name='kb_scope_type'), nullable=False, comment="作用域类型")
+    scope_type = Column(Enum('system', 'team', 'course', 'agent', 'personal', name='kb_scope_type'), nullable=False, comment="作用域类型")
     scope_id = Column(Integer, comment="作用域ID")
     parent_kb_id = Column(Integer, ForeignKey("kb_main.id"), comment="父知识库ID")
     
@@ -106,7 +106,7 @@ class KBSharing(Base):
     
     id = Column(Integer, primary_key=True, index=True, comment="共享ID")
     knowledge_base_id = Column(Integer, ForeignKey("kb_main.id"), nullable=False, index=True, comment="知识库ID")
-    school_id = Column(Integer, ForeignKey("core_schools.id"), comment="共享给学校ID")
+    team_id = Column(Integer, ForeignKey("core_teams.id"), comment="共享给团队ID")
     course_id = Column(BigInteger, comment="共享给课程ID")
     user_id = Column(Integer, ForeignKey("core_users.id"), comment="共享给用户ID")
     share_type = Column(Enum('read_only', 'editable', 'reference', name='kb_share_type'), default='read_only', comment="共享类型")

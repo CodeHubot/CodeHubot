@@ -18,7 +18,7 @@ class KnowledgeBaseCreate(BaseModel):
     description: Optional[str] = Field(None, description="知识库描述")
     icon: Optional[str] = Field(None, max_length=200, description="图标URL")
     
-    scope_type: str = Field(..., description="作用域类型：system/school/course/agent/personal")
+    scope_type: str = Field(..., description="作用域类型：system/team/course/agent/personal")
     scope_id: Optional[int] = Field(None, description="作用域ID")
     parent_kb_id: Optional[int] = Field(None, description="父知识库ID")
     
@@ -33,7 +33,7 @@ class KnowledgeBaseCreate(BaseModel):
     
     @validator('scope_type')
     def validate_scope_type(cls, v):
-        valid_types = ['system', 'school', 'course', 'agent', 'personal']
+        valid_types = ['system', 'team', 'course', 'agent', 'personal']
         if v not in valid_types:
             raise ValueError(f'scope_type必须是{valid_types}之一')
         return v
@@ -136,7 +136,7 @@ class KnowledgeBaseStatistics(BaseModel):
     """知识库统计Schema"""
     total_kbs: int
     system_kbs: int
-    school_kbs: int
+    team_kbs: int
     course_kbs: int
     agent_kbs: int
     total_documents: int
@@ -240,7 +240,7 @@ class KBPermissionResponse(BaseModel):
 
 class KBSharingCreate(BaseModel):
     """创建知识库共享Schema"""
-    school_id: Optional[int] = Field(None, description="学校ID（三选一）")
+    team_id: Optional[int] = Field(None, description="团队ID（三选一）")
     course_id: Optional[int] = Field(None, description="课程ID（三选一）")
     user_id: Optional[int] = Field(None, description="用户ID（三选一）")
     share_type: str = Field("read_only", description="共享类型：read_only/editable/reference")
@@ -258,8 +258,8 @@ class KBSharingResponse(BaseModel):
     """知识库共享响应Schema"""
     id: int
     knowledge_base_id: int
-    school_id: Optional[int] = None
-    school_name: Optional[str] = None  # 冗余字段
+    team_id: Optional[int] = None
+    team_name: Optional[str] = None  # 冗余字段
     course_id: Optional[int] = None
     course_name: Optional[str] = None  # 冗余字段
     user_id: Optional[int] = None

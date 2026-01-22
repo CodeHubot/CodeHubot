@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.core.response import success_response, error_response
 from app.api.auth import get_current_user
 from app.models.user import User
-from app.models.school import School
+from app.models.team import Team
 from app.models.course_model import Course
 from app.models.agent import Agent
 from app.models.knowledge_base import KnowledgeBase, AgentKnowledgeBase, KBPermission, KBSharing
@@ -35,25 +35,25 @@ router = APIRouter()
 
 def is_admin_user(user: User) -> bool:
     """检查是否是管理员"""
-    return user.role in ['platform_admin', 'school_admin']
+    return user.role in ['platform_admin', 'team_admin']
 
 
-def get_kb_school_id(kb: KnowledgeBase, db: Session) -> Optional[int]:
-    """获取知识库关联的学校ID"""
-    if kb.scope_type == 'school':
+def get_kb_team_id(kb: KnowledgeBase, db: Session) -> Optional[int]:
+    """获取知识库关联的团队ID"""
+    if kb.scope_type == 'team':
         return kb.scope_id
     elif kb.scope_type == 'course':
         course = db.query(Course).filter(Course.id == kb.scope_id).first()
-        return course.school_id if course else None
+        return course.team_id if course else None
     elif kb.scope_type == 'agent':
         agent = db.query(Agent).filter(Agent.id == kb.scope_id).first()
         if agent:
             agent_owner = db.query(User).filter(User.id == agent.user_id).first()
-            return agent_owner.school_id if agent_owner else None
+            return agent_owner.team_id if agent_owner else None
     elif kb.scope_type == 'personal':
-        # 个人知识库：通过scope_id（用户ID）获取用户的学校ID
+        # 个人知识库：通过scope_id（用户ID）获取用户的团队ID
         user = db.query(User).filter(User.id == kb.scope_id).first()
-        return user.school_id if user else None
+        return user.team_id if user else None
     return None
 
 
@@ -89,7 +89,7 @@ def check_kb_permission(user: User, kb: KnowledgeBase, required_permission: str,
         return kb.owner_id == user.id
     
     # 4. 其他类型的知识库（兼容旧数据，视为私有）
-    # school, course, agent 等旧类型，现在都视为私有知识库
+    # team, course, agent 等旧类型，现在都视为私有知识库
     # 只有所有者可以访问
     return kb.owner_id == user.id
 
@@ -119,7 +119,7 @@ async def create_knowledge_base(
         kb_data.scope_id = current_user.id
         kb_data.access_level = 'private'
     else:
-        # 不支持其他类型（school, course, agent等）
+        # 不支持其他类型（team, course, agent等）
         return error_response(
             message=f"不支持的知识库类型: {kb_data.scope_type}，仅支持 'personal'（私有知识库）和 'system'（系统知识库）",
             code=400
@@ -210,9 +210,9 @@ async def list_knowledge_bases(
         kb_dict['owner_name'] = owner.real_name or owner.name or owner.username if owner else None
         
         # 添加作用域名称
-        if kb.scope_type == 'school' and kb.scope_id:
-            school = db.query(School).filter(School.id == kb.scope_id).first()
-            kb_dict['scope_name'] = school.school_name if school else None
+        if kb.scope_type == 'team' and kb.scope_id:
+            team_obj = db.query(Team).filter(Team.id == kb.scope_id).first()
+            kb_dict['scope_name'] = team_obj.team_name if team_obj else None
         elif kb.scope_type == 'course' and kb.scope_id:
             course = db.query(Course).filter(Course.id == kb.scope_id).first()
             kb_dict['scope_name'] = course.course_name if course else None
@@ -257,9 +257,9 @@ async def get_knowledge_base(
     kb_dict['owner_name'] = owner.real_name or owner.name or owner.username if owner else None
     
     # 添加作用域名称
-    if kb.scope_type == 'school' and kb.scope_id:
-        school = db.query(School).filter(School.id == kb.scope_id).first()
-        kb_dict['scope_name'] = school.school_name if school else None
+    if kb.scope_type == 'team' and kb.scope_id:
+        team_obj = db.query(Team).filter(Team.id == kb.scope_id).first()
+        kb_dict['scope_name'] = team_obj.team_name if team_obj else None
     elif kb.scope_type == 'course' and kb.scope_id:
         course = db.query(Course).filter(Course.id == kb.scope_id).first()
         kb_dict['scope_name'] = course.course_name if course else None
@@ -374,18 +374,18 @@ async def get_hierarchy_tree(
     query = db.query(KnowledgeBase).filter(KnowledgeBase.deleted_at.is_(None))
     
     # 权限过滤（简化版，实际使用check_kb_permission）
-    if current_user.role == 'school_admin' and current_user.school_id:
+    if current_user.role == 'team_admin' and current_user.team_id:
         query = query.filter(
             or_(
                 KnowledgeBase.scope_type == 'system',
                 and_(
-                    KnowledgeBase.scope_type == 'school',
-                    KnowledgeBase.scope_id == current_user.school_id
+                    KnowledgeBase.scope_type == 'team',
+                    KnowledgeBase.scope_id == current_user.team_id
                 ),
                 and_(
                     KnowledgeBase.scope_type == 'course',
                     KnowledgeBase.scope_id.in_(
-                        db.query(Course.id).filter(Course.school_id == current_user.school_id)
+                        db.query(Course.id).filter(Course.team_id == current_user.team_id)
                     )
                 )
             )
@@ -445,8 +445,8 @@ async def get_global_statistics(
         KnowledgeBase.deleted_at.is_(None)
     ).scalar() or 0
     
-    school_kbs = db.query(func.count(KnowledgeBase.id)).filter(
-        KnowledgeBase.scope_type == 'school',
+    team_kbs = db.query(func.count(KnowledgeBase.id)).filter(
+        KnowledgeBase.scope_type == 'team',
         KnowledgeBase.deleted_at.is_(None)
     ).scalar() or 0
     
@@ -475,7 +475,7 @@ async def get_global_statistics(
     stats = KnowledgeBaseStatistics(
         total_kbs=total_kbs,
         system_kbs=system_kbs,
-        school_kbs=school_kbs,
+        team_kbs=team_kbs,
         course_kbs=course_kbs,
         agent_kbs=agent_kbs,
         total_documents=total_documents,
@@ -558,7 +558,7 @@ async def get_available_knowledge_bases_for_agent(
             except Exception as e:
                 logger.error(f"[可用知识库] 查询系统知识库失败: {e}")
         
-        # 注：已移除学校级/课程级知识库查询（系统已简化为只支持 personal 和 system）
+        # 注：已移除团队级/课程级知识库查询（系统已简化为只支持 personal 和 system）
         
         # 去重并获取知识库详情
         accessible_kb_ids = list(set(accessible_kb_ids))

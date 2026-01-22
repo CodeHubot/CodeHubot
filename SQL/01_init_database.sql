@@ -128,11 +128,11 @@ CREATE TABLE `core_users` (
   `real_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '真实姓名（学生必填）',
   `gender` enum('male','female','other') COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '性别：male-男, female-女, other-其他',
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '密码哈希',
-  `role` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'individual' COMMENT '用户角色：individual/platform_admin/school_admin/teacher/student',
-  `school_id` int(11) DEFAULT NULL COMMENT '所属学校ID（独立用户为NULL）',
+  `role` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'individual' COMMENT '用户角色：individual/platform_admin/team_admin/teacher/student',
+  `team_id` int(11) DEFAULT NULL COMMENT '所属团队ID（独立用户为NULL）',
   `class_id` int(11) DEFAULT NULL COMMENT '所属班级ID（学生必填）',
   `group_id` int(11) DEFAULT NULL COMMENT '所属小组ID（学生）',
-  `school_name` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '学校名称（冗余字段，便于查询）',
+  `team_name` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '团队名称（冗余字段，便于查询）',
   `teacher_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '教师工号（仅教师/学校管理员有）',
   `student_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '学号（学生必填）',
   `subject` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '教师学科',
@@ -150,14 +150,14 @@ CREATE TABLE `core_users` (
 -- --------------------------------------------------------
 
 --
--- 表的结构 `core_schools`
+-- 表的结构 `core_teams`
 --
 
-CREATE TABLE `core_schools` (
+CREATE TABLE `core_teams` (
   `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
-  `school_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '学校代码（如 BJ-YCZX）',
-  `school_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '学校名称',
+  `team_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '团队代码（如 BJ-TEAM1）',
+  `team_name` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '团队名称',
   `province` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '省份',
   `city` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '城市',
   `district` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '区/县',
@@ -170,8 +170,8 @@ CREATE TABLE `core_schools` (
   `max_teachers` int(11) DEFAULT NULL COMMENT '最大教师数',
   `max_students` int(11) DEFAULT NULL COMMENT '最大学生数',
   `max_devices` int(11) DEFAULT NULL COMMENT '最大设备数',
-  `admin_user_id` int(11) DEFAULT NULL COMMENT '学校管理员用户ID',
-  `admin_username` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '学校管理员用户名',
+  `admin_user_id` int(11) DEFAULT NULL COMMENT '团队管理员用户ID',
+  `admin_username` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '团队管理员用户名',
   `video_student_view_limit` int(11) DEFAULT NULL COMMENT '学生视频观看次数限制（NULL表示不限制）',
   `video_teacher_view_limit` int(11) DEFAULT NULL COMMENT '教师视频观看次数限制（NULL表示不限制）',
   `current_teachers` int(11) DEFAULT 0 COMMENT '当前教师数',
@@ -295,7 +295,7 @@ CREATE TABLE `device_main` (
   `device_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备ID',
   `product_id` int(11) DEFAULT NULL COMMENT '产品ID',
   `user_id` int(11) DEFAULT NULL COMMENT '用户ID',
-  `school_id` int(11) DEFAULT NULL COMMENT '所属学校ID（用于教学场景）',
+  `team_id` int(11) DEFAULT NULL COMMENT '所属团队ID（用于团队协作场景）',
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备名称',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '设备描述',
   `device_secret` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备密钥',
@@ -425,7 +425,7 @@ CREATE TABLE `device_binding_history` (
 CREATE TABLE `device_groups` (
   `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '分组ID',
   `uuid` char(36) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'UUID，用于外部API访问',
-  `school_id` int(11) NOT NULL COMMENT '所属学校ID',
+  `team_id` int(11) NOT NULL COMMENT '所属团队ID',
   `group_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '设备组名称',
   `group_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '设备组编号',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '描述',
@@ -523,8 +523,8 @@ CREATE TABLE `kb_main` (
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '知识库名称',
   `description` text COLLATE utf8mb4_unicode_ci COMMENT '知识库描述',
   `icon` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '知识库图标URL',
-  `scope_type` enum('system','school','course','agent','personal') COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '作用域类型',
-  `scope_id` int(11) DEFAULT NULL COMMENT '作用域ID（school_id/course_id/agent_id）',
+  `scope_type` enum('system','team','course','agent','personal') COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '作用域类型',
+  `scope_id` int(11) DEFAULT NULL COMMENT '作用域ID（team_id/course_id/agent_id）',
   `parent_kb_id` int(11) DEFAULT NULL COMMENT '父知识库ID（支持继承）',
   `owner_id` int(11) NOT NULL COMMENT '创建者用户ID',
   `access_level` enum('public','protected','private') COLLATE utf8mb4_unicode_ci DEFAULT 'protected' COMMENT '访问级别',
@@ -617,7 +617,7 @@ CREATE TABLE `kb_permissions` (
   `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '权限ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '知识库ID',
   `user_id` int(11) DEFAULT NULL COMMENT '用户ID',
-  `role` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '角色（platform_admin/school_admin/teacher/student）',
+  `role` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '角色（platform_admin/team_admin/teacher/student）',
   `permission_type` enum('read','write','manage','admin') COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '权限类型',
   `granted_by` int(11) NOT NULL COMMENT '授权人ID',
   `expires_at` datetime DEFAULT NULL COMMENT '过期时间（NULL表示永久）',
@@ -634,7 +634,7 @@ CREATE TABLE `kb_permissions` (
 CREATE TABLE `kb_sharing` (
   `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '共享ID',
   `knowledge_base_id` int(11) NOT NULL COMMENT '知识库ID',
-  `school_id` int(11) DEFAULT NULL COMMENT '共享给学校ID',
+  `team_id` int(11) DEFAULT NULL COMMENT '共享给团队ID',
   `course_id` bigint(20) DEFAULT NULL COMMENT '共享给课程ID',
   `user_id` int(11) DEFAULT NULL COMMENT '共享给用户ID',
   `share_type` enum('read_only','editable','reference') COLLATE utf8mb4_unicode_ci DEFAULT 'read_only' COMMENT '共享类型',
@@ -895,12 +895,12 @@ ALTER TABLE `core_users`
   ADD UNIQUE KEY `uk_uuid` (`uuid`),
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `email` (`email`(191)),
-  ADD UNIQUE KEY `uk_school_teacher_number` (`school_id`,`teacher_number`),
-  ADD UNIQUE KEY `uk_school_student_number` (`school_id`,`student_number`),
+  ADD UNIQUE KEY `uk_team_teacher_number` (`team_id`,`teacher_number`),
+  ADD UNIQUE KEY `uk_team_student_number` (`team_id`,`student_number`),
   ADD KEY `idx_email` (`email`(191)),
   ADD KEY `idx_username` (`username`),
   ADD KEY `idx_role` (`role`),
-  ADD KEY `idx_school_id` (`school_id`),
+  ADD KEY `idx_team_id` (`team_id`),
   ADD KEY `idx_teacher_number` (`teacher_number`),
   ADD KEY `idx_student_number` (`student_number`),
   ADD KEY `idx_real_name` (`real_name`(100)),
@@ -909,10 +909,10 @@ ALTER TABLE `core_users`
   ADD KEY `idx_group_id` (`group_id`);
 
 --
--- 表的索引 `core_schools`
+-- 表的索引 `core_teams`
 --
-ALTER TABLE `core_schools`
-  ADD UNIQUE KEY `ix_schools_school_code` (`school_code`),
+ALTER TABLE `core_teams`
+  ADD UNIQUE KEY `ix_teams_team_code` (`team_code`),
   ADD UNIQUE KEY `idx_uuid` (`uuid`);
 
 --
@@ -926,7 +926,7 @@ ALTER TABLE `device_main`
   ADD KEY `idx_device_status` (`device_status`),
   ADD KEY `idx_is_online` (`is_online`),
   ADD KEY `idx_mac_address` (`mac_address`),
-  ADD KEY `idx_school_id` (`school_id`);
+  ADD KEY `idx_team_id` (`team_id`);
 
 --
 -- 表的索引 `device_products`
@@ -961,7 +961,7 @@ ALTER TABLE `device_binding_history`
 --
 ALTER TABLE `device_groups`
   ADD UNIQUE KEY `uuid` (`uuid`),
-  ADD KEY `idx_school_id` (`school_id`),
+  ADD KEY `idx_team_id` (`team_id`),
   ADD KEY `idx_uuid` (`uuid`),
   ADD KEY `idx_is_active` (`is_active`),
   ADD KEY `idx_deleted_at` (`deleted_at`),
@@ -1039,7 +1039,7 @@ ALTER TABLE `kb_permissions`
 --
 ALTER TABLE `kb_sharing`
   ADD KEY `idx_kb` (`knowledge_base_id`),
-  ADD KEY `idx_school` (`school_id`),
+  ADD KEY `idx_team` (`team_id`),
   ADD KEY `idx_course` (`course_id`),
   ADD KEY `idx_user` (`user_id`),
   ADD KEY `fk_kbs_sharer` (`shared_by`);
@@ -1107,7 +1107,7 @@ ALTER TABLE `plugin_main`
 -- 表 `core_users` 的外键约束
 --
 ALTER TABLE `core_users`
-  ADD CONSTRAINT `fk_users_school` FOREIGN KEY (`school_id`) REFERENCES `core_schools` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_users_team` FOREIGN KEY (`team_id`) REFERENCES `core_teams` (`id`) ON DELETE SET NULL;
 
 --
 -- 表 `device_main` 的外键约束
@@ -1115,7 +1115,7 @@ ALTER TABLE `core_users`
 ALTER TABLE `device_main`
   ADD CONSTRAINT `device_main_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `device_products` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `device_main_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `core_users` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_device_school` FOREIGN KEY (`school_id`) REFERENCES `core_schools` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_device_team` FOREIGN KEY (`team_id`) REFERENCES `core_teams` (`id`) ON DELETE SET NULL;
 
 --
 -- 表 `device_products` 的外键约束
@@ -1134,7 +1134,7 @@ ALTER TABLE `device_binding_history`
 -- 表 `device_groups` 的外键约束
 --
 ALTER TABLE `device_groups`
-  ADD CONSTRAINT `device_groups_ibfk_1` FOREIGN KEY (`school_id`) REFERENCES `core_schools` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `device_groups_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `core_teams` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `device_groups_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `core_users` (`id`) ON DELETE SET NULL;
 
 --
@@ -1192,7 +1192,7 @@ ALTER TABLE `kb_permissions`
 -- 注意：course_id 引用的是 pbl_courses 表，该外键约束在 pbl_schema.sql 中定义
 ALTER TABLE `kb_sharing`
   ADD CONSTRAINT `fk_kbs_kb` FOREIGN KEY (`knowledge_base_id`) REFERENCES `kb_main` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_kbs_school` FOREIGN KEY (`school_id`) REFERENCES `core_schools` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_kbs_team` FOREIGN KEY (`team_id`) REFERENCES `core_teams` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_kbs_sharer` FOREIGN KEY (`shared_by`) REFERENCES `core_users` (`id`),
   ADD CONSTRAINT `fk_kbs_user` FOREIGN KEY (`user_id`) REFERENCES `core_users` (`id`) ON DELETE CASCADE;
 

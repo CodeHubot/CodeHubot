@@ -115,7 +115,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Setting, Reading, User, Check, ArrowRight, SwitchButton, MagicStick, Connection, Loading, School, Lock, ArrowDown
+  Setting, Reading, User, Check, ArrowRight, SwitchButton, MagicStick, Connection, Loading, OfficeBuilding, Lock, ArrowDown
 } from '@element-plus/icons-vue'
 import { useAuth, getRoleText } from '@/composables/useAuth'
 import UserProfileDialog from '@/components/UserProfileDialog.vue'
@@ -123,7 +123,7 @@ import { getModuleConfig } from '@/modules/device/api/systemConfig'
 import { useConfigStore } from '@/stores/config'
 
 const router = useRouter()
-const { authStore, loading, isAdmin, isSchoolAdmin, isChannelManager, platformName, platformDescription } = useAuth()
+const { authStore, loading, isAdmin, isTeamAdmin, isChannelManager, platformName, platformDescription } = useAuth()
 const configStore = useConfigStore()
 
 // 对话框状态

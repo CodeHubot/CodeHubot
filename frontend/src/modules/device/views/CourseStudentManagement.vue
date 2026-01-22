@@ -121,7 +121,7 @@
         v-model="studentSearchKeyword"
         placeholder="搜索学生姓名或学号"
         clearable
-        @input="searchSchoolStudents"
+        @input="searchTeamStudents"
         style="margin-bottom: 16px"
       >
         <template #prefix>
@@ -255,16 +255,16 @@ const handleSearch = () => {
 // 显示添加学生对话框
 const showAddStudentDialog = () => {
   addStudentDialogVisible.value = true
-  searchSchoolStudents()
+  searchTeamStudents()
 }
 
-// 搜索学校学生（排除已在课程中的）
-const searchSchoolStudents = async () => {
+// 搜索团队学生（排除已在课程中的）
+const searchTeamStudents = async () => {
   availableStudentsLoading.value = true
   try {
     const data = await getUsers({
       role: 'student',
-      school_id: userStore.userInfo.school_id,
+      team_id: userStore.userInfo.team_id,
       keyword: studentSearchKeyword.value || undefined,
       page: 1,
       page_size: 100
