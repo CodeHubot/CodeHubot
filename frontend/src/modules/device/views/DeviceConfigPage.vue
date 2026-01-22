@@ -781,10 +781,15 @@ const loadDeviceConfig = async () => {
     const response = await getDeviceConfig(deviceUuid.value)
     const deviceConfig = response.data || {}
     
+    // 调试日志：打印完整的响应数据
+    logger.info('设备配置API响应:', response)
+    logger.info('解析后的设备配置:', deviceConfig)
+    
     originalConfig.value = deviceConfig
     
     // 加载预设指令
     presetCommands.value = deviceConfig.device_preset_commands || []
+    logger.info(`加载预设指令: ${presetCommands.value.length} 个`)
     
     // 从产品配置中获取传感器类型定义
     const productSensors = productConfig.value.sensor_types || {}

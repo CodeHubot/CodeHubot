@@ -429,7 +429,7 @@ import { ref, reactive, onMounted, computed, defineComponent, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElSwitch, ElSlider, ElButton, ElInputNumber } from 'element-plus'
 import { ArrowLeft, DocumentCopy } from '@element-plus/icons-vue'
-import { getDevicePresets, sendDeviceControl, getDeviceProductConfig } from '@/api/device'
+import { getDevicePresets, sendDeviceControl, getDeviceProductConfig, getDeviceConfig } from '@/api/device'
 import { getDevicesWithProductInfo } from '@/api/device'
 import logger from '../utils/logger'
 
@@ -465,22 +465,26 @@ const loadProductConfig = async (deviceUuid) => {
       logger.info('产品配置加载成功:', productResponse.data)
     }
     
-    // 加载设备自定义配置（包含启用/禁用状态）
-    const { getDeviceConfig } = await import('@/api/device')
+    // 加载设备自定义配置（包含启用/禁用状态和预设指令）
     const deviceResponse = await getDeviceConfig(deviceUuid)
     if (deviceResponse.data) {
       deviceConfig.value = deviceResponse.data
       logger.info('设备配置加载成功:', deviceResponse.data)
+      // 打印预设指令数量用于调试
+      const presetCount = deviceResponse.data.device_preset_commands?.length || 0
+      logger.info(`加载到 ${presetCount} 个用户自定义预设指令`)
     }
   } catch (error) {
     logger.error('加载配置失败:', error)
+    // 确保即使加载失败也有完整的初始结构
     productConfig.value = {
       control_ports: {},
       sensor_types: {}
     }
     deviceConfig.value = {
       device_control_config: {},
-      device_sensor_config: {}
+      device_sensor_config: {},
+      device_preset_commands: [] // 重要：添加预设指令字段
     }
   } finally {
     loadingConfig.value = false
